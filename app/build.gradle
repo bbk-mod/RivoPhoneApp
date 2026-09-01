@@ -13,12 +13,12 @@ def baseVersionName = "2.1"
 
 android {
     namespace = 'com.grinch.rivo4'
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.grinch.rivo4"
         minSdk = 31
-        targetSdk = 37
+        targetSdk = 36
         versionCode = baseVersionCode + buildNumber
         versionName = isPreviewBuild ? "${baseVersionName}.${buildNumber}-preview" : baseVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

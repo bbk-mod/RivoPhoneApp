@@ -1,5 +1,6 @@
 package com.grinch.rivo4.controller
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +11,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.PowerManager
 import android.provider.BlockedNumberContract
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -31,11 +33,10 @@ data class CallSession(
     val call: Call,
     val state: Int,
     val updateTime: Long = System.currentTimeMillis(),
-    val connectTimeMillis: Long = 0L
+    val connectTimeMillis: Long = 0L,
 )
 
 class CallService : InCallService() {
-
     private val contactsRepository: IContactsRepository by inject()
     private val preferenceManager: PreferenceManager by inject()
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -54,7 +55,8 @@ class CallService : InCallService() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "call_channel"
+        private const val CHANNEL_ID = "call_channel_v2"
+        private const val LEGACY_CHANNEL_ID = "call_channel"
         private const val MISSED_CHANNEL_ID = "missed_call_channel"
         private const val NOTIFICATION_ID = 101
 
@@ -96,30 +98,54 @@ class CallService : InCallService() {
             val supported = state.supportedRouteMask
             val current = state.route
 
-            val nextRoute = when (current) {
-                CallAudioState.ROUTE_EARPIECE -> {
-                    if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) CallAudioState.ROUTE_BLUETOOTH
-                    else if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_SPEAKER
-                    else current
+            val nextRoute =
+                when (current) {
+                    CallAudioState.ROUTE_EARPIECE -> {
+                        if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) {
+                            CallAudioState.ROUTE_BLUETOOTH
+                        } else if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) {
+                            CallAudioState.ROUTE_SPEAKER
+                        } else {
+                            current
+                        }
+                    }
+
+                    CallAudioState.ROUTE_WIRED_HEADSET -> {
+                        if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) {
+                            CallAudioState.ROUTE_SPEAKER
+                        } else if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) {
+                            CallAudioState.ROUTE_BLUETOOTH
+                        } else {
+                            current
+                        }
+                    }
+
+                    CallAudioState.ROUTE_BLUETOOTH -> {
+                        if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) {
+                            CallAudioState.ROUTE_SPEAKER
+                        } else if ((supported and CallAudioState.ROUTE_EARPIECE) != 0) {
+                            CallAudioState.ROUTE_EARPIECE
+                        } else {
+                            current
+                        }
+                    }
+
+                    CallAudioState.ROUTE_SPEAKER -> {
+                        if ((supported and CallAudioState.ROUTE_EARPIECE) != 0) {
+                            CallAudioState.ROUTE_EARPIECE
+                        } else if ((supported and CallAudioState.ROUTE_WIRED_HEADSET) != 0) {
+                            CallAudioState.ROUTE_WIRED_HEADSET
+                        } else if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) {
+                            CallAudioState.ROUTE_BLUETOOTH
+                        } else {
+                            current
+                        }
+                    }
+
+                    else -> {
+                        if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_SPEAKER else current
+                    }
                 }
-                CallAudioState.ROUTE_WIRED_HEADSET -> {
-                    if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_SPEAKER
-                    else if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) CallAudioState.ROUTE_BLUETOOTH
-                    else current
-                }
-                CallAudioState.ROUTE_BLUETOOTH -> {
-                    if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_SPEAKER
-                    else if ((supported and CallAudioState.ROUTE_EARPIECE) != 0) CallAudioState.ROUTE_EARPIECE
-                    else current
-                }
-                CallAudioState.ROUTE_SPEAKER -> {
-                    if ((supported and CallAudioState.ROUTE_EARPIECE) != 0) CallAudioState.ROUTE_EARPIECE
-                    else if ((supported and CallAudioState.ROUTE_WIRED_HEADSET) != 0) CallAudioState.ROUTE_WIRED_HEADSET
-                    else if ((supported and CallAudioState.ROUTE_BLUETOOTH) != 0) CallAudioState.ROUTE_BLUETOOTH
-                    else current
-                }
-                else -> if ((supported and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_SPEAKER else current
-            }
 
             if (nextRoute != current) {
                 instance?.setAudioRoute(nextRoute)
@@ -150,7 +176,11 @@ class CallService : InCallService() {
 
             others.forEach { other ->
                 try {
-                    if (endActive) other.disconnect() else if (other.state == Call.STATE_ACTIVE) other.hold()
+                    if (endActive) {
+                        other.disconnect()
+                    } else if (other.state == Call.STATE_ACTIVE) {
+                        other.hold()
+                    }
                 } catch (e: Exception) {
                 }
             }
@@ -170,7 +200,10 @@ class CallService : InCallService() {
                     call.disconnect()
                 }
             } catch (e: Exception) {
-                try { call.disconnect() } catch (e: Exception) {}
+                try {
+                    call.disconnect()
+                } catch (e: Exception) {
+                }
             }
         }
     }
@@ -187,30 +220,34 @@ class CallService : InCallService() {
         }
     }
 
-    private val callCallback = object : Call.Callback() {
-        override fun onStateChanged(call: Call, state: Int) {
-            super.onStateChanged(call, state)
-            updateCallState()
-            
-            if (state == Call.STATE_ACTIVE) {
-                redialCount = 0
-                startAutoRecordingIfEnabled(call)
-            }
+    private val callCallback =
+        object : Call.Callback() {
+            override fun onStateChanged(
+                call: Call,
+                state: Int,
+            ) {
+                super.onStateChanged(call, state)
+                updateCallState()
 
-            if (state == Call.STATE_DISCONNECTED) {
-                val cause = call.details.disconnectCause
-                handleDisconnect(call, cause)
-
-                val remaining = getCalls()?.filter { it.state != Call.STATE_DISCONNECTED } ?: emptyList()
-                if (remaining.isEmpty()) {
-                    removeForeground()
-                    cancelNotification()
+                if (state == Call.STATE_ACTIVE) {
+                    redialCount = 0
+                    startAutoRecordingIfEnabled(call)
                 }
-            } else {
-                updateNotification(call)
+
+                if (state == Call.STATE_DISCONNECTED) {
+                    val cause = call.details.disconnectCause
+                    handleDisconnect(call, cause)
+
+                    val remaining = getCalls()?.filter { it.state != Call.STATE_DISCONNECTED } ?: emptyList()
+                    if (remaining.isEmpty()) {
+                        removeForeground()
+                        cancelNotification()
+                    }
+                } else {
+                    updateNotification(call)
+                }
             }
         }
-    }
 
     private fun startAutoRecordingIfEnabled(call: Call) {
         if (!preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING, false)) return
@@ -219,36 +256,46 @@ class CallService : InCallService() {
 
         val number = call.details.handle?.schemeSpecificPart ?: ""
         serviceScope.launch(Dispatchers.IO) {
-            val name = if (number.isNotEmpty()) {
-                try { contactsRepository.getContactByNumber(number)?.name } catch (e: Exception) { null } ?: number
-            } else {
-                getString(R.string.label_unknown_number)
-            }
+            val name =
+                if (number.isNotEmpty()) {
+                    try {
+                        contactsRepository.getContactByNumber(number)?.name
+                    } catch (e: Exception) {
+                        null
+                    } ?: number
+                } else {
+                    getString(R.string.label_unknown_number)
+                }
             CallRecorder.start(this@CallService, name)
         }
     }
 
-    private fun handleDisconnect(call: Call, cause: DisconnectCause?) {
+    private fun handleDisconnect(
+        call: Call,
+        cause: DisconnectCause?,
+    ) {
         val number = call.details.handle?.schemeSpecificPart ?: ""
 
         if (CallRecorder.isRecording.value &&
-            (getCalls()?.none { it != call && it.state == Call.STATE_ACTIVE } != false)) {
+            (getCalls()?.none { it != call && it.state == Call.STATE_ACTIVE } != false)
+        ) {
             CallRecorder.stop()
         }
 
         if (cause?.code == DisconnectCause.BUSY &&
-            preferenceManager.getBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, false)) {
-            
+            preferenceManager.getBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, false)
+        ) {
             val maxAttempts = preferenceManager.getInt(PreferenceManager.KEY_REDIAL_ATTEMPTS, 3)
             val delayMs = preferenceManager.getInt(PreferenceManager.KEY_REDIAL_DELAY, 3000).toLong()
-            
+
             if (redialCount < maxAttempts) {
                 redialCount++
                 serviceScope.launch {
                     delay(delayMs)
-                    val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
+                    val intent =
+                        Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
                     startActivity(intent)
                 }
             }
@@ -259,23 +306,37 @@ class CallService : InCallService() {
         val isOutgoing = call.details.callDirection == Call.Details.DIRECTION_OUTGOING
 
         if (isOutgoing && wasNeverConnected) {
-            val failMessage = when {
-                com.grinch.rivo4.controller.util.isAirplaneModeOn(this) ->
-                    getString(R.string.call_failed_airplane_mode)
-                cause?.code == DisconnectCause.RESTRICTED ->
-                    getString(R.string.call_failed_restricted)
-                cause?.code == DisconnectCause.ERROR ->
-                    cause.description?.toString()?.takeIf { it.isNotBlank() } ?: getString(R.string.call_failed_generic)
-                else -> null
-            }
+            val failMessage =
+                when {
+                    com.grinch.rivo4.controller.util
+                        .isAirplaneModeOn(this) -> {
+                        getString(R.string.call_failed_airplane_mode)
+                    }
+
+                    cause?.code == DisconnectCause.RESTRICTED -> {
+                        getString(R.string.call_failed_restricted)
+                    }
+
+                    cause?.code == DisconnectCause.ERROR -> {
+                        cause.description?.toString()?.takeIf { it.isNotBlank() } ?: getString(R.string.call_failed_generic)
+                    }
+
+                    else -> {
+                        null
+                    }
+                }
             if (failMessage != null) {
                 serviceScope.launch(Dispatchers.Main) {
-                    android.widget.Toast.makeText(applicationContext, failMessage, android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast
+                        .makeText(applicationContext, failMessage, android.widget.Toast.LENGTH_LONG)
+                        .show()
                 }
             }
         }
-        
-        if (isIncoming && wasNeverConnected && (cause?.code == DisconnectCause.MISSED || cause?.code == DisconnectCause.REMOTE || cause?.code == DisconnectCause.REJECTED)) {
+
+        if (isIncoming && wasNeverConnected &&
+            (cause?.code == DisconnectCause.MISSED || cause?.code == DisconnectCause.REMOTE || cause?.code == DisconnectCause.REJECTED)
+        ) {
             if (!isNumberBlocked(number) || preferenceManager.getInt(PreferenceManager.KEY_BLOCK_LOG_VISIBILITY, 0) == 1) {
                 showMissedCallNotification(call)
             }
@@ -291,7 +352,10 @@ class CallService : InCallService() {
         }
     }
 
-    private fun handleBlockedCall(call: Call, number: String) {
+    private fun handleBlockedCall(
+        call: Call,
+        number: String,
+    ) {
         val method = preferenceManager.getInt(PreferenceManager.KEY_BLOCK_METHOD, 0)
 
         if (method == 0) {
@@ -305,13 +369,15 @@ class CallService : InCallService() {
 
     private fun showBlockedNotification(number: String) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_close_clear_cancel)
-            .setContentTitle(getString(R.string.notif_blocked_call_title))
-            .setContentText(getString(R.string.notif_blocked_call_text, number))
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setAutoCancel(true)
+
+        val builder =
+            NotificationCompat
+                .Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_menu_close_clear_cancel)
+                .setContentTitle(getString(R.string.notif_blocked_call_title))
+                .setContentText(getString(R.string.notif_blocked_call_text, number))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setAutoCancel(true)
 
         notificationManager.notify(number.hashCode(), builder.build())
     }
@@ -323,60 +389,78 @@ class CallService : InCallService() {
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val channel = NotificationChannel(
-            MISSED_CHANNEL_ID,
-            getString(R.string.notif_channel_missed_calls),
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            enableVibration(true)
-            setShowBadge(true)
-        }
+        val channel =
+            NotificationChannel(
+                MISSED_CHANNEL_ID,
+                getString(R.string.notif_channel_missed_calls),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+                setShowBadge(true)
+            }
         notificationManager.createNotificationChannel(channel)
 
         val handle = call.details.handle
         val number = handle?.schemeSpecificPart ?: ""
 
-        val contact = if (number.isNotEmpty()) {
-            try {
-                contactsRepository.getContactByNumber(number)
-            } catch (e: Exception) { null }
-        } else null
+        val contact =
+            if (number.isNotEmpty()) {
+                try {
+                    contactsRepository.getContactByNumber(number)
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
 
         val contactName = contact?.name ?: number.ifEmpty { getString(R.string.label_unknown_number) }
         val contactPhoto = getContactBitmap(contact?.photoUri)
 
         val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-        val simLabel = call.details.accountHandle?.let {
-            try { telecomManager.getPhoneAccount(it)?.label?.toString() } catch (e: SecurityException) { null }
-        }
+        val simLabel =
+            call.details.accountHandle?.let {
+                try {
+                    telecomManager.getPhoneAccount(it)?.label?.toString()
+                } catch (e: SecurityException) {
+                    null
+                }
+            }
 
-        val intent = Intent(this, com.grinch.rivo4.MainActivity::class.java).apply {
-            action = "com.grinch.rivo4.ACTION_VIEW_RECENTS"
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+        val intent =
+            Intent(this, com.grinch.rivo4.MainActivity::class.java).apply {
+                action = "com.grinch.rivo4.ACTION_VIEW_RECENTS"
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
         val pendingIntent = PendingIntent.getActivity(this, 10, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-        val timeString = android.text.format.DateFormat.getTimeFormat(this).format(java.util.Date())
+        val timeString =
+            android.text.format.DateFormat
+                .getTimeFormat(this)
+                .format(java.util.Date())
 
-        val missedCallText = buildString {
-            append(getString(R.string.notif_missed_call_text, contactName, timeString))
-            if (simLabel != null) {
-                append(" ")
-                append(getString(R.string.notif_via_sim, simLabel))
+        val missedCallText =
+            buildString {
+                append(getString(R.string.notif_missed_call_text, contactName, timeString))
+                if (simLabel != null) {
+                    append(" ")
+                    append(getString(R.string.notif_via_sim, simLabel))
+                }
             }
-        }
 
-        val builder = NotificationCompat.Builder(this, MISSED_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.sym_call_missed)
-            .setContentTitle(getString(R.string.notif_missed_call_title))
-            .setContentText(missedCallText)
-            .setLargeIcon(contactPhoto)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setColor(Color.RED)
+        val builder =
+            NotificationCompat
+                .Builder(this, MISSED_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.sym_call_missed)
+                .setContentTitle(getString(R.string.notif_missed_call_title))
+                .setContentText(missedCallText)
+                .setLargeIcon(contactPhoto)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setColor(Color.RED)
 
         notificationManager.notify(number.hashCode(), builder.build())
     }
@@ -402,15 +486,23 @@ class CallService : InCallService() {
             _preferredCall.value = null
         }
 
-        val activePreferred = if (preferred != null && preferred.state != Call.STATE_DISCONNECTED && preferred.state != Call.STATE_HOLDING) preferred else null
+        val activePreferred =
+            if (preferred != null && preferred.state != Call.STATE_DISCONNECTED &&
+                preferred.state != Call.STATE_HOLDING
+            ) {
+                preferred
+            } else {
+                null
+            }
 
-        val priorityCall = calls.find { it.state == Call.STATE_RINGING }
-            ?: activePreferred
-            ?: calls.find { it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING }
-            ?: calls.find { it.state == Call.STATE_ACTIVE }
-            ?: calls.find { it == preferred }
-            ?: calls.find { it.state == Call.STATE_HOLDING }
-            ?: calls.firstOrNull { it.state != Call.STATE_DISCONNECTED }
+        val priorityCall =
+            calls.find { it.state == Call.STATE_RINGING }
+                ?: activePreferred
+                ?: calls.find { it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING }
+                ?: calls.find { it.state == Call.STATE_ACTIVE }
+                ?: calls.find { it == preferred }
+                ?: calls.find { it.state == Call.STATE_HOLDING }
+                ?: calls.firstOrNull { it.state != Call.STATE_DISCONNECTED }
 
         if (priorityCall != null) {
             val connectTime = callStartTimes[priorityCall] ?: 0L
@@ -437,11 +529,23 @@ class CallService : InCallService() {
         }
 
         updateCallState()
-        updateNotification(call)
-
-        val intent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        if (call.state != Call.STATE_RINGING || isScreenOffOrLocked()) {
+            launchCallActivity()
         }
+        updateNotification(call)
+    }
+
+    private fun isScreenOffOrLocked(): Boolean {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        return !powerManager.isInteractive || keyguardManager.isKeyguardLocked
+    }
+
+    private fun launchCallActivity() {
+        val intent =
+            Intent(this, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
         try {
             startActivity(intent)
         } catch (e: Exception) {
@@ -468,84 +572,133 @@ class CallService : InCallService() {
         _currentCallSession.value?.call?.let { updateNotification(it) }
     }
 
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             "ANSWER_CALL" -> {
                 answerCall()
-                val activityIntent = Intent(this, CallActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                }
+                val activityIntent =
+                    Intent(this, CallActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    }
                 startActivity(activityIntent)
             }
-            "DECLINE_CALL" -> declineCall()
-            "TOGGLE_MUTE" -> toggleMute()
-            "TOGGLE_SPEAKER" -> cycleAudioRoute()
+
+            "DECLINE_CALL" -> {
+                declineCall()
+            }
+
+            "TOGGLE_MUTE" -> {
+                toggleMute()
+            }
+
+            "TOGGLE_SPEAKER" -> {
+                cycleAudioRoute()
+            }
         }
         return super.onStartCommand(intent, flags, startId)
     }
 
     private fun updateNotification(call: Call) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.notif_channel_calls),
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            enableVibration(true)
-        }
+
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notif_channel_calls),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
         notificationManager.createNotificationChannel(channel)
+        if (CHANNEL_ID != LEGACY_CHANNEL_ID) {
+            notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+        }
 
         val handle = call.details.handle
         val number = handle?.schemeSpecificPart ?: ""
 
-        val contact = if (number.isNotEmpty()) {
-            try {
-                contactsRepository.getContactByNumber(number)
-            } catch (e: Exception) { null }
-        } else null
+        val contact =
+            if (number.isNotEmpty()) {
+                try {
+                    contactsRepository.getContactByNumber(number)
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
 
-        val contactName = when {
-            contact != null -> contact.name
-            number.isNotEmpty() -> number
-            else -> getString(R.string.label_unknown_number)
-        }
-        
+        val contactName =
+            when {
+                contact != null -> contact.name
+                number.isNotEmpty() -> number
+                else -> getString(R.string.label_unknown_number)
+            }
+
         val contactPhoto = getContactBitmap(contact?.photoUri)
 
         val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
         val accountHandle = call.details.accountHandle
-        val simLabel = accountHandle?.let {
-            try {
-                telecomManager.getPhoneAccount(it)?.label?.toString()
-            } catch (e: SecurityException) { null }
-        }
-        
-        val fullScreenIntent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            this,
-            if (call.state == Call.STATE_RINGING) call.hashCode() else 0,
-            fullScreenIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val simLabel =
+            accountHandle?.let {
+                try {
+                    telecomManager.getPhoneAccount(it)?.label?.toString()
+                } catch (e: SecurityException) {
+                    null
+                }
+            }
+
+        val fullScreenIntent =
+            Intent(this, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+        val fullScreenPendingIntent =
+            PendingIntent.getActivity(
+                this,
+                if (call.state == Call.STATE_RINGING) call.hashCode() else 0,
+                fullScreenIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
         val answerIntent = Intent(this, CallService::class.java).apply { action = "ANSWER_CALL" }
-        val answerPendingIntent = PendingIntent.getService(this, 1, answerIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val answerPendingIntent =
+            PendingIntent.getService(
+                this,
+                1,
+                answerIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
         val declineIntent = Intent(this, CallService::class.java).apply { action = "DECLINE_CALL" }
-        val declinePendingIntent = PendingIntent.getService(this, 2, declineIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val declinePendingIntent =
+            PendingIntent.getService(
+                this,
+                2,
+                declineIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
         val speakerIntent = Intent(this, CallService::class.java).apply { action = "TOGGLE_SPEAKER" }
-        val speakerPendingIntent = PendingIntent.getService(this, 4, speakerIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val speakerPendingIntent =
+            PendingIntent.getService(
+                this,
+                4,
+                speakerIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
-        val personBuilder = androidx.core.app.Person.Builder()
-            .setName(contactName)
-            .setImportant(true)
-        
+        val personBuilder =
+            androidx.core.app.Person
+                .Builder()
+                .setName(contactName)
+                .setImportant(true)
+
         if (contactPhoto != null) {
             personBuilder.setIcon(IconCompat.createWithBitmap(contactPhoto))
         }
@@ -553,57 +706,76 @@ class CallService : InCallService() {
 
         val audioState = _audioState.value
         val audioRoute = audioState?.route ?: CallAudioState.ROUTE_EARPIECE
-        val audioLabel = when (audioRoute) {
-            CallAudioState.ROUTE_SPEAKER -> getString(R.string.audio_route_speaker)
-            CallAudioState.ROUTE_BLUETOOTH -> {
-                try {
-                    audioState?.activeBluetoothDevice?.name ?: getString(R.string.audio_route_bluetooth)
-                } catch (e: SecurityException) {
-                    getString(R.string.audio_route_bluetooth)
+        val audioLabel =
+            when (audioRoute) {
+                CallAudioState.ROUTE_SPEAKER -> {
+                    getString(R.string.audio_route_speaker)
+                }
+
+                CallAudioState.ROUTE_BLUETOOTH -> {
+                    try {
+                        audioState?.activeBluetoothDevice?.name ?: getString(R.string.audio_route_bluetooth)
+                    } catch (e: SecurityException) {
+                        getString(R.string.audio_route_bluetooth)
+                    }
+                }
+
+                CallAudioState.ROUTE_WIRED_HEADSET -> {
+                    getString(R.string.audio_route_headset)
+                }
+
+                else -> {
+                    getString(R.string.audio_route_handset)
                 }
             }
-            CallAudioState.ROUTE_WIRED_HEADSET -> getString(R.string.audio_route_headset)
-            else -> getString(R.string.audio_route_handset)
-        }
 
-        val contentText = buildString {
-            if (call.state == Call.STATE_RINGING) append(getString(R.string.call_status_incoming)) else append(getString(R.string.notif_active_call))
-            if (!simLabel.isNullOrEmpty()) {
-                append(" ")
-                append(getString(R.string.notif_via_sim, simLabel))
-            }
-        }
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(if (call.state == Call.STATE_RINGING) android.R.drawable.sym_call_incoming else R.drawable.ic_call_ongoing)
-            .setContentTitle(contactName)
-            .setContentText(contentText)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setContentIntent(fullScreenPendingIntent)
-            .setOngoing(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(false)
-            .setSilent(call.state != Call.STATE_RINGING)
-            .setOnlyAlertOnce(call.state != Call.STATE_RINGING)
-            .setDefaults(if (call.state == Call.STATE_RINGING) NotificationCompat.DEFAULT_ALL else 0)
-            .setStyle(
-                if (call.state == Call.STATE_RINGING) {
-                    NotificationCompat.CallStyle.forIncomingCall(person, declinePendingIntent, answerPendingIntent)
+        val contentText =
+            buildString {
+                if (call.state ==
+                    Call.STATE_RINGING
+                ) {
+                    append(getString(R.string.call_status_incoming))
                 } else {
-                    NotificationCompat.CallStyle.forOngoingCall(person, declinePendingIntent)
+                    append(getString(R.string.notif_active_call))
                 }
-            )
+                if (!simLabel.isNullOrEmpty()) {
+                    append(" ")
+                    append(getString(R.string.notif_via_sim, simLabel))
+                }
+            }
+
+        val builder =
+            NotificationCompat
+                .Builder(this, CHANNEL_ID)
+                .setSmallIcon(if (call.state == Call.STATE_RINGING) android.R.drawable.sym_call_incoming else R.drawable.ic_call_ongoing)
+                .setContentTitle(contactName)
+                .setContentText(contentText)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setContentIntent(fullScreenPendingIntent)
+                .setOngoing(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(false)
+                .setSilent(true)
+                .setDefaults(0)
+                .setStyle(
+                    if (call.state == Call.STATE_RINGING) {
+                        NotificationCompat.CallStyle.forIncomingCall(person, declinePendingIntent, answerPendingIntent)
+                    } else {
+                        NotificationCompat.CallStyle.forOngoingCall(person, declinePendingIntent)
+                    },
+                )
 
         if (call.state == Call.STATE_RINGING) {
             builder.setFullScreenIntent(fullScreenPendingIntent, true)
         } else {
             builder.addAction(
-                NotificationCompat.Action.Builder(
-                    android.R.drawable.stat_sys_speakerphone,
-                    audioLabel,
-                    speakerPendingIntent
-                ).build()
+                NotificationCompat.Action
+                    .Builder(
+                        android.R.drawable.stat_sys_speakerphone,
+                        audioLabel,
+                        speakerPendingIntent,
+                    ).build(),
             )
         }
 
