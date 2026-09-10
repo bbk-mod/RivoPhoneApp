@@ -94,8 +94,9 @@ fun PrivateContactsScreen(
             privateContacts
         } else {
             privateContacts.filter {
-                (it.name ?: "").contains(searchQuery, ignoreCase = true) ||
-                (it.phoneNumbers ?: emptyList()).any { num -> num.contains(searchQuery) }
+                it.displayName.contains(searchQuery, ignoreCase = true) ||
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.phoneNumbers.any { num -> num.contains(searchQuery) }
             }
         }
     }
@@ -465,7 +466,7 @@ fun PrivateContactCard(
             }
 
             RivoAvatar(
-                name = contact.name,
+                name = contact.displayName,
                 photoUri = contact.photoUri,
                 modifier = Modifier.size(48.dp)
             )
@@ -475,7 +476,7 @@ fun PrivateContactCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = contact.name,
+                        text = contact.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -512,7 +513,7 @@ fun PrivateContactCard(
                 IconButton(onClick = onCall) {
                     Icon(
                         Icons.Outlined.Call,
-                        contentDescription = stringResource(R.string.content_desc_call_named, contact.name),
+                        contentDescription = stringResource(R.string.content_desc_call_named, contact.displayName),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }

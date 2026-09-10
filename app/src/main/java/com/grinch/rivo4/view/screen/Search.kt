@@ -124,7 +124,7 @@ fun ContactSearchContent(
         if (query.isBlank()) emptyList()
         else contacts.filter {
             val cleanQuery = query.replace(" ", "")
-            val matchesName = it.name.contains(query, ignoreCase = true)
+            val matchesName = it.displayName.contains(query, ignoreCase = true)
             val matchesNickname = it.nickname?.contains(query, ignoreCase = true) ?: false
             val matchesNumber = it.phoneNumbers.any { number -> number.replace(" ", "").contains(cleanQuery) }
             matchesName || matchesNickname || matchesNumber
@@ -276,12 +276,11 @@ fun ContactSearchContent(
                                         ) {
                                             Box(modifier = Modifier.weight(1f)) {
                                                 RivoListItem(
-                                                    headline = contact.name,
+                                                    headline = contact.displayName,
                                                     supporting = buildString {
-                                                        contact.nickname?.let { append("$it • ") }
                                                         contact.phoneNumbers.firstOrNull()?.let { append(formatPhoneNumber(it)) }
                                                     }.ifEmpty { null },
-                                                    avatarName = contact.name,
+                                                    avatarName = contact.displayName,
                                                     photoUri = contact.photoUri,
                                                     onClick = {
                                                         navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))

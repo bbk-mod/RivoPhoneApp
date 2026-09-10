@@ -159,7 +159,7 @@ fun ContactDetailsScreen(
 
     val unknownLabel = stringResource(R.string.label_unknown)
     val displayPhone = phoneNumber ?: fullContact?.phoneNumbers?.firstOrNull() ?: unknownLabel
-    val displayName = fullContact?.name ?: phoneNumber ?: unknownLabel
+    val displayName = fullContact?.displayName ?: phoneNumber ?: unknownLabel
     val shareContactLabel = stringResource(R.string.contact_share)
 
     val context = LocalContext.current
@@ -508,13 +508,6 @@ fun ContactDetailsScreen(
                                 style = MaterialTheme.typography.headlineLarge,
                                 fontWeight = FontWeight.Bold
                             )
-                            fullContact?.nickname?.let { nickname ->
-                                Text(
-                                    text = nickname,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
                         }
                     }
 

@@ -164,7 +164,7 @@ class CallLogRepository(
             val lookupKey = if (normalizedNum.length >= 10) normalizedNum.takeLast(10) else normalizedNum
             val matchedContact = contactMap[lookupKey]
             
-            val displayName = matchedContact?.name ?: cursor.getString(cachedNameIdx)
+            val displayName = matchedContact?.displayName ?: cursor.getString(cachedNameIdx)
             val photoUri = matchedContact?.photoUri ?: cursor.getString(cachedPhotoIdx)
             val contactId = matchedContact?.id ?: cursor.getString(cachedLookupIdx)?.let {
                 contactIdFromLookupUri(it)

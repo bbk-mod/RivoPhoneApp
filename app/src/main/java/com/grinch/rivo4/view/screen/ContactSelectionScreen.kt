@@ -83,16 +83,17 @@ fun ContactSelectionScreen(
         }
         if (searchQuery.isNotBlank()) {
             list = list.filter {
+                it.displayName.contains(searchQuery, ignoreCase = true) ||
                 it.name.contains(searchQuery, ignoreCase = true) ||
                 it.phoneNumbers.any { num -> num.contains(searchQuery) }
             }
         }
-        list.sortedBy { it.name.lowercase() }
+        list.sortedBy { it.displayName.lowercase() }
     }
 
     val groupedContacts = remember(filteredContacts) {
         filteredContacts.groupBy { contact ->
-            val first = contact.name.trim().firstOrNull()?.uppercaseChar() ?: '#'
+            val first = contact.displayName.trim().firstOrNull()?.uppercaseChar() ?: '#'
             if (first in 'A'..'Z') first.toString() else "#"
         }
     }
@@ -460,7 +461,7 @@ fun ContactSelectionScreen(
                                     }
 
                                     RivoAvatar(
-                                        name = contact.name,
+                                        name = contact.displayName,
                                         photoUri = contact.photoUri,
                                         modifier = Modifier.size(46.dp)
                                     )
@@ -470,7 +471,7 @@ fun ContactSelectionScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                text = contact.name,
+                                                text = contact.displayName,
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )

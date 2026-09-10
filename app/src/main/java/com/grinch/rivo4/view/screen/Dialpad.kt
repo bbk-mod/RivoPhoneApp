@@ -120,9 +120,6 @@ fun DialPadScreen(
     val speedDialEnabled by remember(settingsState) {
         mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SPEED_DIAL, true))
     }
-    val displayOrder by remember(settingsState) {
-        mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0))
-    }
 
     val isKnownSecretCode = remember {
         { input: String ->
@@ -157,7 +154,7 @@ fun DialPadScreen(
                 allContacts.asSequence()
                     .filter { contact ->
                         val matchesNumber = contact.phoneNumbers.any { it.replace(" ", "").contains(cleanQuery) }
-                        val matchesName = t9Enabled && T9Matcher.isMatch(contact.name, cleanQuery)
+                        val matchesName = t9Enabled && T9Matcher.isMatch(contact.displayName, cleanQuery)
                         val matchesNickname = t9Enabled && contact.nickname?.let { T9Matcher.isMatch(it, cleanQuery) } ?: false
                         matchesNumber || matchesName || matchesNickname
                     }
@@ -283,12 +280,11 @@ fun DialPadScreen(
                                 ) {
                                     Box(modifier = Modifier.weight(1f)) {
                                         RivoListItem(
-                                            headline = com.grinch.rivo4.controller.util.ContactUtils.formatContactName(contact.name, displayOrder),
+                                            headline = contact.displayName,
                                             supporting = buildString {
-                                                contact.nickname?.let { append("$it • ") }
                                                 contactNumber?.let { append(formatPhoneNumber(it)) }
                                             }.ifEmpty { null },
-                                            avatarName = contact.name,
+                                            avatarName = contact.displayName,
                                             photoUri = contact.photoUri,
                                             onClick = {
                                                 navigator.navigate(
@@ -306,7 +302,7 @@ fun DialPadScreen(
                                         ) {
                                             Icon(
                                                 Icons.Rounded.Call,
-                                                contentDescription = stringResource(R.string.content_desc_call_named, contact.name),
+                                                contentDescription = stringResource(R.string.content_desc_call_named, contact.displayName),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }

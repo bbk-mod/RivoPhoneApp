@@ -159,7 +159,7 @@ fun SpeedDialScreen(
             onContactSelected = { contact ->
                 val number = contact.phoneNumbers.firstOrNull()
                 if (number != null) {
-                    prefs.setString("speed_dial_${showContactPicker!!}", "${contact.name}|$number")
+                    prefs.setString("speed_dial_${showContactPicker!!}", "${contact.displayName}|$number")
                 }
                 showContactPicker = null
             }
@@ -178,6 +178,7 @@ fun ContactPickerDialog(
     val filteredContacts = remember(searchQuery, contacts) {
         if (searchQuery.isEmpty()) contacts
         else contacts.filter { 
+            it.displayName.contains(searchQuery, ignoreCase = true) || 
             it.name.contains(searchQuery, ignoreCase = true) || 
             it.phoneNumbers.any { num -> num.contains(searchQuery) }
         }
@@ -215,9 +216,9 @@ fun ContactPickerDialog(
             ) {
                 filteredContacts.take(30).forEach { contact ->
                     RivoListItem(
-                        headline = contact.name,
+                        headline = contact.displayName,
                         supporting = contact.phoneNumbers.firstOrNull() ?: stringResource(R.string.settings_speed_dial_no_number),
-                        avatarName = contact.name,
+                        avatarName = contact.displayName,
                         photoUri = contact.photoUri,
                         onClick = {
                             onContactSelected(contact)

@@ -240,7 +240,6 @@ fun FavoriteCircleItem(
     contact: Contact,
     isEditing: Boolean = false,
     isDragging: Boolean = false,
-    displayOrder: Int = 0,
     onUnfavorite: () -> Unit = {},
     onLongClick: () -> Unit = {},
     onClick: () -> Unit,
@@ -264,7 +263,7 @@ fun FavoriteCircleItem(
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             RivoAvatar(
-                name = contact.name,
+                name = contact.displayName,
                 photoUri = contact.photoUri,
                 modifier = Modifier
                     .size(64.dp)
@@ -294,7 +293,7 @@ fun FavoriteCircleItem(
             }
         }
         Text(
-            text = com.grinch.rivo4.controller.util.ContactUtils.formatContactName(contact.name, displayOrder).split(" ").firstOrNull() ?: "",
+            text = contact.displayName,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -355,9 +354,9 @@ fun AddFavoriteDialog(
             ) {
                 availableContacts.take(40).forEach { contact ->
                     RivoListItem(
-                        headline = contact.name,
+                        headline = contact.displayName,
                         supporting = contact.phoneNumbers.firstOrNull() ?: "",
-                        avatarName = contact.name,
+                        avatarName = contact.displayName,
                         photoUri = contact.photoUri,
                         onClick = {
                             onContactSelected(contact)
@@ -413,7 +412,7 @@ fun CallLogFullContent(
                 favContacts.sortedWith(compareBy<Contact> { contact ->
                     val index = order.indexOf(contact.id)
                     if (index != -1) index else Int.MAX_VALUE
-                }.thenBy { it.name })
+                }.thenBy { it.displayName.lowercase() })
             }
         }
         var isEditingFavorites by remember { mutableStateOf(false) }
@@ -599,7 +598,6 @@ fun CallLogFullContent(
                                                 contact = contact,
                                                 isEditing = isEditingFavorites,
                                                 isDragging = dragging,
-                                                displayOrder = displayOrder,
                                                 onUnfavorite = { contactsVM.toggleFavorite(contact) },
                                                 onLongClick = { isEditingFavorites = true },
                                                 onClick = {

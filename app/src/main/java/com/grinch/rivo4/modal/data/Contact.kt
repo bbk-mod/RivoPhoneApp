@@ -43,4 +43,7 @@ data class Contact(
     val accountType: String? = null,
     val isPrivate: Boolean = false,
     val notes: String? = null
-)
+) {
+    val displayName: String
+        get() = nickname?.trim()?.takeIf { it.isNotEmpty() } ?: name
+}

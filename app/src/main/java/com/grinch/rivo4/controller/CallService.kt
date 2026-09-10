@@ -1,6 +1,5 @@
 package com.grinch.rivo4.controller
 
-import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,7 +10,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
-import android.os.PowerManager
 import android.provider.BlockedNumberContract
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -213,9 +211,9 @@ class CallService : InCallService() {
         instance = this
         serviceScope.launch {
             isActivityVisible.collect {
-                _currentCallSession.value?.call?.let { currentCall ->
-                    updateNotification(currentCall)
-                }
+                _currentCallSession.value?.call
+                    ?.takeIf { call -> call.state != Call.STATE_RINGING }
+                    ?.let { call -> updateNotification(call) }
             }
         }
     }
@@ -259,7 +257,7 @@ class CallService : InCallService() {
             val name =
                 if (number.isNotEmpty()) {
                     try {
-                        contactsRepository.getContactByNumber(number)?.name
+                        contactsRepository.getContactByNumber(number)?.displayName
                     } catch (e: Exception) {
                         null
                     } ?: number
@@ -415,7 +413,7 @@ class CallService : InCallService() {
                 null
             }
 
-        val contactName = contact?.name ?: number.ifEmpty { getString(R.string.label_unknown_number) }
+        val contactName = contact?.displayName ?: number.ifEmpty { getString(R.string.label_unknown_number) }
         val contactPhoto = getContactBitmap(contact?.photoUri)
 
         val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
@@ -529,16 +527,10 @@ class CallService : InCallService() {
         }
 
         updateCallState()
-        if (call.state != Call.STATE_RINGING || isScreenOffOrLocked()) {
+        if (call.state != Call.STATE_RINGING) {
             launchCallActivity()
         }
         updateNotification(call)
-    }
-
-    private fun isScreenOffOrLocked(): Boolean {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        return !powerManager.isInteractive || keyguardManager.isKeyguardLocked
     }
 
     private fun launchCallActivity() {
@@ -636,7 +628,7 @@ class CallService : InCallService() {
 
         val contactName =
             when {
-                contact != null -> contact.name
+                contact != null -> contact.displayName
                 number.isNotEmpty() -> number
                 else -> getString(R.string.label_unknown_number)
             }

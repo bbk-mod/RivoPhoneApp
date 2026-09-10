@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.grinch.rivo4.R
 import com.grinch.rivo4.modal.data.Contact
-import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.formatPhoneNumber
 import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
@@ -43,11 +42,9 @@ fun AZListScroll(
     grouped: Map<Char, List<Contact>>? = null
 ) {
     val prefs = org.koin.compose.koinInject<com.grinch.rivo4.controller.util.PreferenceManager>()
-    val settingsState by prefs.settingsChanged.collectAsState()
 
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val hapticScrollEnabled = prefs.getBoolean(PreferenceManager.KEY_HAPTIC_LIST_SCROLL, false)
-    val displayOrder = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0) }
 
     if (hapticScrollEnabled) {
         LaunchedEffect(listState.firstVisibleItemIndex) {
@@ -59,7 +56,7 @@ fun AZListScroll(
         if (grouped != null) return@remember grouped
         
         val mainGroups = contacts.groupBy {
-            val firstChar = it.name.firstOrNull()?.uppercaseChar() ?: '#'
+            val firstChar = it.displayName.firstOrNull()?.uppercaseChar() ?: '#'
             if (firstChar.isLetter()) firstChar else '#'
         }.toMutableMap()
 
@@ -127,16 +124,13 @@ fun AZListScroll(
                         RivoExpressiveCard(isCompact = true) {
                             val unknownLabel = stringResource(R.string.label_unknown)
                             contactsForChar.forEachIndexed { index, contact ->
-                                val displayName = ContactUtils.formatContactName(
-                                    contact.name.ifEmpty {
-                                        contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: unknownLabel
-                                    },
-                                    displayOrder
-                                )
+                                val displayName = contact.displayName.ifEmpty {
+                                    contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: unknownLabel
+                                }
                                 RivoListItem(
                                     headline = displayName,
                                     supporting = null,
-                                    avatarName = contact.name,
+                                    avatarName = contact.displayName,
                                     photoUri = contact.photoUri,
                                     onClick = {
                                         if (selectedIds.isNotEmpty()) {

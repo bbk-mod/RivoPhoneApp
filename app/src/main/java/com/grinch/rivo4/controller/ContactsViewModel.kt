@@ -81,18 +81,18 @@ class ContactsViewModel(
         }
         
         if (sortOrder == 1) {
-            baseFiltered.sortedBy { it.name.split(" ").lastOrNull()?.lowercase() ?: it.name.lowercase() }
+            baseFiltered.sortedBy { it.displayName.split(" ").lastOrNull()?.lowercase() ?: it.displayName.lowercase() }
         } else {
-            baseFiltered.sortedBy { it.name.lowercase() }
+            baseFiltered.sortedBy { it.displayName.lowercase() }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val groupedContacts = combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
         val mainGroups = contacts.groupBy {
             val nameToUse = if (sortOrder == 1) {
-                it.name.split(" ").lastOrNull() ?: it.name
+                it.displayName.split(" ").lastOrNull() ?: it.displayName
             } else {
-                it.name
+                it.displayName
             }
             val firstChar = nameToUse.firstOrNull()?.uppercaseChar() ?: '#'
             if (firstChar.isLetter()) firstChar else '#'

@@ -238,9 +238,9 @@ fun BlockedNumbersScreen(
                                 Box(modifier = Modifier.weight(1f)) {
                                     if (matchedContact != null) {
                                         RivoListItem(
-                                            headline = matchedContact.name,
+                                            headline = matchedContact.displayName,
                                             supporting = formatPhoneNumber(entry.originalNumber),
-                                            avatarName = matchedContact.name,
+                                            avatarName = matchedContact.displayName,
                                             photoUri = matchedContact.photoUri,
                                             onClick = { }
                                         )

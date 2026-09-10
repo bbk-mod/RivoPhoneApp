@@ -42,7 +42,6 @@ import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.ContactsViewModel
-import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.modal.data.Contact
 import com.grinch.rivo4.view.components.PermissionDeniedView
@@ -115,17 +114,13 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
         contactsVM.fetchContacts()
     }
 
-    val displayOrder = remember(settingsState) {
-        prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0)
-    }
-
     val favorites = remember(allContacts, settingsState) {
         val favContacts = allContacts.filter { it.isFavorite }
         val order = prefs.getFavoritesOrder()
         favContacts.sortedWith(compareBy<Contact> { contact ->
             val index = order.indexOf(contact.id)
             if (index != -1) index else Int.MAX_VALUE
-        }.thenBy { it.name })
+        }.thenBy { it.displayName.lowercase() })
     }
 
     val items = remember { mutableStateListOf<Contact>() }
@@ -236,7 +231,6 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
                 FavoriteGridItem(
                     modifier = itemModifier,
                     contact = contact,
-                    displayOrder = displayOrder,
                     isEditing = isEditing,
                     isDragging = dragging,
                     onUnfavorite = { contactsVM.toggleFavorite(contact) },
@@ -257,7 +251,6 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
 @Composable
 private fun FavoriteGridItem(
     contact: Contact,
-    displayOrder: Int,
     isEditing: Boolean,
     isDragging: Boolean,
     onUnfavorite: () -> Unit,
@@ -283,7 +276,7 @@ private fun FavoriteGridItem(
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             RivoAvatar(
-                name = contact.name,
+                name = contact.displayName,
                 photoUri = contact.photoUri,
                 textStyle = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier
@@ -318,7 +311,7 @@ private fun FavoriteGridItem(
         }
 
         Text(
-            text = ContactUtils.formatContactName(contact.name, displayOrder),
+            text = contact.displayName,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

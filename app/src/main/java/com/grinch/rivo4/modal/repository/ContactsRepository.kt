@@ -123,7 +123,7 @@ class ContactsRepository(
             }
         }
 
-        return finalList.sortedBy { it.name.lowercase() }
+        return finalList.sortedBy { it.displayName.lowercase() }
     }
 
     private fun resolveLookupKey(lookupKey: String): String? {
@@ -143,6 +143,22 @@ class ContactsRepository(
                 if (cursor.moveToFirst()) resolved = cursor.getString(0)
             }
             resolved
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun getNicknameForContactId(contactId: String): String? {
+        return try {
+            contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Nickname.NAME),
+                "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf(contactId, ContactsContract.CommonDataKinds.Nickname.CONTENT_ITEM_TYPE),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
+            }
         } catch (e: Exception) {
             null
         }
@@ -852,6 +868,7 @@ class ContactsRepository(
                     return Contact(
                         id = id,
                         name = formatName(name ?: unknownLabel),
+                        nickname = if (id.isNotBlank()) getNicknameForContactId(id) else null,
                         photoUri = photoUri,
                         isFavorite = starred,
                         phoneNumbers = numbers,
