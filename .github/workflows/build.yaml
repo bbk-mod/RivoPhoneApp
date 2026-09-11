@@ -54,7 +54,7 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
           PREVIEW_BUILD: ${{ github.ref == 'refs/heads/main' }}
         run: |
-          ./gradlew assembleFossRelease assemblePlayRelease bundlePlayRelease bundleFossRelease
+          ./gradlew assembleRelease bundleRelease
 
       - name: Collect outputs
         run: |

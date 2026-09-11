@@ -153,12 +153,6 @@ fun AZListScroll(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                if (groupIndex % 3 == 1) {
-                    item {
-                        com.grinch.rivo4.view.components.ad.BannerAd()
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
             }
         }
 

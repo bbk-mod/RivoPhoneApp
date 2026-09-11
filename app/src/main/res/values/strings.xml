@@ -59,10 +59,7 @@
     <string name="sim_ask_every_time">Ask every time</string>
     <string name="sim_slot_1">SIM 1</string>
     <string name="sim_slot_2">SIM 2</string>
-    <string name="brand_whatsapp">WhatsApp</string>
-    <string name="brand_telegram">Telegram</string>
     <string name="brand_signal">Signal</string>
-    <string name="brand_google_meet">Google Meet</string>
     <string name="brand_zoom">Zoom</string>
     <string name="account_mi_account">Mi Account</string>
     <string name="account_sim_card">SIM Card</string>
@@ -89,12 +86,6 @@
     <string name="patreon_prompt_confirm">Support Us</string>
     <string name="patreon_prompt_dismiss">Maybe later</string>
     <string name="patreon_prompt_body">Rivo is free and open source. If you like the app, please consider supporting its development on Patreon!</string>
-
-    <!-- Disable ads warning dialog -->
-    <string name="ads_disable_dialog_title">Support Open-Source Development</string>
-    <string name="ads_disable_dialog_body">Displaying ads helps keep Rivo free and open-source. Without ad revenue or community donations, ongoing maintenance, bug fixes, and development may die out. Are you sure you want to disable ads?</string>
-    <string name="ads_disable_dialog_confirm">Disable Ads</string>
-    <string name="ads_disable_dialog_keep">Keep Ads Enabled</string>
 
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Make Rivo your official dialer</string>

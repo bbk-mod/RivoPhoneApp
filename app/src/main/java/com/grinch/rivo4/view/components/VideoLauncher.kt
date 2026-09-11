@@ -41,9 +41,6 @@ fun rememberVideoLauncher(): VideoLauncher {
         val uri = Uri.parse("tel:$number")
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             setPackage(pkg)
-            if (pkg == "com.google.android.apps.meetings") {
-                data = Uri.parse("https://meet.google.com/")
-            }
         }
         try {
             context.startActivity(intent)
@@ -62,10 +59,7 @@ fun rememberVideoLauncher(): VideoLauncher {
 
     if (showAppPicker) {
         val apps = listOf(
-            stringResource(R.string.brand_whatsapp) to "com.whatsapp",
-            stringResource(R.string.brand_google_meet) to "com.google.android.apps.meetings",
-            stringResource(R.string.brand_zoom) to "us.zoom.videomeetings",
-            stringResource(R.string.brand_telegram) to "org.telegram.messenger"
+            stringResource(R.string.brand_zoom) to "us.zoom.videomeetings"
         )
 
         RivoSelectionDialog(

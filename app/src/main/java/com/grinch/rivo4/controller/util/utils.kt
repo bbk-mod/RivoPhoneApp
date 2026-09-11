@@ -563,34 +563,6 @@ fun processSecretCode(context: Context, fullCode: String): Boolean {
                 } catch (e: Exception) {}
             }
         }
-        "426" -> {
-            val targets = listOf(
-                Intent(Intent.ACTION_MAIN).setClassName("com.google.android.gms", "com.google.android.gms.gcm.GcmDiagnostics"),
-                Intent(Intent.ACTION_MAIN).setClassName("com.google.android.gms", "com.google.android.gms.cloudmessaging.CloudMessagingDiagnostics")
-            )
-            for (target in targets) {
-                try {
-                    target.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    context.startActivity(target)
-                    handled = true
-                    break
-                } catch (e: Exception) {}
-            }
-        }
-        "759" -> {
-            val targets = listOf(
-                Intent(Intent.ACTION_MAIN).setClassName("com.google.android.apps.rlz", "com.google.android.apps.rlz.DebugActivity"),
-                Intent(Intent.ACTION_MAIN).setClassName("com.google.android.partnersetup", "com.google.android.partnersetup.RlzDebugActivity")
-            )
-            for (target in targets) {
-                try {
-                    target.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    context.startActivity(target)
-                    handled = true
-                    break
-                } catch (e: Exception) {}
-            }
-        }
     }
 
     return handled

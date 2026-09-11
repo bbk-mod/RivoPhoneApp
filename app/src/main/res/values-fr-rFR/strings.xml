@@ -58,10 +58,7 @@
     <string name="sim_ask_every_time">Demander à chaque fois</string>
     <string name="sim_slot_1">SIM 1</string>
     <string name="sim_slot_2">SIM 2</string>
-    <string name="brand_whatsapp">WhatsApp</string>
-    <string name="brand_telegram">Telegram</string>
     <string name="brand_signal">Signal</string>
-    <string name="brand_google_meet">Google Meet</string>
     <string name="brand_zoom">Zoom</string>
     <string name="account_mi_account">Compte Mi</string>
     <string name="account_sim_card">Carte SIM</string>
@@ -85,11 +82,6 @@
     <string name="patreon_prompt_confirm">Soutenir sur Patreon</string>
     <string name="patreon_prompt_dismiss">Plus tard</string>
     <string name="patreon_prompt_body">Rivo est gratuite et open source. Si vous aimez l’application, pensez à soutenir son développement sur Patreon !</string>
-    <!-- Disable ads warning dialog -->
-    <string name="ads_disable_dialog_title">Soutenir le développement open source</string>
-    <string name="ads_disable_dialog_body">L’affichage des publicités permet de maintenir Rivo gratuite et open source. Sans revenus publicitaires ni dons de la communauté, le développement continu et la maintenance risquent de s’éteindre. Voulez-vous vraiment désactiver les publicités ?</string>
-    <string name="ads_disable_dialog_confirm">Désactiver les publicités</string>
-    <string name="ads_disable_dialog_keep">Garder les publicités</string>
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Faites de Rivo votre application d’appel officielle</string>
     <string name="default_dialer_description">Pour passer et recevoir des appels, gérer votre historique d’appels et bénéficier de la protection anti-spam, Rivo doit être définie comme application téléphone par défaut.</string>

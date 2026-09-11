@@ -513,28 +513,6 @@ fun DialPadScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RivoExpressiveButton(
-                    painter = rememberAsyncImagePainter("file:///android_asset/icons/whatsapp.png"),
-                    label = stringResource(R.string.brand_whatsapp),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    size = 52.dp,
-                    iconSize = 32.dp,
-                    onClick = {
-                        SocialUtils.openWhatsApp(context, number)
-                        showSocialDialog = false
-                    }
-                )
-                RivoExpressiveButton(
-                    painter = rememberAsyncImagePainter("file:///android_asset/icons/telegram.png"),
-                    label = stringResource(R.string.brand_telegram),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    size = 52.dp,
-                    iconSize = 32.dp,
-                    onClick = {
-                        SocialUtils.openTelegram(context, number)
-                        showSocialDialog = false
-                    }
-                )
-                RivoExpressiveButton(
                     painter = rememberAsyncImagePainter("file:///android_asset/icons/signal.png"),
                     label = stringResource(R.string.brand_signal),
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,

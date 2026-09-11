@@ -17,9 +17,6 @@ The goal is simple: provide a clean, modern phone app without unnecessary clutte
 
 ### 📥 Download & Install
 
-<a href="https://play.google.com/store/apps/details?id=com.grinch.rivo4">
-  <img src="https://raw.githubusercontent.com/user-grinch/RivoPhoneApp/main/images/play.png" alt="Download from Google Play" height="45">
-</a>
 <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/{%22id%22:%22com.grinch.rivo4%22,%22url%22:%22https://github.com/user-grinch/RivoPhoneApp%22,%22author%22:%22user-grinch%22,%22name%22:%22RivoPhoneApp%22}">
   <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/b1c8ac6f2ab08497189721a788a5763e28ff64cd/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="45">
 </a>

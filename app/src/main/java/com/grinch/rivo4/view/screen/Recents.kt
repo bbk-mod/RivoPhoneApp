@@ -679,12 +679,6 @@ fun CallLogFullContent(
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
-                            if (groupIndex % 3 == 0) {
-                                item {
-                                    com.grinch.rivo4.view.components.ad.BannerAd()
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                }
-                            }
                         }
                     }
                 }

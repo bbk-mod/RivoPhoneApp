@@ -278,8 +278,6 @@ fun ContactDetailsScreen(
         }
     }
 
-    val openWhatsApp = { num: String -> SocialUtils.openWhatsApp(context, num) }
-    val openTelegram = { num: String -> SocialUtils.openTelegram(context, num) }
     val openSignal = { num: String -> SocialUtils.openSignal(context, num) }
 
     val shareContactText = stringResource(R.string.contact_share_text, displayName, displayPhone)
@@ -880,30 +878,12 @@ fun ContactDetailsScreen(
                     }
 
                     item {
-                        val whatsAppLabel = stringResource(R.string.brand_whatsapp)
-                        val telegramLabel = stringResource(R.string.brand_telegram)
                         val signalLabel = stringResource(R.string.brand_signal)
                         RivoExpressiveCard(title = stringResource(R.string.label_social_apps), icon = Icons.AutoMirrored.Filled.Chat) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                RivoExpressiveButton(
-                                    painter = rememberAsyncImagePainter("file:///android_asset/icons/whatsapp.png"),
-                                    label = whatsAppLabel,
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    size = 52.dp,
-                                    iconSize = 32.dp,
-                                    onClick = { onNumberActionClick(openWhatsApp, whatsAppLabel) }
-                                )
-                                RivoExpressiveButton(
-                                    painter = rememberAsyncImagePainter("file:///android_asset/icons/telegram.png"),
-                                    label = telegramLabel,
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    size = 52.dp,
-                                    iconSize = 32.dp,
-                                    onClick = { onNumberActionClick(openTelegram, telegramLabel) }
-                                )
                                 RivoExpressiveButton(
                                     painter = rememberAsyncImagePainter("file:///android_asset/icons/signal.png"),
                                     label = signalLabel,

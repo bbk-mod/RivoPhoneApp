@@ -171,10 +171,6 @@ fun SettingsScreen(
             }
 
             item {
-                com.grinch.rivo4.view.components.ad.BannerAd()
-            }
-
-            item {
                 Text(
                     text = stringResource(R.string.about_copyright),
                     style = MaterialTheme.typography.labelMedium,
