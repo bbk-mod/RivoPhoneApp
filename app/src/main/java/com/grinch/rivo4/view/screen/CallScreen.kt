@@ -475,17 +475,7 @@ fun ExpressiveCallScreen(
 
     val incomingControls: @Composable (Boolean) -> Unit = { compact ->
         val useCustomUI = preferenceManager.getInt(PreferenceManager.KEY_INCOMING_CALL_UI_MODE, 0)
-        val onDeclineCallAction = {
-            try {
-                if (call.state == Call.STATE_RINGING) {
-                    call.reject(Call.REJECT_REASON_DECLINED)
-                } else {
-                    call.disconnect()
-                }
-            } catch (e: Exception) {
-                try { call.disconnect() } catch (e: Exception) {}
-            }
-        }
+        val onDeclineCallAction = { CallService.rejectRingingCall(call) }
 
         Column(
             modifier = Modifier.fillMaxWidth(),

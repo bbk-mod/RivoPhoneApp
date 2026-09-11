@@ -1,5 +1,6 @@
 package com.grinch.rivo4.controller
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +11,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.BlockedNumberContract
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -40,6 +43,7 @@ class CallService : InCallService() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var redialCount = 0
     private val callStartTimes = mutableMapOf<Call, Long>()
+    private val locallyRejectedCalls = mutableSetOf<Call>()
 
     private fun getContactBitmap(photoUri: String?): Bitmap? {
         if (photoUri == null) return null
@@ -191,6 +195,13 @@ class CallService : InCallService() {
 
         fun declineCall() {
             val call = _currentCallSession.value?.call ?: return
+            rejectRingingCall(call)
+        }
+
+        fun rejectRingingCall(call: Call) {
+            if (call.state == Call.STATE_RINGING) {
+                instance?.markLocallyRejected(call)
+            }
             try {
                 if (call.state == Call.STATE_RINGING) {
                     call.reject(Call.REJECT_REASON_DECLINED)
@@ -332,7 +343,9 @@ class CallService : InCallService() {
             }
         }
 
-        if (isIncoming && wasNeverConnected &&
+        val wasLocallyRejected = locallyRejectedCalls.remove(call)
+
+        if (!wasLocallyRejected && isIncoming && wasNeverConnected &&
             (cause?.code == DisconnectCause.MISSED || cause?.code == DisconnectCause.REMOTE || cause?.code == DisconnectCause.REJECTED)
         ) {
             if (!isNumberBlocked(number) || preferenceManager.getInt(PreferenceManager.KEY_BLOCK_LOG_VISIBILITY, 0) == 1) {
@@ -357,6 +370,7 @@ class CallService : InCallService() {
         val method = preferenceManager.getInt(PreferenceManager.KEY_BLOCK_METHOD, 0)
 
         if (method == 0) {
+            markLocallyRejected(call)
             call.reject(Call.REJECT_REASON_DECLINED)
         }
 
@@ -527,10 +541,29 @@ class CallService : InCallService() {
         }
 
         updateCallState()
-        if (call.state != Call.STATE_RINGING) {
+        if (shouldShowFullscreen(call)) {
             launchCallActivity()
         }
         updateNotification(call)
+    }
+
+    private fun markLocallyRejected(call: Call) {
+        locallyRejectedCalls.add(call)
+    }
+
+    private fun shouldShowFullscreen(call: Call): Boolean =
+        call.state != Call.STATE_RINGING || isScreenOffOrLocked()
+
+    private fun isScreenOffOrLocked(): Boolean {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        return !powerManager.isInteractive || keyguardManager.isKeyguardLocked
+    }
+
+    private fun canUseFullScreenIntent(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return notificationManager.canUseFullScreenIntent()
     }
 
     private fun launchCallActivity() {
@@ -547,6 +580,7 @@ class CallService : InCallService() {
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
         call.unregisterCallback(callCallback)
+        locallyRejectedCalls.remove(call)
         updateCallState()
         val calls = getCalls() ?: emptyList()
         if (calls.isEmpty()) {
@@ -736,6 +770,9 @@ class CallService : InCallService() {
                 }
             }
 
+        val suppressBanner =
+            call.state == Call.STATE_RINGING && isScreenOffOrLocked() && !canUseFullScreenIntent()
+
         val builder =
             NotificationCompat
                 .Builder(this, CHANNEL_ID)
@@ -748,7 +785,8 @@ class CallService : InCallService() {
                 .setOngoing(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(false)
-                .setSilent(true)
+                .setSilent(call.state != Call.STATE_RINGING || suppressBanner)
+                .setOnlyAlertOnce(true)
                 .setDefaults(0)
                 .setStyle(
                     if (call.state == Call.STATE_RINGING) {
