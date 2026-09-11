@@ -1,6 +1,5 @@
 package com.grinch.rivo4.controller.util
 import android.os.Build
-import androidx.core.content.pm.PackageInfoCompat
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
@@ -229,28 +228,6 @@ fun openLink(context: Context, link: String) {
         context.startActivity(intent)
     } catch (e: Exception) {
         e.printStackTrace()
-    }
-}
-
-fun getAppVersion(context: Context): Pair<String, Long> {
-    return try {
-        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.PackageInfoFlags.of(0)
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        }
-
-        val versionName = packageInfo.versionName ?: context.getString(R.string.label_unknown)
-        val versionCode = PackageInfoCompat.getLongVersionCode(packageInfo)
-
-        Pair(versionName, versionCode)
-    } catch (e: PackageManager.NameNotFoundException) {
-        e.printStackTrace()
-        Pair(context.getString(R.string.label_unknown), -1L)
     }
 }
 

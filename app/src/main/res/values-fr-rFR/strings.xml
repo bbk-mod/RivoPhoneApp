@@ -77,11 +77,6 @@
     <string name="permission_popup_body">Pour garantir le bon fonctionnement de toutes les fonctionnalités sur votre appareil, veuillez accorder les autorisations nécessaires. Certains fabricants comme Xiaomi ou Oppo peuvent nécessiter une configuration manuelle supplémentaire dans les paramètres du système.</string>
     <string name="permission_popup_grant">Accorder les autorisations</string>
     <string name="permission_popup_settings">Ouvrir les paramètres</string>
-    <!-- Patreon support prompt (MainActivity) -->
-    <string name="patreon_prompt_title">Soutenir Rivo</string>
-    <string name="patreon_prompt_confirm">Soutenir sur Patreon</string>
-    <string name="patreon_prompt_dismiss">Plus tard</string>
-    <string name="patreon_prompt_body">Rivo est gratuite et open source. Si vous aimez l’application, pensez à soutenir son développement sur Patreon !</string>
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Faites de Rivo votre application d’appel officielle</string>
     <string name="default_dialer_description">Pour passer et recevoir des appels, gérer votre historique d’appels et bénéficier de la protection anti-spam, Rivo doit être définie comme application téléphone par défaut.</string>
@@ -439,28 +434,6 @@
     <string name="settings_voicemail_vibration_supporting">Vibrer pour les nouveaux messages vocaux</string>
     <string name="settings_voicemail_visual_header">Messagerie vocale visuelle</string>
     <string name="settings_voicemail_visual_description">La messagerie vocale visuelle est actuellement gérée par votre opérateur. Assurez-vous que l’application de votre opérateur est installée pour une expérience optimale.</string>
-    <!-- Settings > About -->
-    <string name="about_title">À propos</string>
-    <string name="about_logo_content_desc">Logo Rivo</string>
-    <string name="about_app_display_name">Rivo</string>
-    <string name="about_app_card_title">À propos de l’application</string>
-    <string name="about_app_card_body">Rivo est une application de numérotation moderne qui allie simplicité et élégance. Conçue avec Material You, elle s’adapte parfaitement à votre thème.</string>
-    <string name="about_version">Version</string>
-    <string name="about_build_number">Numéro de build</string>
-    <string name="contributors_title">Contributeurs</string>
-    <string name="about_contributors_supporting">Découvrez l’équipe derrière le projet</string>
-    <string name="about_patreon">Soutenez-nous sur Patreon</string>
-    <string name="about_patreon_supporting">Aidez à maintenir le projet en vie</string>
-    <string name="about_discord">Serveur Discord</string>
-    <string name="about_discord_supporting">Rejoignez la communauté</string>
-    <string name="about_source_code">Code source</string>
-    <string name="about_source_code_supporting">Voir le code source sur GitHub</string>
-    <string name="about_check_updates">Vérifier les mises à jour</string>
-    <string name="about_current_version">Version actuelle : %1$s</string>
-    <string name="about_copyright">© 2025-2026 Projet RivoPhone</string>
-    <!-- Settings > Contributors -->
-    <string name="contributor_role_lead_developer">Développeur principal</string>
-    <string name="contributor_role_developer">Développeur</string>
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->

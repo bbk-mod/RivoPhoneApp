@@ -21,26 +21,17 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.rememberNavController
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.isAlreadyDefaultDialer
 import com.grinch.rivo4.controller.util.makeCall
-import com.grinch.rivo4.controller.util.openLink
-import com.grinch.rivo4.view.components.RivoDialog
 import com.grinch.rivo4.view.screen.onboarding.MorphingOnboardingScreen
 import com.grinch.rivo4.view.components.PermissionPopup
 import com.grinch.rivo4.controller.util.isCustomPermissionDevice
@@ -121,44 +112,6 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             defaultTransitions = getAppTransition(transitionStyle)
                         )
-
-                        var showPatreonPrompt by remember { 
-                            mutableStateOf(!prefs.getBoolean(PreferenceManager.KEY_PATREON_PROMPT_SHOWN, false)) 
-                        }
-
-                        if (showPatreonPrompt) {
-                            val context = LocalContext.current
-                            RivoDialog(
-                                onDismissRequest = { 
-                                    prefs.setBoolean(PreferenceManager.KEY_PATREON_PROMPT_SHOWN, true)
-                                    showPatreonPrompt = false 
-                                },
-                                title = stringResource(R.string.patreon_prompt_title),
-                                icon = Icons.Default.Favorite,
-                                confirmAction = com.grinch.rivo4.view.components.RivoDialogAction(
-                                    label = stringResource(R.string.patreon_prompt_confirm),
-                                    onClick = {
-                                        openLink(context, PATREON_URL)
-                                        prefs.setBoolean(PreferenceManager.KEY_PATREON_PROMPT_SHOWN, true)
-                                        showPatreonPrompt = false
-                                    }
-                                ),
-                                dismissAction = com.grinch.rivo4.view.components.RivoDialogAction(
-                                    label = stringResource(R.string.patreon_prompt_dismiss),
-                                    onClick = {
-                                        prefs.setBoolean(PreferenceManager.KEY_PATREON_PROMPT_SHOWN, true)
-                                        showPatreonPrompt = false
-                                    }
-                                )
-                            ) {
-                                Text(
-                                    stringResource(R.string.patreon_prompt_body),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
                     }
 
                     LaunchedEffect(Unit) {

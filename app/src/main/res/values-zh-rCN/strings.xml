@@ -69,11 +69,6 @@
     <string name="permission_popup_body">为确保所有功能在您的设备上正常工作，请授予必要的权限。 某些制造商，如小米或OPPO，可能需要在系统设置中进行额外的手动配置。</string>
     <string name="permission_popup_grant">授予权限</string>
     <string name="permission_popup_settings">打开设置</string>
-    <!-- Patreon support prompt (MainActivity) -->
-    <string name="patreon_prompt_title">支持 Rivo</string>
-    <string name="patreon_prompt_confirm">支持我们</string>
-    <string name="patreon_prompt_dismiss">稍后再说</string>
-    <string name="patreon_prompt_body">Rivo是免费和开源的。如果你喜欢这个应用，请考虑支持它在Patreon上的开发！</string>
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">将 Rivo 设为您的官方拨号器</string>
     <string name="default_dialer_description">若要拨打电话、接听来电、管理通话记录并体验垃圾电话防护功能，需将 Rivo 设置为您的默认电话应用。</string>
@@ -179,8 +174,6 @@
     <!-- Settings > Private contacts -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
-    <!-- Settings > About -->
-    <!-- Settings > Contributors -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->

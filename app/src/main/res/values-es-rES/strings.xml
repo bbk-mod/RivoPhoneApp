@@ -76,11 +76,6 @@
     <string name="permission_popup_body">Para asegurar que todas las características funcionen correctamente en tu dispositivo, por favor concede los permisos necesarios. Algunos fabricantes como Xiaomi u Oppo pueden necesitar una configuración manual adicional en los ajustes del sistema.</string>
     <string name="permission_popup_grant">Otorgar Permisos</string>
     <string name="permission_popup_settings">Abrir ajustes</string>
-    <!-- Patreon support prompt (MainActivity) -->
-    <string name="patreon_prompt_title">Apoyar a Rivo</string>
-    <string name="patreon_prompt_confirm">Donaciones</string>
-    <string name="patreon_prompt_dismiss">Quizá más tarde</string>
-    <string name="patreon_prompt_body">Rivo es gratuito y de código abierto. Si te gusta la aplicación, ¡por favor considera apoyar su desarrollo en Patreon!</string>
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Haz de Rivo tu marcador oficial</string>
     <string name="default_dialer_description">Para hacer y recibir llamadas, administrar tu historial de llamadas y protegerte contra el spam, Rivo necesita ser configurada como tu aplicación de teléfono predeterminada.</string>
@@ -421,28 +416,6 @@
     <string name="settings_voicemail_notifications_header">Notificaciones</string>
     <string name="settings_voicemail_ringtone">Tono del buzón de voz</string>
     <string name="settings_voicemail_vibration">Vibración</string>
-    <!-- Settings > About -->
-    <string name="about_title">Acerca de</string>
-    <string name="about_logo_content_desc">Logo de Rivo</string>
-    <string name="about_app_display_name">Rivo</string>
-    <string name="about_app_card_title">Acerca de la aplicación</string>
-    <string name="about_app_card_body">Rivo es una aplicación moderna que aporta simplicidad y elegancia a tus llamadas. Diseñada con Material You, se adapta perfectamente a tu tema.</string>
-    <string name="about_version">Versión</string>
-    <string name="about_build_number">Número de compilación</string>
-    <string name="contributors_title">Colaboradores</string>
-    <string name="about_contributors_supporting">Conoce al equipo detrás del proyecto</string>
-    <string name="about_patreon">Apóyanos</string>
-    <string name="about_patreon_supporting">Ayuda a mantener el proyecto vivo</string>
-    <string name="about_discord">Servidor de Discord</string>
-    <string name="about_discord_supporting">Únase a la comunidad</string>
-    <string name="about_source_code">Código fuente</string>
-    <string name="about_source_code_supporting">Ver el código fuente en GitHub</string>
-    <string name="about_check_updates">Buscar actualizaciones</string>
-    <string name="about_current_version">Versión actual: %1$s</string>
-    <string name="about_copyright">©️ Proyecto RivoPhone 2025-2026</string>
-    <!-- Settings > Contributors -->
-    <string name="contributor_role_lead_developer">Director de desarrollo</string>
-    <string name="contributor_role_developer">Desarrollador</string>
     <!-- Favorites -->
     <string name="nav_favorites">Favoritos</string>
     <string name="favorites_permission_title">Se necesita permiso de contactos</string>

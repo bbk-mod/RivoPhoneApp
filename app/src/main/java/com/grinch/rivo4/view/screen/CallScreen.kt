@@ -382,7 +382,7 @@ fun ExpressiveCallScreen(
 
             if (isRecording) {
                 Row(
-                    modifier = Modifier.padding(top = 6.dp),
+                    modifier = Modifier.padding(top = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -404,7 +404,7 @@ fun ExpressiveCallScreen(
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 16.dp)
                 ) {
                     Text(
                         text = simLabel,
@@ -638,6 +638,8 @@ fun ExpressiveCallScreen(
 
 @Composable
 fun PulsingAvatar(photoUri: String?, isLandscape: Boolean = false) {
+    if (photoUri.isNullOrEmpty() || photoUri == "voicemail://icon") return
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -737,12 +739,13 @@ private fun heroAvatarSize(isLandscape: Boolean): Dp {
 
 @Composable
 fun HeroAvatar(photoUri: String?, isLandscape: Boolean = false) {
+    if (photoUri.isNullOrEmpty() || photoUri == "voicemail://icon") return
+
     val prefs = koinInject<PreferenceManager>()
     val shapeVal = prefs.getInt(PreferenceManager.KEY_AVATAR_SHAPE, 0)
     val avatarShape = rivoAvatarShape(shapeVal)
 
     val size = heroAvatarSize(isLandscape)
-    val iconSize = size * 0.6f
 
     Box(
         modifier = Modifier
@@ -751,21 +754,12 @@ fun HeroAvatar(photoUri: String?, isLandscape: Boolean = false) {
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center
     ) {
-        if (!photoUri.isNullOrEmpty()) {
-            AsyncImage(
-                model = photoUri,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize().clip(avatarShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(iconSize),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
+        AsyncImage(
+            model = photoUri,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize().clip(avatarShape),
+            contentScale = ContentScale.Crop
+        )
     }
 }
 

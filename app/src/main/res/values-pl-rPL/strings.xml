@@ -77,11 +77,6 @@
     <string name="permission_popup_body">Aby zapewnić poprawne działanie wszystkich funkcji na Twoim urządzeniu, udziel niezbędnych uprawnień. Niektórzy producenci, jak Xiaomi czy Oppo, mogą wymagać dodatkowej ręcznej konfiguracji w ustawieniach systemowych.</string>
     <string name="permission_popup_grant">Udziel uprawnień</string>
     <string name="permission_popup_settings">Otwórz ustawienia</string>
-    <!-- Patreon support prompt (MainActivity) -->
-    <string name="patreon_prompt_title">Wesprzyj Rivo</string>
-    <string name="patreon_prompt_confirm">Wesprzyj na Patreonie</string>
-    <string name="patreon_prompt_dismiss">Może później</string>
-    <string name="patreon_prompt_body">Rivo jest darmową aplikacją otwartoźródłową. Jeśli Ci się podoba, rozważ wsparcie jej rozwoju na Patreonie!</string>
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Ustaw Rivo jako oficjalną aplikację do dzwonienia</string>
     <string name="default_dialer_description">Aby móc wykonywać i odbierać połączenia, zarządzać historią oraz korzystać z ochrony przed spamem, musisz ustawić Rivo jako domyślną aplikację telefoniczną.</string>
@@ -456,28 +451,6 @@
     <string name="settings_voicemail_vibration_supporting">Wibruj przy nowych powiadomieniach poczty głosowej</string>
     <string name="settings_voicemail_visual_header">Wizualna poczta głosowa</string>
     <string name="settings_voicemail_visual_description">Wizualna poczta głosowa jest obecnie zarządzana przez Twojego operatora. Aby uzyskać najlepszą wydajność, upewnij się, że masz zainstalowaną aplikację operatora.</string>
-    <!-- Settings > About -->
-    <string name="about_title">O aplikacji</string>
-    <string name="about_logo_content_desc">Logo Rivo</string>
-    <string name="about_app_display_name">Rivo</string>
-    <string name="about_app_card_title">Informacje o aplikacji</string>
-    <string name="about_app_card_body">Rivo to nowoczesna aplikacja telefoniczna, która zapewnia prostotę i elegancję podczas dzwonienia. Dzięki zaprojektowaniu w stylu Material You płynnie dostosowuje się do Twojego motywu.</string>
-    <string name="about_version">Wersja</string>
-    <string name="about_build_number">Numer kompilacji</string>
-    <string name="contributors_title">Współtwórcy</string>
-    <string name="about_contributors_supporting">Poznaj zespół stojący za tym projektem</string>
-    <string name="about_patreon">Wesprzyj nas na Patreonie</string>
-    <string name="about_patreon_supporting">Pomóż utrzymać projekt przy życiu</string>
-    <string name="about_discord">Serwer Discord</string>
-    <string name="about_discord_supporting">Dołącz do społeczności</string>
-    <string name="about_source_code">Kod źródłowy</string>
-    <string name="about_source_code_supporting">Zobacz kod źródłowy na GitHubie</string>
-    <string name="about_check_updates">Sprawdź aktualizacje</string>
-    <string name="about_current_version">Aktualna wersja: %1$s</string>
-    <string name="about_copyright">© 2025-2026 Projekt RivoPhone</string>
-    <!-- Settings > Contributors -->
-    <string name="contributor_role_lead_developer">Główny programista</string>
-    <string name="contributor_role_developer">Programista</string>
     <!-- Favorites -->
     <string name="nav_favorites">Ulubione</string>
     <string name="favorites_permission_title">Wymagane uprawnienie do kontaktów</string>

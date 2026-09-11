@@ -389,6 +389,7 @@ class CallService : InCallService() {
                 .setContentTitle(getString(R.string.notif_blocked_call_title))
                 .setContentText(getString(R.string.notif_blocked_call_text, number))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
                 .setAutoCancel(true)
 
         notificationManager.notify(number.hashCode(), builder.build())

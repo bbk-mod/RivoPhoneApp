@@ -24,12 +24,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    def envKeystorePath = System.getenv("KEYSTORE_PATH")
+    def projectKeystore = rootProject.file("keystore.jks")
+    def useProjectKeystore = envKeystorePath == null && projectKeystore.exists()
+
     signingConfigs {
         release {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "${System.getProperty("user.home")}/.android/debug.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            storeFile = file(
+                envKeystorePath
+                    ?: (useProjectKeystore ? projectKeystore : "${System.getProperty("user.home")}/.android/debug.keystore")
+            )
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: (useProjectKeystore ? "rivoandroid" : "android")
+            keyAlias = System.getenv("KEY_ALIAS") ?: (useProjectKeystore ? "rivo" : "androiddebugkey")
+            keyPassword = System.getenv("KEY_PASSWORD") ?: (useProjectKeystore ? "rivoandroid" : "android")
         }
     }
 

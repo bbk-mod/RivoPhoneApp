@@ -81,12 +81,6 @@
     <string name="permission_popup_grant">Grant Permissions</string>
     <string name="permission_popup_settings">Open Settings</string>
 
-    <!-- Patreon support prompt (MainActivity) -->
-    <string name="patreon_prompt_title">Support Rivo</string>
-    <string name="patreon_prompt_confirm">Support Us</string>
-    <string name="patreon_prompt_dismiss">Maybe later</string>
-    <string name="patreon_prompt_body">Rivo is free and open source. If you like the app, please consider supporting its development on Patreon!</string>
-
     <!-- Default dialer prompt -->
     <string name="default_dialer_headline">Make Rivo your official dialer</string>
     <string name="default_dialer_description">To make and receive calls, manage your call history, and experience spam protection, Rivo needs to be set as your default phone app.</string>
@@ -483,30 +477,6 @@
     <string name="settings_voicemail_vibration_supporting">Vibrate for new voicemail notifications</string>
     <string name="settings_voicemail_visual_header">Visual Voicemail</string>
     <string name="settings_voicemail_visual_description">Visual Voicemail is currently managed by your carrier. Ensure your carrier app is installed for the best experience.</string>
-
-    <!-- Settings > About -->
-    <string name="about_title">About</string>
-    <string name="about_logo_content_desc">Rivo Logo</string>
-    <string name="about_app_display_name">Rivo</string>
-    <string name="about_app_card_title">About the App</string>
-    <string name="about_app_card_body">Rivo is a modern dialer app that brings simplicity and elegance to calling. Designed with Material You, it adapts seamlessly to your theme.</string>
-    <string name="about_version">Version</string>
-    <string name="about_build_number">Build number</string>
-    <string name="contributors_title">Contributors</string>
-    <string name="about_contributors_supporting">Meet the team behind the project</string>
-    <string name="about_patreon">Support Us</string>
-    <string name="about_patreon_supporting">Help keep the project alive</string>
-    <string name="about_discord">Discord Server</string>
-    <string name="about_discord_supporting">Join the community</string>
-    <string name="about_source_code">Source Code</string>
-    <string name="about_source_code_supporting">View the source code on GitHub</string>
-    <string name="about_check_updates">Check for Updates</string>
-    <string name="about_current_version">Current version: %1$s</string>
-    <string name="about_copyright">© 2025-2026 RivoPhone Project</string>
-
-    <!-- Settings > Contributors -->
-    <string name="contributor_role_lead_developer">Lead Developer</string>
-    <string name="contributor_role_developer">Developer</string>
 
     <!-- Favorites -->
     <string name="nav_favorites">Favorites</string>
