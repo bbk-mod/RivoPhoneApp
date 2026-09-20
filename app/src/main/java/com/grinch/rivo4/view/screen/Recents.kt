@@ -7,12 +7,22 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
@@ -61,6 +71,8 @@ import com.grinch.rivo4.controller.ContactsViewModel
 import com.grinch.rivo4.modal.data.CallLogFilter
 import com.grinch.rivo4.modal.data.CallLogEntry
 import com.grinch.rivo4.modal.data.Contact
+import com.grinch.rivo4.modal.data.SwipeActionType
+import com.grinch.rivo4.controller.util.SocialUtils
 import com.grinch.rivo4.modal.data.displayLabel
 import com.grinch.rivo4.view.screen.transitions.NoTransitions
 import kotlinx.coroutines.launch
@@ -162,9 +174,12 @@ fun RecentScreenContent(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0),
+    val avatarStyle = rememberRivoAvatarStyle()
+
+    CompositionLocalProvider(LocalRivoAvatarStyle provides avatarStyle) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets(0),
         topBar = {
             if (onSelectionStateChange != null) {
                 if (!isSelecting) {
@@ -191,12 +206,14 @@ fun RecentScreenContent(
         },
         floatingActionButton = {
             if (selectedEntries.isEmpty()) {
+                val fabBottomPadding = LocalScrollToTopBottomPadding.current
                 FloatingActionButton(
                     onClick = { navigator.navigate(DialPadScreenDestination()) },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     shape = RoundedCornerShape(20.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(0.dp)
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp, pressedElevation = 6.dp),
+                    modifier = Modifier.padding(bottom = fabBottomPadding)
                 ) {
                     Icon(Icons.Default.Dialpad, stringResource(R.string.content_desc_dialpad))
                 }
@@ -233,6 +250,7 @@ fun RecentScreenContent(
         }
     }
 }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -257,22 +275,20 @@ fun FavoriteCircleItem(
     )
 
     Column(
-        modifier = modifier.width(76.dp),
+        modifier = modifier.width(72.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             RivoAvatar(
                 name = contact.displayName,
                 photoUri = contact.photoUri,
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(62.dp)
                     .graphicsLayer { if (isEditing && !isDragging) rotationZ = wiggle }
                     .combinedClickable(
-                        enabled = true,
-                        onClick = {
-                            if (!isEditing) onClick()
-                        },
+                        enabled = !isEditing,
+                        onClick = onClick,
                         onLongClick = onLongClick
                     )
             )
@@ -280,14 +296,14 @@ fun FavoriteCircleItem(
             if (isEditing) {
                 Surface(
                     onClick = onUnfavorite,
-                    modifier = Modifier.size(22.dp).offset(x = 4.dp, y = (-4).dp),
+                    modifier = Modifier.size(22.dp).offset(x = 3.dp, y = (-3).dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
-                    shadowElevation = 2.dp
+                    shadowElevation = 3.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Remove, stringResource(R.string.content_desc_remove_favorite), modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Remove, stringResource(R.string.content_desc_remove_favorite), modifier = Modifier.size(13.dp))
                     }
                 }
             }
@@ -392,12 +408,14 @@ fun CallLogFullContent(
             }
         }
 
-        LaunchedEffect(Unit) {
+        val hiddenContactsVisible by contactsVM.hiddenContactsVisible.collectAsState()
+        LaunchedEffect(hiddenContactsVisible) {
             viewModel.fetchLogs()
             contactsVM.fetchContacts()
         }
 
         val logs by viewModel.allCallLogs.collectAsState()
+        val todayStats by viewModel.todayStats.collectAsState()
         val allContacts by contactsVM.allContacts.collectAsState()
 
         val mergeFavorites = remember(settingsState) {
@@ -420,9 +438,16 @@ fun CallLogFullContent(
             mutableStateOf(prefs.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED, false))
         }
         var showAddFavoriteDialog by remember { mutableStateOf(false) }
+        val showRecentsStats = remember(settingsState) {
+            prefs.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SHOW_RECENTS_STATS, true) &&
+                prefs.isCallAnalyticsTrackingEnabled()
+        }
 
         val favRowState = rememberLazyListState()
         val favItems = remember { mutableStateListOf<Contact>() }
+        LaunchedEffect(favItems.isEmpty()) {
+            if (favItems.isEmpty()) isEditingFavorites = false
+        }
         LaunchedEffect(favorites) {
             if (favItems.map { it.id }.toSet() != favorites.map { it.id }.toSet()) {
                 favItems.clear()
@@ -449,7 +474,10 @@ fun CallLogFullContent(
             isEditingFavorites = false
         }
         val context = LocalContext.current
+        val clipboardManager = LocalClipboardManager.current
         val callLauncher = rememberCallLauncher()
+        val messageLauncher = rememberMessageLauncher()
+        val videoLauncher = rememberVideoLauncher()
         val blockLogVisibility = prefs.getInt(com.grinch.rivo4.controller.util.PreferenceManager.KEY_BLOCK_LOG_VISIBILITY, 0)
         val displayOrder = remember(settingsState) { prefs.getInt(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0) }
 
@@ -509,41 +537,69 @@ fun CallLogFullContent(
                         contentPadding = PaddingValues(bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        if (showRecentsStats && selectedFilter == CallLogFilter.All && logs.isNotEmpty()) {
+                            item {
+                                RecentsDailyStatusHeader(
+                                    totalCalls = todayStats.totalCalls,
+                                    incomingCalls = todayStats.incomingCalls,
+                                    outgoingCalls = todayStats.outgoingCalls,
+                                    missedCalls = todayStats.missedCalls,
+                                    totalDurationSeconds = todayStats.totalDurationSeconds,
+                                    onOpenAnalytics = {
+                                        navigator.navigate(com.ramcosta.composedestinations.generated.destinations.CallAnalyticsScreenDestination())
+                                    },
+                                    onHideStats = {
+                                        prefs.setBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SHOW_RECENTS_STATS, false)
+                                    },
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+
                         if (favorites.isNotEmpty() && selectedFilter == CallLogFilter.All) {
                             item {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+                                        .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 2.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.clickable {
-                                            val newCollapsed = !isFavoritesCollapsed
-                                            isFavoritesCollapsed = newCollapsed
-                                            prefs.setBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED, newCollapsed)
+                                            if (!isEditingFavorites) {
+                                                val newCollapsed = !isFavoritesCollapsed
+                                                isFavoritesCollapsed = newCollapsed
+                                                prefs.setBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED, newCollapsed)
+                                            }
                                         }
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.recents_favorites),
+                                            text = if (isEditingFavorites) stringResource(R.string.favorites_drag_to_reorder) else stringResource(R.string.recents_favorites),
                                             style = MaterialTheme.typography.labelLargeEmphasized,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Icon(
-                                            imageVector = if (isFavoritesCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                            contentDescription = stringResource(if (isFavoritesCollapsed) R.string.favorites_expand else R.string.favorites_collapse),
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                        if (!isEditingFavorites) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = if (isFavoritesCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                                contentDescription = stringResource(if (isFavoritesCollapsed) R.string.favorites_expand else R.string.favorites_collapse),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
 
-                                    if (isEditingFavorites) {
-                                        TextButton(onClick = { isEditingFavorites = false }) {
+                                    if (!isFavoritesCollapsed || isEditingFavorites) {
+                                        TextButton(onClick = {
+                                            if (isEditingFavorites) {
+                                                prefs.setFavoritesOrder(favItems.map { it.id })
+                                            }
+                                            isEditingFavorites = !isEditingFavorites
+                                        }) {
                                             Text(
-                                                text = stringResource(R.string.action_done),
+                                                text = if (isEditingFavorites) stringResource(R.string.action_done) else stringResource(R.string.action_edit),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -556,7 +612,7 @@ fun CallLogFullContent(
                                         state = favRowState,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 8.dp)
+                                            .padding(vertical = 2.dp)
                                             .then(
                                                 if (isEditingFavorites) {
                                                     Modifier.pointerInput(rowDragDropState) {
@@ -565,7 +621,7 @@ fun CallLogFullContent(
                                                             onDrag = { change, offset ->
                                                                 change.consume()
                                                                 rowDragDropState.onDrag(offset)
-                                                            },
+                                                             },
                                                             onDragEnd = {
                                                                 rowDragDropState.onDragInterrupted()
                                                                 prefs.setFavoritesOrder(favItems.map { it.id })
@@ -578,12 +634,12 @@ fun CallLogFullContent(
                                                 }
                                             ),
                                         contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         itemsIndexed(favItems, key = { _, c -> c.id }) { index, contact ->
                                             val dragging = index == rowDragDropState.draggingItemIndex
                                             val itemModifier = if (dragging) {
-                                                Modifier
+                                                 Modifier
                                                     .zIndex(1f)
                                                     .graphicsLayer {
                                                         translationX = rowDragDropState.draggingItemOffset.x
@@ -598,7 +654,11 @@ fun CallLogFullContent(
                                                 contact = contact,
                                                 isEditing = isEditingFavorites,
                                                 isDragging = dragging,
-                                                onUnfavorite = { contactsVM.toggleFavorite(contact) },
+                                                onUnfavorite = {
+                                                    favItems.remove(contact)
+                                                    prefs.setFavoritesOrder(favItems.map { it.id })
+                                                    contactsVM.toggleFavorite(contact)
+                                                },
                                                 onLongClick = { isEditingFavorites = true },
                                                 onClick = {
                                                     callLauncher.dial(contact.phoneNumbers.firstOrNull() ?: "", contact)
@@ -609,19 +669,19 @@ fun CallLogFullContent(
                                             item {
                                                 Column(
                                                     modifier = Modifier
-                                                        .width(76.dp)
+                                                        .width(72.dp)
                                                         .clickable { showAddFavoriteDialog = true },
                                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
                                                     Surface(
-                                                        modifier = Modifier.size(64.dp),
+                                                        modifier = Modifier.size(62.dp),
                                                         shape = CircleShape,
                                                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         contentColor = MaterialTheme.colorScheme.primary
                                                     ) {
                                                         Box(contentAlignment = Alignment.Center) {
-                                                            Icon(Icons.Default.Add, stringResource(R.string.favorites_add_button), modifier = Modifier.size(28.dp))
+                                                            Icon(Icons.Default.Add, stringResource(R.string.favorites_add_button), modifier = Modifier.size(26.dp))
                                                         }
                                                     }
                                                     Text(
@@ -637,7 +697,7 @@ fun CallLogFullContent(
                                         }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                             }
                         }
 
@@ -669,7 +729,24 @@ fun CallLogFullContent(
                                                 onLongClick = { log ->
                                                     onToggleSelection(log)
                                                 },
-                                                selected = selectedEntries.any { it.id == lg.id }
+                                                selected = selectedEntries.any { it.id == lg.id },
+                                                onSwipeAction = { action, log ->
+                                                    if (action == SwipeActionType.DELETE) {
+                                                        viewModel.deleteCallLogsByIds(log.ids)
+                                                    } else {
+                                                        val contact = allContacts.find { it.id == log.contactId }
+                                                        when (action) {
+                                                            SwipeActionType.CALL -> callLauncher.dial(log.number, contact)
+                                                            SwipeActionType.MESSAGE -> messageLauncher.sendMessage(log.number, contact)
+                                                            SwipeActionType.VIDEO_CALL -> videoLauncher.startVideoCall(log.number, contact)
+                                                            SwipeActionType.COPY_NUMBER -> {
+                                                                clipboardManager.setText(AnnotatedString(log.number))
+                                                                Toast.makeText(context, context.getString(R.string.number_copied_toast), Toast.LENGTH_SHORT).show()
+                                                            }
+                                                            SwipeActionType.NONE, SwipeActionType.DELETE -> {}
+                                                        }
+                                                    }
+                                                }
                                             )
                                             if (index < logsInGroup.size - 1) {
                                                 RivoDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -728,5 +805,175 @@ fun EmptyCallLogsState() {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)
         )
+    }
+}
+
+@Composable
+fun RecentsDailyStatusHeader(
+    totalCalls: Int,
+    incomingCalls: Int = 0,
+    outgoingCalls: Int = 0,
+    missedCalls: Int = 0,
+    totalDurationSeconds: Long = 0L,
+    onOpenAnalytics: () -> Unit,
+    modifier: Modifier = Modifier,
+    onHideStats: (() -> Unit)? = null
+) {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 1. Today (Total Calls)
+        item(key = "today_total") {
+            DailyStatCard(
+                value = "$totalCalls",
+                label = "Today",
+                icon = Icons.AutoMirrored.Filled.CallReceived,
+                containerColor = if (isDark) Color(0xFF253138) else Color(0xFFE2EFF6),
+                badgeColor = if (isDark) Color(0xFF3F596C) else Color(0xFFBEDEEF),
+                iconColor = if (isDark) Color(0xFF73BAE7) else Color(0xFF19658E),
+                valueColor = if (isDark) Color(0xFFEDE8DF) else Color(0xFF16252C),
+                labelColor = if (isDark) Color(0xFFA1AFB6) else Color(0xFF4C6674),
+                onClick = onOpenAnalytics
+            )
+        }
+
+        // 2. Call Time (Total Talk Time)
+        item(key = "today_call_time") {
+            DailyStatCard(
+                value = formatShortDuration(totalDurationSeconds),
+                label = "Call Time",
+                icon = Icons.Outlined.Schedule,
+                containerColor = if (isDark) Color(0xFF3B2E1E) else Color(0xFFFFF4E5),
+                badgeColor = if (isDark) Color(0xFF614A2E) else Color(0xFFFFE0B8),
+                iconColor = if (isDark) Color(0xFFE5B56A) else Color(0xFF875200),
+                valueColor = if (isDark) Color(0xFFEDE8DF) else Color(0xFF2B1D0B),
+                labelColor = if (isDark) Color(0xFFB6A694) else Color(0xFF745738),
+                onClick = onOpenAnalytics
+            )
+        }
+
+        // 3. Incoming (if incomingCalls > 0)
+        if (incomingCalls > 0) {
+            item(key = "today_incoming") {
+                DailyStatCard(
+                    value = "$incomingCalls",
+                    label = "Incoming",
+                    icon = Icons.AutoMirrored.Filled.CallReceived,
+                    containerColor = if (isDark) Color(0xFF1E2F38) else Color(0xFFE0F4FF),
+                    badgeColor = if (isDark) Color(0xFF335566) else Color(0xFFB8E4FF),
+                    iconColor = if (isDark) Color(0xFF5CC4FF) else Color(0xFF00668B),
+                    valueColor = if (isDark) Color(0xFFEDE8DF) else Color(0xFF0F2633),
+                    labelColor = if (isDark) Color(0xFF90B5C6) else Color(0xFF496879),
+                    onClick = onOpenAnalytics
+                )
+            }
+        }
+
+        // 4. Missed
+        item(key = "today_missed") {
+            DailyStatCard(
+                value = "$missedCalls",
+                label = "Missed",
+                icon = Icons.AutoMirrored.Filled.CallMissed,
+                containerColor = if (isDark) Color(0xFF3B252B) else Color(0xFFFFECEF),
+                badgeColor = if (isDark) Color(0xFF6B3B48) else Color(0xFFFFCDD6),
+                iconColor = if (isDark) Color(0xFFE87597) else Color(0xFFBA1A3E),
+                valueColor = if (isDark) Color(0xFFEDE8DF) else Color(0xFF2E151A),
+                labelColor = if (isDark) Color(0xFFB59DA2) else Color(0xFF7E4E57),
+                onClick = onOpenAnalytics
+            )
+        }
+
+        // 5. Outgoing
+        item(key = "today_outgoing") {
+            DailyStatCard(
+                value = "$outgoingCalls",
+                label = "Outgoing",
+                icon = Icons.AutoMirrored.Filled.CallMade,
+                containerColor = if (isDark) Color(0xFF253422) else Color(0xFFEBF7EA),
+                badgeColor = if (isDark) Color(0xFF3D5936) else Color(0xFFC7ECC4),
+                iconColor = if (isDark) Color(0xFF78D78E) else Color(0xFF286D2C),
+                valueColor = if (isDark) Color(0xFFEDE8DF) else Color(0xFF152613),
+                labelColor = if (isDark) Color(0xFFA3B39F) else Color(0xFF4C664A),
+                onClick = onOpenAnalytics
+            )
+        }
+    }
+}
+
+@Composable
+private fun DailyStatCard(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    containerColor: Color,
+    badgeColor: Color,
+    iconColor: Color,
+    valueColor: Color,
+    labelColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .width(104.dp)
+            .height(100.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        color = containerColor
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            // Top-right circular badge
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .align(Alignment.TopEnd)
+                    .clip(CircleShape)
+                    .background(badgeColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+
+            // Bottom-left stats
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart)
+            ) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = if (value.length > 4) 20.sp else 24.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = valueColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = labelColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }

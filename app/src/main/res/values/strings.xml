@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RivoPhone</string>
+    <string name="app_name">Rivo</string>
 
     <!-- Shared actions / generic labels reused across multiple screens -->
     <string name="action_cancel">Cancel</string>
@@ -22,8 +22,11 @@
     <string name="action_decline">Decline</string>
     <string name="action_end">End</string>
     <string name="action_mute">Mute</string>
+    <string name="action_unmute">Unmute</string>
     <string name="action_keypad">Keypad</string>
     <string name="action_add_call">Add call</string>
+    <string name="action_merge_calls">Merge calls</string>
+    <string name="conference_call">Conference call</string>
     <string name="action_hold">Hold</string>
     <string name="action_resume">Resume</string>
     <string name="action_end_call">End Call</string>
@@ -35,7 +38,10 @@
     <string name="content_desc_scroll_to_top">Scroll to top</string>
     <string name="sim_picker_title">Select SIM Card</string>
     <string name="sim_picker_unknown_sim">Unknown SIM</string>
-    <string name="selection_count_selected">%1$d Selected</string>
+    <plurals name="selection_count_selected">
+        <item quantity="one">%1$d Selected</item>
+        <item quantity="other">%1$d Selected</item>
+    </plurals>
     <string name="label_unknown">Unknown</string>
     <string name="label_unknown_number">Unknown Number</string>
     <string name="label_mobile">Mobile</string>
@@ -52,6 +58,7 @@
     <string name="date_yesterday">Yesterday</string>
     <string name="nav_contacts">Contacts</string>
     <string name="nav_recents">Recents</string>
+    <string name="nav_call_recordings">Recordings</string>
     <string name="call_type_incoming">Incoming</string>
     <string name="call_type_outgoing">Outgoing</string>
     <string name="call_type_missed">Missed</string>
@@ -96,7 +103,10 @@
     <string name="call_history_with_contact">History with %1$s</string>
     <string name="call_log_no_history_found">No call history found</string>
     <string name="call_log_no_filter_match">No calls match this filter</string>
-    <string name="call_log_delete_confirm">Are you sure you want to delete %1$d selected call logs?</string>
+    <plurals name="call_log_delete_confirm">
+        <item quantity="one">Are you sure you want to delete %1$d selected call log?</item>
+        <item quantity="other">Are you sure you want to delete %1$d selected call logs?</item>
+    </plurals>
     <string name="call_log_delete_title">Delete Call Logs</string>
     <string name="call_log_clear_all_title">Clear All Logs</string>
     <string name="call_log_clear_all_confirm">Clear All</string>
@@ -154,6 +164,8 @@
     <string name="contact_remove_from_device">Remove this contact from device</string>
     <string name="contact_delete_dialog_title">Delete Contact?</string>
     <string name="contact_delete_dialog_message">Are you sure you want to delete this contact? This action cannot be undone.</string>
+    <string name="contact_personalization_title">Personalization</string>
+    <string name="contact_privacy_title">Privacy &amp; Security</string>
 
     <!-- Contact edit -->
     <string name="contact_create_title">Create Contact</string>
@@ -166,6 +178,7 @@
     <string name="contact_edit_identity_header">Identity</string>
     <string name="contact_edit_full_name">Full Name</string>
     <string name="contact_edit_first_name">First name</string>
+    <string name="contact_edit_middle_name">Middle name</string>
     <string name="contact_edit_last_name">Last name</string>
     <string name="contact_edit_nickname">Nickname</string>
     <string name="contact_edit_phone_numbers_header">Phone Numbers</string>
@@ -358,6 +371,8 @@
     <string name="settings_call_incoming_ui_buttons">Buttons</string>
     <string name="settings_call_incoming_ui_slide_ios">Slide to Answer (iOS)</string>
     <string name="settings_call_incoming_ui_vertical_swipe">Vertical Swipe</string>
+    <string name="settings_call_always_fullscreen">Always Jump to Full Screen</string>
+    <string name="settings_call_always_fullscreen_supporting">Open incoming calls directly in full screen. When disabled, calls show as a heads-up banner when using other apps.</string>
     <string name="settings_call_dialpad_style">Dialpad Style</string>
     <string name="settings_call_dialpad_style_supporting">Visual appearance of the phone dialer</string>
     <string name="settings_call_dialpad_style_modern">Modern</string>
@@ -427,8 +442,8 @@
     <string name="settings_manage_name_format_first_first">First Name First</string>
     <string name="settings_manage_name_format_last_first">Last Name First</string>
     <string name="settings_manage_storage">Storage</string>
-    <string name="settings_manage_private_contacts">Private Contacts</string>
-    <string name="settings_manage_private_contacts_supporting">Manage contacts stored only in this app</string>
+    <string name="settings_manage_private_contacts">Private Storage</string>
+    <string name="settings_manage_private_contacts_supporting">Manage contacts stored in private app storage</string>
     <string name="settings_manage_visibility">Contact Visibility</string>
     <string name="settings_manage_visibility_supporting">Choose which accounts to show in your list</string>
     <string name="settings_manage_quick_fixes">Quick Fixes</string>
@@ -445,12 +460,12 @@
     <string name="settings_visibility_local_memory_supporting">Contacts stored on device</string>
     <string name="settings_visibility_reset_all">Reset to Show All</string>
 
-    <!-- Settings > Private contacts -->
-    <string name="settings_private_title">Private Contacts</string>
+    <!-- Settings > Private storage -->
+    <string name="settings_private_title">Private Storage</string>
     <string name="content_desc_import">Import</string>
     <string name="content_desc_export">Export</string>
-    <string name="settings_private_empty">No private contacts found</string>
-    <string name="settings_private_manage_hint">Manage your encrypted local contacts</string>
+    <string name="settings_private_empty">No contacts in private storage found</string>
+    <string name="settings_private_manage_hint">Manage contacts stored in private storage</string>
 
     <!-- Settings > Speed dial -->
     <string name="settings_speed_dial_title">Speed Dial</string>
@@ -478,6 +493,20 @@
     <string name="settings_voicemail_visual_header">Visual Voicemail</string>
     <string name="settings_voicemail_visual_description">Visual Voicemail is currently managed by your carrier. Ensure your carrier app is installed for the best experience.</string>
 
+    <!-- OEM & Xiaomi Call Recording Optimization -->
+    <string name="oem_recording_guide_title">Device Optimization for Recording</string>
+    <string name="oem_recording_guide_subtitle">Xiaomi MIUI/HyperOS and other OEMs require special background permissions to save call recordings without interruption.</string>
+    <string name="oem_perm_bg_recording">Background Audio</string>
+    <string name="oem_perm_bg_recording_desc">Allow recording audio while running in the background in OEM Security settings.</string>
+    <string name="oem_perm_autostart">Autostart</string>
+    <string name="oem_perm_autostart_desc">Enable Autostart to prevent the system from killing the recorder during calls.</string>
+    <string name="oem_perm_battery">Battery Saver: No Restrictions</string>
+    <string name="oem_perm_battery_desc">Exclude Rivo from aggressive battery killer policies.</string>
+    <string name="oem_btn_open_perms">Open OEM Permissions</string>
+    <string name="oem_btn_open_autostart">Open Autostart</string>
+    <string name="oem_btn_open_battery">Battery Settings</string>
+    <string name="call_recording_notification_title">Recording Call</string>
+    <string name="call_recording_notification_text">Audio is being captured and saved</string>
     <!-- Favorites -->
     <string name="nav_favorites">Favorites</string>
     <string name="favorites_permission_title">Contacts permission needed</string>
@@ -521,10 +550,17 @@
     <string name="contact_unblock">Unblock contact</string>
     <string name="contact_unblock_supporting">Allow calls from this contact again</string>
     <string name="call_log_block_title">Block numbers?</string>
-    <string name="call_log_block_message">Calls from the %1$d selected entries will be blocked.</string>
+    <plurals name="call_log_block_message">
+        <item quantity="one">Calls from the %1$d selected entry will be blocked.</item>
+        <item quantity="other">Calls from the %1$d selected entries will be blocked.</item>
+    </plurals>
 
     <!-- Contact call screen background -->
     <string name="contact_call_background">Call screen background</string>
+    <string name="settings_interface_hide_avatar_with_bg">Hide profile picture when background is available</string>
+    <string name="settings_interface_hide_avatar_with_bg_supporting">Hide caller avatar on call screen when a call background image is active</string>
+    <string name="settings_interface_use_cards">Use expressive cards</string>
+    <string name="settings_interface_use_cards_supporting">Group items into expressive cards in recents and contact lists</string>
     <string name="contact_call_background_set">Custom image selected</string>
     <string name="contact_call_background_none">Use the default background</string>
     <string name="contact_call_background_choose">Choose an image</string>
@@ -596,4 +632,199 @@
     <string name="serial_label">Serial Number</string>
     <string name="imei_copied">Copied to clipboard</string>
     <string name="imei_not_available">Not available on this device</string>
+    <!-- Fake Call feature -->
+    <string name="fake_call_title">Fake Call</string>
+    <string name="fake_call_subtitle">Schedule incoming simulated calls</string>
+    <string name="fake_call_channel_title">Fake Call Schedule</string>
+    <string name="fake_call_channel_desc">Notifications for scheduled fake calls</string>
+    <string name="fake_call_notif_title">Fake Call Scheduled</string>
+    <string name="fake_call_notif_content">Fake call from %1$s at %2$s</string>
+    <string name="fake_call_caller_details">Caller Information</string>
+    <string name="fake_call_name">Caller Name</string>
+    <string name="fake_call_number">Phone Number</string>
+    <string name="fake_call_pick_contact">Choose from Contacts</string>
+    <string name="fake_call_schedule_time">Date &amp; Time</string>
+    <string name="fake_call_now">Call Now</string>
+    <string name="fake_call_schedule_btn">Schedule Call</string>
+    <string name="fake_call_cancel_btn">Cancel</string>
+    <string name="fake_call_scheduled_banner">Upcoming Fake Call</string>
+    <string name="fake_call_scheduled_desc">Incoming fake call from %1$s in %2$s</string>
+    <string name="fake_call_success_scheduled">Fake call scheduled for %1$s</string>
+    <string name="fake_call_cancelled">Scheduled fake call cancelled</string>
+    <string name="fake_call_select_date">Select Date</string>
+    <string name="fake_call_select_time">Select Time</string>
+    <string name="fake_call_screen_incoming">Incoming Call</string>
+    <string name="fake_call_screen_ended">Call Ended</string>
+    <string name="fake_call_new_schedule">New Fake Call</string>
+    <string name="fake_call_schedules_title">Scheduled Calls</string>
+    <string name="fake_call_no_schedules_title">No Scheduled Calls</string>
+    <string name="fake_call_no_schedules_desc">Schedule simulated incoming calls for any date and time. They look and behave like real phone calls.</string>
+    <string name="fake_call_clear_all">Clear All</string>
+    <string name="fake_call_clear_all_confirm">Are you sure you want to cancel all scheduled fake calls?</string>
+    <string name="fake_call_delete_schedule">Delete Schedule</string>
+    <string name="fake_call_deleted">Scheduled call removed</string>
+    <string name="fake_call_time_calling_in">Calling in %1$s</string>
+    <string name="fake_call_vibrate">Vibrate on ring</string>
+    <string name="fake_call_vibrate_desc">Vibrate device when simulated call rings</string>
+    <string name="fake_call_test_now">Test Call Now</string>
+    <string name="fake_call_options">Call Options</string>
+
+    <!-- Navigation Bar Style -->
+    <string name="settings_interface_nav_bar_style">Navigation Bar Style</string>
+    <string name="settings_interface_nav_bar_style_supporting">Choose between standard bottom bar or floating expressive toolbar</string>
+    <string name="settings_nav_bar_standard">Standard Bar</string>
+    <string name="settings_nav_bar_toolbar">Floating Toolbar</string>
+    <string name="fake_call_incoming_channel_title">Fake Incoming Calls</string>
+    <string name="fake_call_incoming_channel_desc">Notifications for simulated incoming and active calls</string>
+    <string name="settings_sound_flip_to_silence">Flip to Silence</string>
+    <string name="settings_sound_flip_to_silence_supporting">Silence incoming call ringer by placing phone face down</string>
+    <string name="settings_blocked_export_csv">Export Blocklist (CSV)</string>
+    <string name="settings_blocked_export_csv_desc">Save your blocked numbers to a CSV file</string>
+    <string name="settings_blocked_import_csv">Import Blocklist (CSV)</string>
+    <string name="settings_blocked_import_csv_desc">Import numbers to block from a CSV file</string>
+    <string name="settings_blocked_export_success">Exported %1$d numbers to CSV</string>
+    <string name="settings_blocked_import_success">Imported %1$d new numbers (%2$d already blocked)</string>
+    <string name="settings_blocked_csv_empty">No valid phone numbers found in file</string>
+    <string name="settings_blocked_file_error">Failed to process file</string>
+
+    <!-- Contact Management & Duplicates -->
+    <string name="settings_contacts_management_title">Contacts &amp; Storage</string>
+    <string name="settings_contact_management_headline">Contact Management</string>
+    <string name="settings_contact_management_supporting">Merge duplicates, transfer contacts between SIM, Device &amp; Accounts</string>
+    <string name="contact_management_title">Contact Management</string>
+    <string name="contact_management_storage_overview">Storage Breakdown</string>
+    <string name="contact_management_duplicates_title">Duplicate Contacts</string>
+    <string name="contact_management_duplicates_found">%1$d duplicate contacts found in %2$d sets</string>
+    <string name="contact_management_no_duplicates">Address book is clean. No duplicates found.</string>
+    <string name="contact_management_merge_all">Merge All</string>
+    <string name="contact_management_merge_all_confirm_title">Merge All Duplicates?</string>
+    <string name="contact_management_merge_all_confirm_msg">This will combine phone numbers, emails, addresses, and notes for all %1$d duplicate sets and remove redundant contacts.</string>
+    <string name="contact_management_merge_success">Successfully merged %1$d duplicate sets</string>
+    <string name="contact_management_merge_group_btn">Merge</string>
+    <string name="contact_management_ignore_btn">Dismiss</string>
+    <string name="contact_management_move_title">Transfer Contacts</string>
+    <string name="contact_management_move_supporting">Move contacts between SIM, Local Memory, Accounts, and Private Storage</string>
+    <string name="contact_management_move_from">From</string>
+    <string name="contact_management_move_to">To</string>
+    <string name="contact_management_select_to_move">Select Contacts to Move</string>
+    <string name="contact_management_move_all">Move All (%1$d)</string>
+    <string name="contact_management_move_confirm_title">Move Contacts?</string>
+    <string name="contact_management_move_confirm_msg">Are you sure you want to move %1$d contacts from %2$s to %3$s?</string>
+    <string name="contact_management_move_success">Moved %1$d contacts to %2$s</string>
+    <string name="contact_management_same_source_dest">Source and destination storage must be different</string>
+    <string name="contact_management_tools_title">Address Book Tools</string>
+    <string name="contact_management_standardize_numbers">Standardize Phone Numbers</string>
+    <string name="contact_management_standardize_supporting">Remove unnecessary formatting spaces and normalize international format</string>
+    <string name="contact_management_card_review">Review &amp; Merge</string>
+    <string name="contact_management_card_clean">Address Book Clean</string>
+    <string name="contact_management_card_clean_sub">All contacts are unique • Tap to manage storage</string>
+    <string name="contact_management_card_dup_sub">Tap to review and combine numbers, emails &amp; info</string>
+
+    <!-- Floating Bar Customization & Blur -->
+    <string name="settings_floating_bar_roundness">Floating Bar Corner Radius</string>
+    <string name="settings_floating_bar_roundness_supporting">Tweak the corner roundness and pill shape of the floating navigation bar</string>
+    <string name="settings_floating_bar_blur">Translucent Glass Blur</string>
+    <string name="settings_floating_bar_blur_supporting">Applies real-time frosted glass blur across navigation and dialog popups (Global Setting)</string>
+    <string name="settings_floating_bar_blur_warning">Resource intensive on older devices (Android 12+ recommended)</string>
+
+    <!-- Global UI Blur Effects -->
+    <string name="settings_group_effects">Visual Effects</string>
+    <string name="settings_ui_blur_title">Frosted Glass &amp; Blur Effects</string>
+    <string name="settings_ui_blur_supporting">Applies real-time frosted glass blur behind dialog popups, bottom sheets, and the navigation bar (Android 12+)</string>
+    <string name="settings_ui_blur_active_hint">Active across all popups, sheets &amp; navigation bars</string>
+    <string name="settings_nav_blur_global_hint">Controlled by the global UI Blur setting</string>
+
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <string name="settings_swipe_actions_title">Swipe Actions</string>
+    <string name="settings_swipe_actions_supporting">Configure swipe gestures on contacts and call history</string>
+    <string name="settings_swipe_actions_enable">Enable Swipe Gestures</string>
+    <string name="settings_swipe_actions_enable_supporting">Swipe contact and call log items left or right to trigger actions with expressive spring feedback</string>
+    <string name="settings_swipe_right_action">Swipe Right Action</string>
+    <string name="settings_swipe_left_action">Swipe Left Action</string>
+    <string name="settings_swipe_right_action_supporting">Action triggered when swiping an item from left to right</string>
+    <string name="settings_swipe_left_action_supporting">Action triggered when swiping an item from right to left</string>
+    <string name="swipe_action_none">None</string>
+    <string name="swipe_action_call">Call</string>
+    <string name="swipe_action_message">Message</string>
+    <string name="swipe_action_video_call">Video Call</string>
+    <string name="swipe_action_copy_number">Copy Number</string>
+    <string name="swipe_action_delete">Delete</string>
+    <string name="swipe_action_preview_title">Interactive Gesture Preview</string>
+    <string name="swipe_action_preview_supporting">Drag this card left or right to experience the Material 3 Expressive spring physics</string>
+    <string name="swipe_action_test_contact_name">Alex Rivera</string>
+    <string name="swipe_action_test_contact_number">+1 (555) 019-2834</string>
+    <string name="swipe_action_triggered_toast">Gesture triggered: %1$s</string>
+    <string name="settings_swipe_actions_reset">Reset Swipe Actions</string>
+    <string name="settings_swipe_actions_tab_warning">Swipe navigation between tabs is disabled while swipe actions are enabled to prevent gesture conflicts.</string>
+
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <string name="call_is_ongoing_tap_to_return">Call is Ongoing — Tap to return</string>
+    <string name="call_is_ongoing_with_time">Call is Ongoing (%1$s) — Tap to return</string>
+    <string name="oem_vivo_popup_permission_title">Vivo Background Pop-up</string>
+    <string name="oem_vivo_popup_permission_desc">Allow Rivo to display incoming call screens and floating alerts on Vivo devices.</string>
+    <string name="notif_channel_calls_desc">Incoming, ongoing, and missed call notifications</string>
+
+    <!-- Missed Call Card & Auto Decline -->
+    <string name="settings_missed_call_card_title">Missed Call Card</string>
+    <string name="settings_missed_call_card_supporting">Show an instant popup card after a missed call for quick callback, SMS replies, and messaging apps</string>
+    <string name="missed_call_just_now">Missed call Just now, rang %1$ds</string>
+    <string name="missed_call_view_logs">View call logs</string>
+    <string name="missed_call_respond_with_message">RESPOND WITH MESSAGE</string>
+    <string name="settings_auto_decline_unknown_title">Auto Decline Unknown Callers</string>
+    <string name="settings_auto_decline_unknown_supporting">Automatically decline incoming calls from private, hidden, or restricted numbers</string>
+    <string name="settings_auto_decline_non_contacts_title">Auto Decline Numbers Not In Contacts</string>
+    <string name="settings_auto_decline_non_contacts_supporting">Automatically decline incoming calls from phone numbers not saved in your contacts</string>
+    <string name="missed_call_msg_call_me_back">Call me back?</string>
+    <string name="missed_call_msg_sorry_busy">Sorry I\'m busy</string>
+    <string name="missed_call_msg_call_right_back">I\'ll call you right back</string>
+    <string name="missed_call_msg_cant_talk">Can\'t talk right now</string>
+
+    <!-- Favorites Modernization -->
+    <string name="favorites_count_pill">%1$d favorites</string>
+    <string name="favorites_one_pill">1 favorite</string>
+    <string name="favorites_add_action">Add</string>
+    <string name="favorites_action_call">Call</string>
+    <string name="favorites_action_message">Message</string>
+    <string name="favorites_hero_badge">Top Favorite</string>
+    <string name="favorites_add_empty_button">Add Favorites</string>
+    <string name="favorites_no_number">No phone number</string>
+    <string name="favorites_no_contacts_found">No contacts found</string>
+    <string name="search_contacts">Search contacts…</string>
+    <string name="action_add_to_favorites">Add to favorites</string>
+    <string name="content_desc_clear_search">Clear search</string>
+    <string name="action_dismiss">Dismiss</string>
+
+    <!-- Dual SIM Buttons -->
+    <string name="settings_interface_dual_sim_buttons_title">Dual SIM Call Buttons</string>
+    <string name="settings_interface_dual_sim_buttons_supporting">Show separate SIM 1 and SIM 2 call buttons on the dialpad</string>
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Recent calls limit</string>
+    <string name="settings_call_log_limit_supporting">Limit the number of recent call log entries loaded to improve loading speed and performance</string>
+    <string name="settings_call_log_limit_100">100 calls</string>
+    <string name="settings_call_log_limit_250">250 calls</string>
+    <string name="settings_call_log_limit_500">500 calls (Default)</string>
+    <string name="settings_call_log_limit_1000">1,000 calls</string>
+    <string name="settings_call_log_limit_unlimited">Unlimited</string>
+
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Auto paste copied number</string>
+    <string name="settings_auto_paste_clipboard_supporting">Automatically fill the dialpad with the phone number currently copied to your clipboard</string>
+
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Separate Contacts home screen icon</string>
+    <string name="settings_contacts_launcher_icon_supporting">Display a dedicated Contacts icon in your app launcher and home screen</string>
+    <string name="app_name_contacts">Contacts</string>
+
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">System carrier call settings</string>
+
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Call Analytics &amp; Tracking</string>
+    <string name="settings_call_analytics_supporting">Track call metrics, talk time statistics, peak hours, and frequent contact insights</string>
+    <string name="settings_call_analytics_disabled_supporting">Call tracking and usage statistics are disabled</string>
+    <string name="settings_call_analytics_view_title">View Analytics &amp; Insights</string>
+    <string name="settings_call_analytics_view_supporting">Talk time leaderboard, peak hours &amp; distribution</string>
+    <string name="call_analytics_disabled_title">Call Analytics &amp; Tracking Disabled</string>
+    <string name="call_analytics_disabled_desc">Call analytics and talk time tracking are currently turned off. Enable this option to compute talk time, peak hours, and contact insights.</string>
+    <string name="call_analytics_enable_action">Enable Analytics &amp; Tracking</string>
 </resources>

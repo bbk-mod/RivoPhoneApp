@@ -25,6 +25,15 @@ class ContactsViewModel(
     private val _allContacts = MutableStateFlow<List<Contact>>(emptyList())
     val allContacts: StateFlow<List<Contact>> = _allContacts.asStateFlow()
 
+    private val _duplicateGroups = MutableStateFlow<List<List<Contact>>>(emptyList())
+    val duplicateGroups: StateFlow<List<List<Contact>>> = _duplicateGroups.asStateFlow()
+
+    private val _isMerging = MutableStateFlow(false)
+    val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
+
+    private val _hiddenContactsVisible = MutableStateFlow(preferenceManager.isHiddenContactsVisible())
+    val hiddenContactsVisible: StateFlow<Boolean> = _hiddenContactsVisible.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -119,9 +128,17 @@ class ContactsViewModel(
             if (_allContacts.value.isEmpty()) {
                 _isLoading.value = true
             }
-            val result = contactsRepo.getContacts()
+            val result = contactsRepo.getContacts(includePrivate = true, includeHidden = preferenceManager.isHiddenContactsVisible())
             _allContacts.value = result
             _isLoading.value = false
+            refreshDuplicates()
+        }
+    }
+
+    fun refreshDuplicates() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dupes = contactsRepo.findDuplicates()
+            _duplicateGroups.value = dupes
         }
     }
 
@@ -281,8 +298,49 @@ class ContactsViewModel(
 
     fun mergeContacts(targetId: String, sourceIds: List<String>) {
         viewModelScope.launch(Dispatchers.IO) {
+            _isMerging.value = true
             contactsRepo.mergeContacts(targetId, sourceIds)
             fetchContacts()
+            _isMerging.value = false
+        }
+    }
+
+    fun mergeDuplicateGroup(primaryId: String, sourceIds: List<String>) {
+        mergeContacts(primaryId, sourceIds)
+    }
+
+    fun mergeAllDuplicates() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isMerging.value = true
+            val currentDupes = contactsRepo.findDuplicates()
+            currentDupes.forEach { group ->
+                if (group.size > 1) {
+                    val primary = group.first()
+                    val sources = group.drop(1).map { it.id }
+                    contactsRepo.mergeContacts(primary.id, sources)
+                }
+            }
+            fetchContacts()
+            _isMerging.value = false
+        }
+    }
+
+    fun dismissDuplicateGroup(group: List<Contact>) {
+        val groupIds = group.map { it.id }.toSet()
+        _duplicateGroups.value = _duplicateGroups.value.filter { g ->
+            g.map { it.id }.toSet() != groupIds
+        }
+    }
+
+    fun moveContactsToStorage(contactIds: List<String>, accountName: String?, accountType: String?, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            contactsRepo.moveContacts(contactIds, accountName, accountType)
+            fetchContacts()
+            _isLoading.value = false
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
         }
     }
 
@@ -326,6 +384,25 @@ class ContactsViewModel(
     fun importPrivateContacts(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             contactsRepo.importPrivateContacts(uri)
+            fetchContacts()
+        }
+    }
+
+    fun toggleHiddenContactsVisible(): Boolean {
+        val newState = !preferenceManager.isHiddenContactsVisible()
+        preferenceManager.setHiddenContactsVisible(newState)
+        _hiddenContactsVisible.value = newState
+        fetchContacts()
+        return newState
+    }
+
+    fun isNumberHidden(number: String): Boolean {
+        return contactsRepo.isNumberHidden(number)
+    }
+
+    fun setContactHidden(contactId: String, isHidden: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactsRepo.setContactHidden(contactId, isHidden)
             fetchContacts()
         }
     }

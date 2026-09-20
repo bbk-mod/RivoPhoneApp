@@ -7,6 +7,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -14,16 +15,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CallMerge
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
@@ -166,6 +171,62 @@ fun CallActionButton(
 }
 
 @Composable
+fun AuxiliaryPillButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    val view = LocalView.current
+    val scheme = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "AuxPillScale"
+    )
+
+    Surface(
+        onClick = {
+            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            onClick()
+        },
+        modifier = modifier
+            .height(if (compact) 32.dp else 36.dp)
+            .scale(scale),
+        shape = CircleShape,
+        color = scheme.surfaceContainerHighest.copy(alpha = 0.9f),
+        contentColor = scheme.onSurface,
+        interactionSource = interactionSource
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = if (compact) 12.dp else 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(if (compact) 14.dp else 16.dp),
+                tint = scheme.primary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
 private fun EndCallButton(compact: Boolean, onEndCall: () -> Unit) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -177,7 +238,7 @@ private fun EndCallButton(compact: Boolean, onEndCall: () -> Unit) {
         label = "endCallScale"
     )
 
-    val barHeight = if (compact) 58.dp else 68.dp
+    val buttonHeight = if (compact) 54.dp else 62.dp
 
     Surface(
         onClick = {
@@ -185,20 +246,24 @@ private fun EndCallButton(compact: Boolean, onEndCall: () -> Unit) {
             onEndCall()
         },
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = if (compact) 24.dp else 48.dp)
-            .height(barHeight)
+            .fillMaxWidth(if (compact) 0.88f else 0.84f)
+            .height(buttonHeight)
             .scale(buttonScale),
         shape = CircleShape,
         color = MaterialTheme.callColors.decline,
         contentColor = MaterialTheme.callColors.onDecline,
+        shadowElevation = 4.dp,
         interactionSource = interactionSource
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.CallEnd,
                 contentDescription = stringResource(R.string.action_end_call),
-                modifier = Modifier.size(if (compact) 28.dp else 32.dp)
+                modifier = Modifier.size(if (compact) 26.dp else 30.dp),
+                tint = MaterialTheme.callColors.onDecline
             )
         }
     }
@@ -213,6 +278,8 @@ fun ActiveCallControls(
     recordingEnabled: Boolean,
     isRecording: Boolean,
     compact: Boolean,
+    canMerge: Boolean = false,
+    onMergeCalls: () -> Unit = {},
     onToggleMute: () -> Unit,
     onToggleKeypad: () -> Unit,
     onAudioClick: () -> Unit,
@@ -221,6 +288,7 @@ fun ActiveCallControls(
     onMessage: () -> Unit,
     onToggleRecording: () -> Unit,
     onEndCall: () -> Unit,
+    onNotesClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val audioRoute = audioState?.route ?: CallAudioState.ROUTE_EARPIECE
@@ -235,6 +303,29 @@ fun ActiveCallControls(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
     ) {
+        // Top Auxiliary Row: Tiny pills for Notes and Message
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AuxiliaryPillButton(
+                icon = Icons.AutoMirrored.Filled.Notes,
+                label = "Notes",
+                compact = compact,
+                onClick = onNotesClick
+            )
+            AuxiliaryPillButton(
+                icon = Icons.AutoMirrored.Filled.Message,
+                label = stringResource(R.string.action_message),
+                compact = compact,
+                onClick = onMessage
+            )
+        }
+
+        Spacer(modifier = Modifier.height(if (compact) 10.dp else 14.dp))
+
+        // Main 6-button Grid: Row 1 (Mute, Keypad, Audio)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(cellSpacing),
@@ -268,18 +359,21 @@ fun ActiveCallControls(
 
         Spacer(modifier = Modifier.height(cellSpacing))
 
+        // Main 6-button Grid: Row 2 (Record, Hold, Add Call)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(cellSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CallActionButton(
-                icon = Icons.Default.Add,
-                isActive = false,
-                label = stringResource(R.string.action_add_call),
+                icon = if (isRecording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
+                isActive = isRecording,
+                isDanger = isRecording,
+                enabled = recordingEnabled,
+                label = if (isRecording) stringResource(R.string.action_stop_recording) else stringResource(R.string.action_record),
                 compact = compact,
                 modifier = Modifier.weight(1f),
-                onClick = onAddCall
+                onClick = onToggleRecording
             )
             CallActionButton(
                 icon = if (isHolding) Icons.Default.PlayArrow else Icons.Default.Pause,
@@ -289,29 +383,30 @@ fun ActiveCallControls(
                 modifier = Modifier.weight(1f),
                 onClick = onToggleHold
             )
-            if (recordingEnabled) {
+            if (canMerge) {
                 CallActionButton(
-                    icon = if (isRecording) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
-                    isActive = isRecording,
-                    isDanger = isRecording,
-                    label = if (isRecording) stringResource(R.string.action_stop_recording) else stringResource(R.string.action_record),
+                    icon = Icons.Outlined.CallMerge,
+                    isActive = false,
+                    label = stringResource(R.string.action_merge_calls),
                     compact = compact,
                     modifier = Modifier.weight(1f),
-                    onClick = onToggleRecording
+                    onClick = onMergeCalls
                 )
             } else {
                 CallActionButton(
-                    icon = Icons.AutoMirrored.Filled.Message,
+                    icon = Icons.Default.Add,
                     isActive = false,
-                    label = stringResource(R.string.action_message),
+                    label = stringResource(R.string.action_add_call),
                     compact = compact,
                     modifier = Modifier.weight(1f),
-                    onClick = onMessage
+                    onClick = onAddCall
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(if (compact) 16.dp else 24.dp))
+        Spacer(modifier = Modifier.height(if (compact) 16.dp else 22.dp))
+
+        // Bottom: Google Dialer style wide End Call pill
         EndCallButton(compact = compact, onEndCall = onEndCall)
     }
 }

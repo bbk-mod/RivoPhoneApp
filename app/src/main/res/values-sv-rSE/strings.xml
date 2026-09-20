@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">Slå ihop samtal</string>
+    <string name="conference_call">Konferenssamtal</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">Mitten namn</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Senaste samtalsgräns</string>
+    <string name="settings_call_log_limit_supporting">Begränsa antalet nyligen laddade samtalsloggposter för att förbättra laddningshastighet och prestanda</string>
+    <string name="settings_call_log_limit_100">100 samtal</string>
+    <string name="settings_call_log_limit_250">250 samtal</string>
+    <string name="settings_call_log_limit_500">500 samtal (standard)</string>
+    <string name="settings_call_log_limit_1000">1000 samtal</string>
+    <string name="settings_call_log_limit_unlimited">Obegränsad</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Automatisk klistra in kopierat nummer</string>
+    <string name="settings_auto_paste_clipboard_supporting">Fyll automatiskt knappsatsen med det telefonnummer som för närvarande kopieras till ditt urklipp</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Separata kontakter startskärmsikon</string>
+    <string name="settings_contacts_launcher_icon_supporting">Visa en dedikerad Kontakt-ikon i din app launcher och startskärmen</string>
+    <string name="app_name_contacts">Kontakter</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Inställningar för systemoperatörs samtal</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Ring Analytics &amp; Spårning</string>
+    <string name="settings_call_analytics_supporting">Spåra samtalsmätningar, taltidsstatistik, högtider och frekventa kontaktinsikter</string>
+    <string name="settings_call_analytics_disabled_supporting">Statistik över samtalsspårning och användning är inaktiverad</string>
+    <string name="settings_call_analytics_view_title">Se Analytics &amp; Insikter</string>
+    <string name="settings_call_analytics_view_supporting">Taltid leaderboard, högtider &amp; distribution</string>
+    <string name="call_analytics_disabled_title">Samtal Analytics &amp; Spårning inaktiverad</string>
+    <string name="call_analytics_disabled_desc">Samtalsanalys och taltidsmätning är för närvarande avstängda. Aktivera detta alternativ för att beräkna taltid, högtrafik och kontaktinsikter.</string>
+    <string name="call_analytics_enable_action">Aktivera Analytics &amp; Spårning</string>
 </resources>

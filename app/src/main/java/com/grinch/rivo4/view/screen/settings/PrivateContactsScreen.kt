@@ -56,6 +56,7 @@ fun PrivateContactsScreen(
     resultRecipient: ResultRecipient<ContactSelectionScreenDestination, String>
 ) {
     val context = LocalContext.current
+    val prefs = org.koin.compose.koinInject<com.grinch.rivo4.controller.util.PreferenceManager>()
     val viewModel: ContactsViewModel = koinActivityViewModel()
     val allContacts by viewModel.allContacts.collectAsState()
     val privateContacts = remember(allContacts) { allContacts.filter { it.isPrivate } }
@@ -66,6 +67,9 @@ fun PrivateContactsScreen(
     var selectedContactIds by remember { mutableStateOf(setOf<String>()) }
     var showMoveAccountDialog by remember { mutableStateOf(false) }
     var targetContactsToMove by remember { mutableStateOf<List<Contact>>(emptyList()) }
+    var showSecurityDialog by remember { mutableStateOf(false) }
+    var secretCodeInput by remember { mutableStateOf(prefs.getString(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SECRET_DIALPAD_CODE, com.grinch.rivo4.controller.util.PreferenceManager.DEFAULT_SECRET_DIALPAD_CODE) ?: com.grinch.rivo4.controller.util.PreferenceManager.DEFAULT_SECRET_DIALPAD_CODE) }
+    var hideFromSettings by remember { mutableStateOf(prefs.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_HIDE_PRIVATE_SETTINGS_ENTRY, false)) }
 
     val isSelecting = selectedContactIds.isNotEmpty()
 
@@ -169,10 +173,16 @@ fun PrivateContactsScreen(
                         IconButton(onClick = { navigator.navigateUp() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                         }
+                    },
+                    actions = {
+                        IconButton(onClick = { showSecurityDialog = true }) {
+                            Icon(Icons.Outlined.Password, contentDescription = "Secret Dialpad Code")
+                        }
                     }
                 )
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         if (isLoading) {
             RivoLoadingIndicatorView(modifier = Modifier.fillMaxSize())
@@ -181,8 +191,8 @@ fun PrivateContactsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 item {
                     Surface(
@@ -199,7 +209,7 @@ fun PrivateContactsScreen(
                                     contentColor = MaterialTheme.colorScheme.primary
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Outlined.Security, contentDescription = null, modifier = Modifier.size(24.dp))
+                                        Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(24.dp))
                                     }
                                 }
                                 Spacer(Modifier.width(16.dp))
@@ -211,7 +221,7 @@ fun PrivateContactsScreen(
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = "${privateContacts.size} ${stringResource(R.string.settings_private_manage_hint)}",
+                                        text = "Stored locally in Rivo only (hidden from other apps) • ${privateContacts.size} contacts",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -226,9 +236,9 @@ fun PrivateContactsScreen(
                                     onClick = {
                                         navigator.navigate(
                                             ContactSelectionScreenDestination(
-                                                title = "Select Contacts to Make Private",
+                                                title = "Select Contacts for Private Storage",
                                                 isMultiSelect = true,
-                                                actionButtonText = "Make Private",
+                                                actionButtonText = "Move to Private Storage",
                                                 returnContactId = true
                                             )
                                         )
@@ -327,9 +337,9 @@ fun PrivateContactsScreen(
                                     onClick = {
                                         navigator.navigate(
                                             ContactSelectionScreenDestination(
-                                                title = "Select Contacts to Make Private",
+                                                title = "Select Contacts for Private Storage",
                                                 isMultiSelect = true,
-                                                actionButtonText = "Make Private",
+                                                actionButtonText = "Move to Private Storage",
                                                 returnContactId = true
                                             )
                                         )
@@ -338,7 +348,7 @@ fun PrivateContactsScreen(
                                 ) {
                                     Icon(Icons.Outlined.PersonSearch, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Pick Contacts to Make Private")
+                                    Text("Pick Contacts for Private Storage")
                                 }
                             }
                         }
@@ -370,6 +380,9 @@ fun PrivateContactsScreen(
                             },
                             onCall = {
                                 contact.phoneNumbers.firstOrNull()?.let { num -> makeCall(context, num) }
+                            },
+                            onToggleHidden = {
+                                viewModel.setContactHidden(contact.id, !contact.isHidden)
                             },
                             onMoveToPublic = { viewModel.makeContactPublic(contact.id) },
                             onMoveToAccount = {
@@ -421,6 +434,68 @@ fun PrivateContactsScreen(
             }
         )
     }
+
+    if (showSecurityDialog) {
+        RivoDialog(
+            onDismissRequest = { showSecurityDialog = false },
+            title = "Secret Dialpad Code",
+            icon = Icons.Outlined.Password,
+            confirmAction = com.grinch.rivo4.view.components.RivoDialogAction(
+                label = stringResource(R.string.action_save),
+                onClick = {
+                    val trimmed = secretCodeInput.trim()
+                    if (trimmed.isNotEmpty()) {
+                        prefs.setString(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SECRET_DIALPAD_CODE, trimmed)
+                    }
+                    prefs.setBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_HIDE_PRIVATE_SETTINGS_ENTRY, hideFromSettings)
+                    showSecurityDialog = false
+                    android.widget.Toast.makeText(context, "Secret code settings updated", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            ),
+            dismissAction = com.grinch.rivo4.view.components.RivoDialogAction(
+                label = stringResource(R.string.action_cancel),
+                onClick = { showSecurityDialog = false }
+            )
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Type this secret code on the dialpad to reveal contacts in private storage.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = secretCodeInput,
+                    onValueChange = { secretCodeInput = it },
+                    label = { Text("Secret Code") },
+                    placeholder = { Text("*#0000#") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hide from Settings",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Only the secret dialpad code will access private storage",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = hideFromSettings,
+                        onCheckedChange = { hideFromSettings = it }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -432,6 +507,7 @@ fun PrivateContactCard(
     onSelect: () -> Unit,
     onClick: () -> Unit,
     onCall: () -> Unit,
+    onToggleHidden: () -> Unit,
     onMoveToPublic: () -> Unit,
     onMoveToAccount: () -> Unit,
     onEdit: () -> Unit,
@@ -481,19 +557,33 @@ fun PrivateContactCard(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(6.dp))
+                    val badgeBg = if (contact.isHidden) {
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    }
+                    val badgeContent = if (contact.isHidden) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        contentColor = MaterialTheme.colorScheme.primary
+                        color = badgeBg,
+                        contentColor = badgeContent
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Outlined.Lock, contentDescription = null, modifier = Modifier.size(10.dp))
+                            Icon(
+                                if (contact.isHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp)
+                            )
                             Spacer(Modifier.width(2.dp))
                             Text(
-                                text = "Private",
+                                text = if (contact.isHidden) "Hidden" else "Private",
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -525,6 +615,19 @@ fun PrivateContactCard(
                     Icon(Icons.Default.MoreVert, contentDescription = null)
                 }
                 RivoDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    RivoDropdownMenuItem(
+                        text = { Text(if (contact.isHidden) "Unhide Contact" else "Hide Contact Completely") },
+                        onClick = {
+                            showMenu = false
+                            onToggleHidden()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (contact.isHidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                                contentDescription = null
+                            )
+                        }
+                    )
                     RivoDropdownMenuItem(
                         text = { Text(stringResource(R.string.action_edit)) },
                         onClick = {

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">Συγχώνευση κλήσεων</string>
+    <string name="conference_call">Κλήση συνδιάσκεψης</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">Μεσαίο όνομα</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,38 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Όριο πρόσφατων κλήσεων</string>
+    <string name="settings_call_log_limit_supporting">Περιορίστε τον αριθμό των καταχωρήσεων του αρχείου καταγραφής πρόσφατων κλήσεων που φορτώθηκαν για τη βελτίωση της ταχύτητας φόρτωσης και της απόδοσης</string>
+    <string name="settings_call_log_limit_100">100 κλήσεις</string>
+    <string name="settings_call_log_limit_250">250 κλήσεις</string>
+    <string name="settings_call_log_limit_500">500 κλήσεις (προεπιλογή)</string>
+    <string name="settings_call_log_limit_1000">1.000 κλήσεις</string>
+    <string name="settings_call_log_limit_unlimited">Απεριόριστο</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Αυτόματη επικόλληση αντιγράφηκε αριθμός</string>
+    <string name="settings_auto_paste_clipboard_supporting">Συμπληρώστε αυτόματα το πληκτρολόγιο κλήσης με τον αριθμό τηλεφώνου που αντιγράφηκε στο πρόχειρο σας</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Διαχωρισμός εικονιδίου αρχικής οθόνης επαφών</string>
+    <string name="settings_contacts_launcher_icon_supporting">Εμφανίζει ένα αποκλειστικό εικονίδιο επαφών στον εκκινητή εφαρμογών και στην αρχική οθόνη</string>
+    <string name="app_name_contacts">Επαφές</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Ρυθμίσεις κλήσης παρόχου συστήματος</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Κλήση Analytics &amp; Παρακολούθηση</string>
+    <string name="settings_call_analytics_supporting">Μετρήσεις κλήσεων παρακολούθησης, στατιστικά του χρόνου ομιλίας, ώρες αιχμής και συχνές πληροφορίες επαφής</string>
+    <string name="settings_call_analytics_disabled_supporting">Η παρακολούθηση κλήσεων και τα στατιστικά χρήσης είναι απενεργοποιημένα</string>
+    <string name="settings_call_analytics_view_title">Προβολή Αναλυτικών Στοιχείων &amp; Insights</string>
+    <string name="call_analytics_disabled_desc">Τα αναλυτικά στοιχεία κλήσεων και ο εντοπισμός χρόνου ομιλίας είναι απενεργοποιημένα. Ενεργοποιήστε αυτή την επιλογή για τον υπολογισμό του χρόνου ομιλίας, των ωρών αιχμής και των γνώσεων επαφής.</string>
+    <string name="call_analytics_enable_action">Ενεργοποίηση Analytics &amp; Tracking</string>
 </resources>

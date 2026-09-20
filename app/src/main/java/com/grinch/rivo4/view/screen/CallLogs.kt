@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,7 @@ import com.grinch.rivo4.controller.util.areNumbersEqual
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.modal.data.CallLogFilter
 import com.grinch.rivo4.modal.data.CallLogEntry
+import com.grinch.rivo4.modal.data.SwipeActionType
 import com.grinch.rivo4.modal.data.displayLabel
 import com.grinch.rivo4.view.components.*
 import com.ramcosta.composedestinations.annotation.Destination
@@ -106,9 +108,11 @@ fun CallLogFullScreen(
             }
         )
     }
+    val avatarStyle = rememberRivoAvatarStyle()
 
-    Scaffold(
-        topBar = {
+    CompositionLocalProvider(LocalRivoAvatarStyle provides avatarStyle) {
+        Scaffold(
+            topBar = {
             AnimatedContent(
                 targetState = selectedEntries.isNotEmpty(),
                 transitionSpec = {
@@ -129,11 +133,7 @@ fun CallLogFullScreen(
                             IconButton(onClick = { navigator.navigateUp() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                        )
+                        }
                     )
                 } else {
                     BatchCallLogActionBar(
@@ -191,12 +191,14 @@ fun CallLogFullScreen(
                         }
                     }
                 } else {
-                    val finalLogs = when (selectedFilter) {
-                        CallLogFilter.All -> filteredLogsByContact
-                        CallLogFilter.Missed -> filteredLogsByContact.filter { it.type == CallLog.Calls.MISSED_TYPE }
-                        CallLogFilter.Incoming -> filteredLogsByContact.filter { it.type == CallLog.Calls.INCOMING_TYPE }
-                        CallLogFilter.Outgoing -> filteredLogsByContact.filter { it.type == CallLog.Calls.OUTGOING_TYPE }
-                        CallLogFilter.Contacts -> filteredLogsByContact.filter { it.name != null && it.name != it.number }
+                    val finalLogs = remember(filteredLogsByContact, selectedFilter) {
+                        when (selectedFilter) {
+                            CallLogFilter.All -> filteredLogsByContact
+                            CallLogFilter.Missed -> filteredLogsByContact.filter { it.type == CallLog.Calls.MISSED_TYPE }
+                            CallLogFilter.Incoming -> filteredLogsByContact.filter { it.type == CallLog.Calls.INCOMING_TYPE }
+                            CallLogFilter.Outgoing -> filteredLogsByContact.filter { it.type == CallLog.Calls.OUTGOING_TYPE }
+                            CallLogFilter.Contacts -> filteredLogsByContact.filter { it.name != null && it.name != it.number }
+                        }
                     }
 
                     if (finalLogs.isEmpty()) {
@@ -204,18 +206,19 @@ fun CallLogFullScreen(
                             Text(stringResource(R.string.call_log_no_filter_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        val groupedLogs = finalLogs.groupBy { formatDateHeader(context, it.date) }
+                        val groupedLogs = remember(finalLogs) {
+                            finalLogs.groupBy { formatDateHeader(context, it.date) }
+                        }
 
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             groupedLogs.forEach { (header, logsInGroup) ->
                                 item {
                                     RivoSectionHeader(title = header)
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     RivoExpressiveCard {
                                         logsInGroup.forEachIndexed { index, lg ->
                                             CallLogTileSimple(
@@ -255,7 +258,12 @@ fun CallLogFullScreen(
                                                         makeCall(context, lg.number, contactId = targetContactId)
                                                     }
                                                 },
-                                                selected = selectedEntries.any { it.id == lg.id }
+                                                selected = selectedEntries.any { it.id == lg.id },
+                                                onSwipeAction = { action, log ->
+                                                    if (action == SwipeActionType.DELETE) {
+                                                        viewModel.deleteCallLogsByIds(log.ids)
+                                                    }
+                                                }
                                             )
                                             
                                             if (index < logsInGroup.size - 1) {
@@ -281,4 +289,5 @@ fun CallLogFullScreen(
             )
         }
     }
+}
 }

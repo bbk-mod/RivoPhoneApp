@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RivoPhone</string>
     <!-- Shared actions / generic labels reused across multiple screens -->
     <string name="action_cancel">Annuler</string>
     <string name="action_confirm">Confirmer</string>
@@ -23,6 +22,8 @@
     <string name="action_mute">Muet</string>
     <string name="action_keypad">Clavier</string>
     <string name="action_add_call">Ajouter un appel</string>
+    <string name="action_merge_calls">Fusionner les appels</string>
+    <string name="conference_call">Conférence téléphonique</string>
     <string name="action_hold">Mettre en attente</string>
     <string name="action_resume">Reprendre</string>
     <string name="action_end_call">Raccrocher</string>
@@ -34,7 +35,6 @@
     <string name="content_desc_scroll_to_top">Retour en haut</string>
     <string name="sim_picker_title">Choisir la carte SIM</string>
     <string name="sim_picker_unknown_sim">SIM inconnue</string>
-    <string name="selection_count_selected">%1$d sélectionné(s)</string>
     <string name="label_unknown">Inconnu</string>
     <string name="label_unknown_number">Numéro inconnu</string>
     <string name="label_mobile">Mobile</string>
@@ -90,7 +90,6 @@
     <string name="call_history_with_contact">Historique avec %1$s</string>
     <string name="call_log_no_history_found">Aucun historique d’appels trouvé</string>
     <string name="call_log_no_filter_match">Aucun appel ne correspond à ce filtre</string>
-    <string name="call_log_delete_confirm">Voulez-vous vraiment supprimer les %1$d journaux d’appels sélectionnés ?</string>
     <string name="call_log_delete_title">Supprimer les journaux d’appels</string>
     <string name="call_log_clear_all_title">Effacer tous les journaux</string>
     <string name="call_log_clear_all_confirm">Tout effacer</string>
@@ -156,6 +155,7 @@
     <string name="contact_edit_private_storage_description">Non visible par les autres applications</string>
     <string name="contact_edit_identity_header">Identité</string>
     <string name="contact_edit_full_name">Nom complet</string>
+    <string name="contact_edit_middle_name">Deuxième prénom</string>
     <string name="contact_edit_nickname">Surnom</string>
     <string name="contact_edit_phone_numbers_header">Numéros de téléphone</string>
     <string name="contact_edit_phone_field_label">Téléphone</string>
@@ -388,8 +388,6 @@
     <string name="settings_manage_name_format_first_first">Prénom en premier</string>
     <string name="settings_manage_name_format_last_first">Nom en premier</string>
     <string name="settings_manage_storage">Stockage</string>
-    <string name="settings_manage_private_contacts">Contacts privés</string>
-    <string name="settings_manage_private_contacts_supporting">Gérer les contacts stockés uniquement dans cette application</string>
     <string name="settings_manage_visibility">Visibilité</string>
     <string name="settings_manage_visibility_supporting">Choisissez les comptes à afficher dans votre liste</string>
     <string name="settings_manage_quick_fixes">Corrections rapides</string>
@@ -404,12 +402,9 @@
     <string name="settings_visibility_accounts_header">Comptes</string>
     <string name="settings_visibility_local_memory_supporting">Contacts stockés sur l’appareil</string>
     <string name="settings_visibility_reset_all">Réinitialiser pour tout afficher</string>
-    <!-- Settings > Private contacts -->
-    <string name="settings_private_title">Contacts privés</string>
+    <!-- Settings > Private storage -->
     <string name="content_desc_import">Importer</string>
     <string name="content_desc_export">Exporter</string>
-    <string name="settings_private_empty">Aucun contact privé trouvé</string>
-    <string name="settings_private_manage_hint">Gérez vos contacts locaux chiffrés</string>
     <!-- Settings > Speed dial -->
     <string name="settings_speed_dial_title">Numérotation rapide</string>
     <string name="settings_speed_dial_enable">Activer la numérotation rapide</string>
@@ -447,4 +442,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Limite d\'appels récents</string>
+    <string name="settings_call_log_limit_supporting">Limiter le nombre d\'entrées récentes du journal d\'appels chargées pour améliorer la vitesse et les performances de chargement</string>
+    <string name="settings_call_log_limit_100">100 appels</string>
+    <string name="settings_call_log_limit_250">250 appels</string>
+    <string name="settings_call_log_limit_500">500 appels (par défaut)</string>
+    <string name="settings_call_log_limit_1000">1 000 appels</string>
+    <string name="settings_call_log_limit_unlimited">Illimité</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Coller automatiquement le numéro copié</string>
+    <string name="settings_auto_paste_clipboard_supporting">Remplissez automatiquement le pavé numérique avec le numéro de téléphone actuellement copié dans votre presse-papiers</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Séparer l\'icône de l\'écran d\'accueil des contacts</string>
+    <string name="settings_contacts_launcher_icon_supporting">Afficher une icône dédiée aux Contacts dans le lanceur d\'applications et l\'écran d\'accueil</string>
+    <string name="app_name_contacts">Contacts</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Paramètres d\'appel opérateur système</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Analyses d\'appel &amp; Suivi</string>
+    <string name="settings_call_analytics_supporting">Suivre les paramètres d\'appel, les statistiques du temps de parole, les heures de pointe et les informations fréquentes sur les contacts</string>
+    <string name="settings_call_analytics_disabled_supporting">Le suivi des appels et les statistiques d\'utilisation sont désactivés</string>
+    <string name="settings_call_analytics_view_title">Voir les analyses &amp; Aperçus</string>
+    <string name="settings_call_analytics_view_supporting">Tableau des classements, heures de pointe &amp; distribution</string>
+    <string name="call_analytics_disabled_title">Analyse des appels &amp; Suivi désactivé</string>
+    <string name="call_analytics_disabled_desc">L\'analyse des appels et le suivi du temps de parole sont actuellement désactivés. Activez cette option pour calculer le temps de discussion, les heures de pointe et les aperçus des contacts.</string>
+    <string name="call_analytics_enable_action">Activer le suivi des Analyses &amp;</string>
 </resources>

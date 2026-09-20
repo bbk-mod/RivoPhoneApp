@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">Yhdistä puhelut</string>
+    <string name="conference_call">Konferenssi puhelu</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">Toinen nimi</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Viimeaikaisten puhelujen raja</string>
+    <string name="settings_call_log_limit_supporting">Rajoita viimeaikaisten ladattujen puhelulokien määrää parantaaksesi lastausnopeutta ja suorituskykyä</string>
+    <string name="settings_call_log_limit_100">100 puhelua</string>
+    <string name="settings_call_log_limit_250">250 puhelua</string>
+    <string name="settings_call_log_limit_500">500 puhelua (Oletus)</string>
+    <string name="settings_call_log_limit_1000">1 000 puhelua</string>
+    <string name="settings_call_log_limit_unlimited">Rajoittamaton</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Liitä kopioitu numero automaattisesti</string>
+    <string name="settings_auto_paste_clipboard_supporting">Täytä valintaikkuna automaattisesti leikepöydälle tällä hetkellä kopioidulla puhelinnumerolla</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Erota yhteystiedot aloitusnäytön kuvakkeesta</string>
+    <string name="settings_contacts_launcher_icon_supporting">Näytä oma yhteystietojen kuvake sovelluksen käynnistimessä ja aloitusnäytössä</string>
+    <string name="app_name_contacts">Yhteystiedot</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Järjestelmän operaattorin puheluasetukset</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Puheluanalytiikka &amp; Seuranta</string>
+    <string name="settings_call_analytics_supporting">Seuraa puheluita, puheaikatilastoja, huipputunteja ja usein toistuvia yhteystietoja</string>
+    <string name="settings_call_analytics_disabled_supporting">Puhelujen seuranta ja käytön tilastot on poistettu käytöstä</string>
+    <string name="settings_call_analytics_view_title">Näytä Analytiikka &amp; Insights</string>
+    <string name="settings_call_analytics_view_supporting">Puheajan leaderboard, ruuhka-tunnit &amp; jako</string>
+    <string name="call_analytics_disabled_title">Puheluanalytiikka &amp; Seuranta Pois Käytöstä</string>
+    <string name="call_analytics_disabled_desc">Puhelun analytiikka ja puheajan seuranta on tällä hetkellä pois päältä. Ota tämä asetus käyttöön, jos haluat laskea puheajan, ruuhka-ajan ja yhteystietojen tallentamisen.</string>
+    <string name="call_analytics_enable_action">Ota Analytics &amp; Seuranta Käyttöön</string>
 </resources>

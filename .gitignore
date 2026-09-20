@@ -20,3 +20,4 @@ base64.txt
 app/keystore.jks
 app/base64.txt
 /android-sdk/
+.idea/

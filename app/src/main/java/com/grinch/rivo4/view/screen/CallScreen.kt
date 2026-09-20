@@ -1,5 +1,8 @@
 package com.grinch.rivo4.view.screen
 
+import android.os.Build
+
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -11,11 +14,19 @@ import android.telecom.TelecomManager
 import android.telecom.CallAudioState
 import android.telecom.VideoProfile
 import android.view.HapticFeedbackConstants
+import android.widget.Toast
+import java.util.Calendar
+import com.grinch.rivo4.controller.reminder.CallbackReminderManager
+import com.grinch.rivo4.view.components.CallNotesSheet
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,6 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -85,7 +97,14 @@ private fun audioRouteLabel(audioRoute: Int, audioState: CallAudioState?): Strin
     val bluetoothShortLabel = stringResource(R.string.audio_route_bluetooth_short)
     return when (audioRoute) {
         CallAudioState.ROUTE_SPEAKER -> stringResource(R.string.audio_route_speaker)
-        CallAudioState.ROUTE_BLUETOOTH -> try { audioState?.activeBluetoothDevice?.name ?: bluetoothShortLabel } catch (e: Exception) { bluetoothShortLabel }
+        CallAudioState.ROUTE_BLUETOOTH -> try {
+            @Suppress("MissingPermission")
+            audioState?.activeBluetoothDevice?.name ?: bluetoothShortLabel
+        } catch (e: SecurityException) {
+            bluetoothShortLabel
+        } catch (e: Exception) {
+            bluetoothShortLabel
+        }
         CallAudioState.ROUTE_WIRED_HEADSET -> stringResource(R.string.audio_route_headset)
         else -> stringResource(R.string.audio_route_handset)
     }
@@ -152,6 +171,11 @@ fun ExpressiveCallScreen(
     val showCallScreenAvatar = remember(settingsState) {
         preferenceManager.getBoolean(PreferenceManager.KEY_SHOW_CALL_SCREEN_AVATAR, true)
     }
+    val hideAvatarWithBg = remember(settingsState) {
+        preferenceManager.getBoolean(PreferenceManager.KEY_HIDE_AVATAR_WITH_BACKGROUND, false)
+    }
+    val hasBackground = !backgroundUri.isNullOrEmpty()
+    val shouldShowAvatar = showCallScreenAvatar && !(hideAvatarWithBg && hasBackground)
     
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -219,9 +243,22 @@ fun ExpressiveCallScreen(
     }
 
     val recordingEnabled = remember(settingsState) {
-        preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING, false)
+        preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING, true)
     }
     val isRecording by CallRecorder.isRecording.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        CallRecorder.prepare(context)
+    }
+
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            if (granted) {
+                CallRecorder.start(context, contactName.ifBlank { phoneNumber })
+            }
+        }
+    )
 
     val statusText = when (callState) {
         Call.STATE_DISCONNECTED -> stringResource(R.string.call_status_ended)
@@ -243,6 +280,57 @@ fun ExpressiveCallScreen(
     }
     val audioLabel = audioRouteLabel(audioRoute, audioState)
     val hasBluetooth = ((audioState?.supportedRouteMask ?: 0) and CallAudioState.ROUTE_BLUETOOTH) != 0
+    var showQuickResponsesSheet by remember { mutableStateOf(false) }
+    var showCallNotesSheet by remember { mutableStateOf(false) }
+    val reminderManager = org.koin.compose.koinInject<CallbackReminderManager>()
+    val scope = rememberCoroutineScope()
+
+    val pocketModeEnabled = remember(settingsState) {
+        preferenceManager.getBoolean(PreferenceManager.KEY_POCKET_MODE, false)
+    }
+    var isPocketModeCovered by remember { mutableStateOf(false) }
+    var pocketModeDismissedManually by remember { mutableStateOf(false) }
+
+    DisposableEffect(callState, pocketModeEnabled) {
+        if (pocketModeEnabled && callState == Call.STATE_RINGING) {
+            val manager = com.grinch.rivo4.controller.sensor.PocketModeManager(context)
+            manager.startListening { isNear ->
+                isPocketModeCovered = isNear
+            }
+            onDispose {
+                manager.stopListening()
+            }
+        } else {
+            isPocketModeCovered = false
+            onDispose { }
+        }
+    }
+
+    val onSendQuickResponse: (String) -> Unit = { message ->
+        CallService.markLocallyRejected(call)
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                call.reject(true, message)
+            } else {
+                call.reject(Call.REJECT_REASON_DECLINED)
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$phoneNumber")).apply {
+                    putExtra("sms_body", message)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
+        } catch (e: Exception) {
+            try { call.reject(Call.REJECT_REASON_DECLINED) } catch (_: Exception) {}
+            try {
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$phoneNumber")).apply {
+                    putExtra("sms_body", message)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
+        showQuickResponsesSheet = false
+    }
 
     val otherCallCard: @Composable () -> Unit = {
         AnimatedVisibility(
@@ -294,12 +382,12 @@ fun ExpressiveCallScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f, fill = false)) {
                                 Text(
                                     text = ocName,
                                     style = MaterialTheme.typography.titleSmall,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    modifier = Modifier.basicMarquee()
                                 )
                                 Text(
                                     text = stringResource(R.string.call_status_on_hold),
@@ -307,6 +395,16 @@ fun ExpressiveCallScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
+                        }
+                        IconButton(onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            CallService.mergeCalls()
+                        }) {
+                            Icon(
+                                Icons.Outlined.CallMerge,
+                                contentDescription = stringResource(R.string.action_merge_calls),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                         IconButton(onClick = { oc.disconnect() }) {
                             Icon(Icons.Default.CallEnd, contentDescription = stringResource(R.string.action_end), tint = MaterialTheme.callColors.decline)
@@ -324,7 +422,7 @@ fun ExpressiveCallScreen(
         ) {
             if (!showKeypad) {
                 AnimatedVisibility(
-                    visible = showCallScreenAvatar,
+                    visible = shouldShowAvatar,
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically()
                 ) {
@@ -345,7 +443,10 @@ fun ExpressiveCallScreen(
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .basicMarquee()
             )
 
             if (phoneNumber.isNotEmpty() && phoneNumber != contactName) {
@@ -430,6 +531,8 @@ fun ExpressiveCallScreen(
         )
     }
 
+    val canMerge = otherCall != null || (try { call.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) } catch (_: Exception) { false })
+
     val activeControls: @Composable (Boolean) -> Unit = { compact ->
         ActiveCallControls(
             callState = callState,
@@ -439,6 +542,11 @@ fun ExpressiveCallScreen(
             recordingEnabled = recordingEnabled,
             isRecording = isRecording,
             compact = compact,
+            canMerge = canMerge,
+            onMergeCalls = {
+                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                CallService.mergeCalls()
+            },
             onToggleMute = { CallService.mute(!isMuted) },
             onToggleKeypad = { showKeypad = !showKeypad },
             onAudioClick = {
@@ -466,16 +574,24 @@ fun ExpressiveCallScreen(
                 if (isRecording) {
                     CallRecorder.stop()
                 } else {
-                    CallRecorder.start(context, contactName.ifBlank { phoneNumber })
+                    if (CallRecorder.hasAudioPermission(context)) {
+                        CallRecorder.start(context, contactName.ifBlank { phoneNumber })
+                    } else {
+                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
                 }
             },
-            onEndCall = { try { call.disconnect() } catch (e: Exception) {} }
+            onEndCall = { try { call.disconnect() } catch (e: Exception) {} },
+            onNotesClick = { showCallNotesSheet = true }
         )
     }
 
     val incomingControls: @Composable (Boolean) -> Unit = { compact ->
         val useCustomUI = preferenceManager.getInt(PreferenceManager.KEY_INCOMING_CALL_UI_MODE, 0)
-        val onDeclineCallAction = { CallService.rejectRingingCall(call) }
+        val onDeclineCallAction = {
+            view.performHapticFeedback(HapticFeedbackConstants.REJECT)
+            CallService.rejectRingingCall(call)
+        }
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -512,38 +628,35 @@ fun ExpressiveCallScreen(
                             modifier = Modifier.width(if (compact) 108.dp else 132.dp)
                         ) {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onDeclineCallAction()
-                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("smsto:$phoneNumber")
-                            }
-                            context.startActivity(intent)
+                            showQuickResponsesSheet = true
                         }
                     }
                 }
 
+                val onAnswerCallAction = {
+                    CallRecorder.prepare(context)
+                    try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (e: Exception) {}
+                }
+
                 when (useCustomUI) {
                     1 -> IncomingCallButtons(
-                        onAnswer = { try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (e: Exception) {} },
+                        onAnswer = onAnswerCallAction,
                         onDecline = onDeclineCallAction
                     )
                     2 -> IPhoneSwipeToAnswer(
-                        onAnswer = { try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (e: Exception) {} },
+                        onAnswer = onAnswerCallAction,
                         onDecline = onDeclineCallAction,
                         onMessage = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onDeclineCallAction()
-                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("smsto:$phoneNumber")
-                            }
-                            context.startActivity(intent)
+                            showQuickResponsesSheet = true
                         }
                     )
                     3 -> VerticalSwipeToAnswer(
-                        onAnswer = { try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (e: Exception) {} },
+                        onAnswer = onAnswerCallAction,
                         onDecline = onDeclineCallAction
                     )
                     else -> HorizontalSwipeToAnswer(
-                        onAnswer = { try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (e: Exception) {} },
+                        onAnswer = onAnswerCallAction,
                         onDecline = onDeclineCallAction
                     )
                 }
@@ -618,10 +731,21 @@ fun ExpressiveCallScreen(
                     }
                 }
 
-                Column(
-                    modifier = Modifier
+                val isUiBlurEnabled = remember(settingsState) { preferenceManager.isUiBlurEnabled() }
+                val controlsModifier = if (isUiBlurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp),
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                        .padding(horizontal = 12.dp, vertical = 14.dp)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                }
+
+                Column(
+                    modifier = controlsModifier,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
                 ) {
@@ -632,6 +756,284 @@ fun ExpressiveCallScreen(
                     }
                 }
             }
+        }
+
+        if (isPocketModeCovered && !pocketModeDismissedManually && callState == Call.STATE_RINGING) {
+            PocketModeOverlay(
+                onDismiss = { pocketModeDismissedManually = true }
+            )
+        }
+
+        if (showQuickResponsesSheet) {
+            QuickResponsesBottomSheet(
+                phoneNumber = phoneNumber,
+                contactName = contactName,
+                onDismiss = { showQuickResponsesSheet = false },
+                onSend = onSendQuickResponse,
+                onOpenSmsApp = {
+                    CallService.rejectRingingCall(call)
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("smsto:$phoneNumber")
+                    }
+                    context.startActivity(intent)
+                    showQuickResponsesSheet = false
+                },
+                onScheduleReminder = { delayMinutes, label ->
+                    scope.launch {
+                        reminderManager.scheduleReminder(
+                            phoneNumber = phoneNumber,
+                            contactName = contactName.ifBlank { null },
+                            delayMinutes = delayMinutes,
+                            note = "Callback reminder from incoming call"
+                        )
+                        Toast.makeText(context, "Reminder set for $label", Toast.LENGTH_SHORT).show()
+                    }
+                    CallService.rejectRingingCall(call)
+                    showQuickResponsesSheet = false
+                }
+            )
+        }
+
+        if (showCallNotesSheet) {
+            CallNotesSheet(
+                phoneNumber = phoneNumber,
+                contactName = contactName,
+                onDismiss = { showCallNotesSheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun PocketModeOverlay(
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.95f))
+            .clickable(enabled = false) {},
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(80.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.ScreenLockPortrait,
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Pocket Mode Active",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Screen touches are locked to prevent accidental touches in your pocket.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(Modifier.height(32.dp))
+            FilledTonalButton(
+                onClick = onDismiss,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Outlined.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Dismiss Touch Guard")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuickResponsesBottomSheet(
+    phoneNumber: String,
+    contactName: String,
+    onDismiss: () -> Unit,
+    onSend: (String) -> Unit,
+    onOpenSmsApp: () -> Unit,
+    onScheduleReminder: (Long, String) -> Unit
+) {
+    val prefs = org.koin.compose.koinInject<PreferenceManager>()
+    val responses = remember { prefs.getQuickResponses() }
+    var customText by remember { mutableStateOf("") }
+    var isCustomVisible by remember { mutableStateOf(false) }
+
+    val tomorrowMorningMinutes = remember {
+        val now = Calendar.getInstance()
+        val tomorrow = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val diff = tomorrow.timeInMillis - now.timeInMillis
+        (diff / (1000 * 60)).coerceAtLeast(15)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Quick Response",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Decline call and reply to ${contactName.ifBlank { phoneNumber }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onOpenSmsApp) {
+                    Icon(
+                        Icons.Outlined.OpenInNew,
+                        contentDescription = "Open SMS app",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            responses.forEach { responseText ->
+                Surface(
+                    onClick = { onSend(responseText) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Outlined.Send,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = responseText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (!isCustomVisible) {
+                OutlinedButton(
+                    onClick = { isCustomVisible = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Write a custom message...")
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = customText,
+                        onValueChange = { customText = it },
+                        placeholder = { Text("Type custom message...") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            if (customText.isNotBlank()) {
+                                onSend(customText.trim())
+                            }
+                        },
+                        enabled = customText.isNotBlank()
+                    ) {
+                        Icon(
+                            Icons.Outlined.Send,
+                            contentDescription = "Send",
+                            tint = if (customText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = "Remind Me to Call Back",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "In 15m" to 15L,
+                    "In 1h" to 60L,
+                    "Tomorrow 9 AM" to tomorrowMorningMinutes
+                ).forEach { (label, minutes) ->
+                    FilledTonalButton(
+                        onClick = { onScheduleReminder(minutes, label) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
+                    ) {
+                        Icon(Icons.Outlined.Alarm, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

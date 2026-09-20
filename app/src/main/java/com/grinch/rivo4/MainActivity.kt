@@ -3,6 +3,10 @@ package com.grinch.rivo4
 import android.content.Intent
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.telecom.Call
+import com.grinch.rivo4.controller.CallActivity
+import com.grinch.rivo4.controller.CallService
+import com.grinch.rivo4.view.components.OngoingCallTopBanner
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,8 +23,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +39,6 @@ import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.isAlreadyDefaultDialer
 import com.grinch.rivo4.controller.util.makeCall
 import com.grinch.rivo4.view.screen.onboarding.MorphingOnboardingScreen
-import com.grinch.rivo4.view.components.PermissionPopup
-import com.grinch.rivo4.controller.util.isCustomPermissionDevice
 import com.grinch.rivo4.view.screen.transitions.AppTransitions
 import com.grinch.rivo4.view.screen.transitions.getAppTransition
 import com.grinch.rivo4.view.theme.Rivo4Theme
@@ -48,14 +52,19 @@ import com.ramcosta.composedestinations.generated.destinations.ContactEditScreen
 import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DefaultDialerScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.RecentScreenDestination
+import com.grinch.rivo4.controller.lock.AppLockManager
+import com.grinch.rivo4.view.screen.settings.AppLockOverlay
+import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.compose.koinInject
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.startKoin
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
+    private val preferenceManager: PreferenceManager by inject()
     private val requestRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ -> }
     private var intentState by mutableStateOf<Intent?>(null)
+    private var isAppLocked by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -63,6 +72,10 @@ class MainActivity : ComponentActivity() {
         intentState = intent
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        if (AppLockManager.isLocked(preferenceManager)) {
+            isAppLocked = true
+        }
 
         if (GlobalContext.getOrNull() == null) {
             startKoin {
@@ -79,39 +92,79 @@ class MainActivity : ComponentActivity() {
                 val defBar = prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, 0)
                 val transitionStyle = prefs.getInt(PreferenceManager.KEY_TRANSITION_STYLE, 0)
                 val onboardingShown = remember { prefs.getBoolean(PreferenceManager.KEY_ONBOARDING_SHOWN, false) }
-                val permissionPopupShown = remember { prefs.getBoolean(PreferenceManager.KEY_PERMISSION_POPUP_SHOWN, false) }
-
                 var showOnboarding by remember { mutableStateOf(!onboardingShown) }
-                var showPermissionPopup by remember { mutableStateOf(onboardingShown && !permissionPopupShown && isCustomPermissionDevice()) }
 
-                if (showOnboarding) {
+                val currentCallSession by CallService.currentCallSession.collectAsState()
+                val isCallOngoing = currentCallSession != null &&
+                        (currentCallSession?.state == Call.STATE_ACTIVE ||
+                                currentCallSession?.state == Call.STATE_HOLDING ||
+                                currentCallSession?.state == Call.STATE_DIALING ||
+                                currentCallSession?.state == Call.STATE_CONNECTING)
+
+                val darkTheme = isSystemInDarkTheme()
+                DisposableEffect(isCallOngoing, darkTheme) {
+                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                    if (isCallOngoing) {
+                        insetsController.isAppearanceLightStatusBars = false
+                    } else {
+                        insetsController.isAppearanceLightStatusBars = !darkTheme
+                    }
+                    onDispose {
+                        insetsController.isAppearanceLightStatusBars = !darkTheme
+                    }
+                }
+
+                if (isAppLocked && prefs.isAppLockEnabled()) {
+                    AppLockOverlay(
+                        onUnlocked = {
+                            isAppLocked = false
+                        }
+                    )
+                } else if (showOnboarding) {
                     MorphingOnboardingScreen(
                         onFinished = {
                             prefs.setBoolean(PreferenceManager.KEY_ONBOARDING_SHOWN, true)
-                            showOnboarding = false
-                            if (!permissionPopupShown && isCustomPermissionDevice()) {
-                                showPermissionPopup = true
-                            }
-                        }
-                    )
-                } else if (showPermissionPopup) {
-                    PermissionPopup(
-                        onDismiss = {
                             prefs.setBoolean(PreferenceManager.KEY_PERMISSION_POPUP_SHOWN, true)
-                            showPermissionPopup = false
+                            showOnboarding = false
                         }
                     )
                 } else {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black)
+                            .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        DestinationsNavHost(
-                            navGraph = NavGraphs.root,
-                            navController = navController,
-                            defaultTransitions = getAppTransition(transitionStyle)
-                        )
+                        if (isCallOngoing) {
+                            OngoingCallTopBanner(
+                                onReturnToCall = {
+                                    val intent = Intent(this@MainActivity, CallActivity::class.java).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                                    }
+                                    startActivity(intent)
+                                }
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .then(
+                                    if (isCallOngoing) {
+                                        Modifier.consumeWindowInsets(
+                                            WindowInsets.statusBars.union(WindowInsets.displayCutout)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                        ) {
+                            DestinationsNavHost(
+                                navGraph = NavGraphs.root,
+                                navController = navController,
+                                defaultTransitions = getAppTransition(transitionStyle)
+                            )
+                        }
                     }
 
                     LaunchedEffect(Unit) {
@@ -120,6 +173,11 @@ class MainActivity : ComponentActivity() {
                                 popUpTo(MainScreenDestination.route) {
                                     inclusive = true
                                 }
+                            }
+                        } else if (intentState?.action == null || intentState?.action == Intent.ACTION_MAIN) {
+                            val startLocation = prefs.getInt(PreferenceManager.KEY_START_LOCATION, PreferenceManager.START_LOCATION_NORMAL)
+                            if (startLocation == PreferenceManager.START_LOCATION_DIALPAD_RECENTS || startLocation == PreferenceManager.START_LOCATION_DIALPAD_CONTACTS) {
+                                navController.navigate(DialPadScreenDestination().route)
                             }
                         }
                     }
@@ -132,6 +190,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppLockManager.onAppForegrounded(preferenceManager)
+        if (AppLockManager.isLocked(preferenceManager)) {
+            isAppLocked = true
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppLockManager.onAppBackgrounded()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -142,6 +213,15 @@ class MainActivity : ComponentActivity() {
         intent ?: return
         val data = intent.data
         val action = intent.action
+        val componentName = intent.component?.className
+
+        if (componentName?.endsWith("ContactsAliasActivity") == true) {
+            navController.navigate(MainScreenDestination(initialTab = PreferenceManager.TAB_CONTACTS).route) {
+                popUpTo(navController.graph.startDestinationId)
+                launchSingleTop = true
+            }
+            return
+        }
 
         when (action) {
             "com.grinch.rivo4.ACTION_VIEW_RECENTS" -> {
@@ -180,5 +260,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private val volumeSqueezeHelper by lazy { com.grinch.rivo4.controller.util.VolumeSqueezeHelper(this, preferenceManager) }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (volumeSqueezeHelper.handleKeyEvent(event)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 }

@@ -29,12 +29,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: zulu
+          distribution: temurin
           java-version: "17"
           cache: gradle
 
@@ -45,7 +45,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build Release APK & AAB
+      - name: Build Release APKs & Play AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -53,7 +53,9 @@ jobs:
           KEYSTORE_PATH: ../app/keystore.jks # Adjusted path for gradle context
           BUILD_NUMBER: ${{ github.run_number }}
           PREVIEW_BUILD: ${{ github.ref == 'refs/heads/main' }}
+          GRADLE_OPTS: "-Xmx4096m -XX:+UseParallelGC"
         run: |
+          sed -i '/org.gradle.java.home/d' gradle.properties
           ./gradlew assembleRelease bundleRelease
 
       - name: Collect outputs

@@ -44,6 +44,8 @@ fun SoundVibrationScreen(
 
     var hapticListScroll by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_HAPTIC_LIST_SCROLL, false)) }
     var missedCallNotifications by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_MISSED_CALL_NOTIFICATIONS, true)) }
+    var flipToSilence by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_FLIP_TO_SILENCE, false)) }
+    var volumeSqueezeDnd by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_VOLUME_SQUEEZE_DND, false)) }
 
     Scaffold(
         topBar = {
@@ -61,8 +63,8 @@ fun SoundVibrationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 RivoExpressiveCard {
@@ -122,6 +124,32 @@ fun SoundVibrationScreen(
                         onCheckedChange = {
                             hapticListScroll = it
                             prefs.setBoolean(PreferenceManager.KEY_HAPTIC_LIST_SCROLL, it)
+                        }
+                    )
+                }
+            }
+
+            item {
+                RivoExpressiveCard {
+                    RivoSwitchListItem(
+                        headline = stringResource(R.string.settings_sound_flip_to_silence),
+                        supporting = stringResource(R.string.settings_sound_flip_to_silence_supporting),
+                        leadingIcon = Icons.Outlined.ScreenRotation,
+                        checked = flipToSilence,
+                        onCheckedChange = {
+                            flipToSilence = it
+                            prefs.setBoolean(PreferenceManager.KEY_FLIP_TO_SILENCE, it)
+                        }
+                    )
+                    RivoDivider(Modifier.padding(horizontal = 16.dp))
+                    RivoSwitchListItem(
+                        headline = "Volume Squeeze for DND",
+                        supporting = "Press both volume buttons together to toggle Do Not Disturb",
+                        leadingIcon = Icons.Outlined.DoNotDisturbOn,
+                        checked = volumeSqueezeDnd,
+                        onCheckedChange = {
+                            volumeSqueezeDnd = it
+                            prefs.setBoolean(PreferenceManager.KEY_VOLUME_SQUEEZE_DND, it)
                         }
                     )
                 }

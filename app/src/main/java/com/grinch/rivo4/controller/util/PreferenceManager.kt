@@ -16,8 +16,10 @@ class PreferenceManager(context: Context) {
     private val _settingsChanged = MutableStateFlow(0)
     val settingsChanged: StateFlow<Int> = _settingsChanged.asStateFlow()
 
-    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        _settingsChanged.value += 1
+    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key != KEY_APP_USAGE_SECONDS && key != KEY_RATE_APP_SNOOZED_TIME) {
+            _settingsChanged.value += 1
+        }
     }
 
     init {
@@ -101,6 +103,17 @@ class PreferenceManager(context: Context) {
         setString(KEY_FAVORITES_ORDER, order.joinToString(","))
     }
 
+    fun getQuickResponses(): List<String> {
+        val stored = getString(KEY_QUICK_RESPONSES, null)
+        if (stored.isNullOrBlank()) return DEFAULT_QUICK_RESPONSES
+        val list = stored.split("|||").map { it.trim() }.filter { it.isNotEmpty() }
+        return if (list.isNotEmpty()) list else DEFAULT_QUICK_RESPONSES
+    }
+
+    fun setQuickResponses(responses: List<String>) {
+        setString(KEY_QUICK_RESPONSES, responses.filter { it.isNotBlank() }.joinToString("|||"))
+    }
+
     fun getBottomNavOrder(): List<Int> {
         val stored = getString(KEY_BOTTOM_NAV_ORDER, null)
         val parsed = stored
@@ -125,7 +138,7 @@ class PreferenceManager(context: Context) {
     }
 
     fun getHiddenBottomNavTabs(): Set<Int> {
-        val stored = getString(KEY_BOTTOM_NAV_HIDDEN, null) ?: return emptySet()
+        val stored = getString(KEY_BOTTOM_NAV_HIDDEN, null) ?: return setOf(TAB_RECORDINGS)
         return stored.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
     }
 
@@ -246,6 +259,7 @@ class PreferenceManager(context: Context) {
         const val KEY_T9_DIALING = "t9_dialing"
         const val KEY_PROXIMITY_SENSOR = "proximity_sensor"
         const val KEY_INCOMING_CALL_POPUP = "incoming_call_popup"
+        const val KEY_ALWAYS_FULL_SCREEN_CALLS = "always_full_screen_calls"
         const val KEY_AUTO_REDIAL_BUSY = "auto_redial_busy"
         const val KEY_REDIAL_ATTEMPTS = "redial_attempts"
         const val KEY_REDIAL_DELAY = "redial_delay"
@@ -283,6 +297,7 @@ class PreferenceManager(context: Context) {
         const val KEY_INCOMING_CALL_UI_MODE = "incoming_call_ui_mode"
         const val KEY_SHOW_CARDS = "show_cards"
         const val KEY_SHOW_CALL_SCREEN_AVATAR = "show_call_screen_avatar"
+        const val KEY_HIDE_AVATAR_WITH_BACKGROUND = "hide_avatar_with_background"
         const val KEY_CARD_ROUNDNESS = "card_roundness"
         const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         const val KEY_PERMISSION_POPUP_SHOWN = "permission_popup_shown"
@@ -294,15 +309,164 @@ class PreferenceManager(context: Context) {
         const val KEY_CONTACT_DISPLAY_ORDER = "contact_display_order"
         const val KEY_CALL_RECORDING = "call_recording"
         const val KEY_CALL_RECORDING_AUTO = "call_recording_auto"
+        const val KEY_CALL_RECORDING_SHIZUKU = "call_recording_shizuku"
+        const val KEY_CALL_RECORDING_FILTER = "call_recording_filter"
+        const val RECORD_FILTER_ALL = 0
+        const val RECORD_FILTER_INCOMING_ONLY = 1
+        const val RECORD_FILTER_OUTGOING_ONLY = 2
+        const val RECORD_FILTER_UNKNOWN_ONLY = 3
+        const val RECORD_FILTER_CONTACTS_ONLY = 4
+
+        const val KEY_POCKET_MODE = "pocket_mode"
+        const val KEY_VOLUME_SQUEEZE_DND = "volume_squeeze_dnd"
+        const val KEY_QUICK_RESPONSES = "custom_quick_responses"
+        val DEFAULT_QUICK_RESPONSES = listOf(
+            "Can't talk now. What's up?",
+            "I'll call you right back.",
+            "I'll call you later.",
+            "Can't talk now. Call me later?",
+            "I'm in a meeting. Will message you soon."
+        )
         const val KEY_BOTTOM_NAV_ORDER = "bottom_nav_order"
         const val KEY_BOTTOM_NAV_HIDDEN = "bottom_nav_hidden"
         const val KEY_MERGE_FAVORITES_RECENTS = "merge_favorites_recents"
         const val KEY_RECENTS_FAVORITES_COLLAPSED = "recents_favorites_collapsed"
+        const val KEY_IS_SUPPORTER = "is_supporter"
+        const val KEY_POST_CALL_SCREEN = "post_call_screen"
+        const val KEY_NAV_BAR_STYLE = "nav_bar_style"
+        const val NAV_BAR_STYLE_STANDARD = 0
+        const val NAV_BAR_STYLE_TOOLBAR = 1
+
+        const val KEY_START_LOCATION = "start_location"
+        const val START_LOCATION_NORMAL = 0
+        const val START_LOCATION_DIALPAD_RECENTS = 1
+        const val START_LOCATION_DIALPAD_CONTACTS = 2
+
+        const val KEY_SECRET_DIALPAD_CODE = "secret_dialpad_code"
+        const val DEFAULT_SECRET_DIALPAD_CODE = "*#0000#"
+        const val KEY_HIDE_PRIVATE_SETTINGS_ENTRY = "hide_private_settings_entry"
+        const val KEY_HIDDEN_CONTACTS_VISIBLE = "hidden_contacts_visible"
+
+        const val KEY_LOG_FAKE_CALLS = "log_fake_calls"
+        const val KEY_SHOW_RECENTS_STATS = "show_recents_stats"
+
+        const val KEY_APP_USAGE_SECONDS = "app_usage_seconds"
+        const val KEY_RATE_APP_SHOWN = "rate_app_shown"
+        const val KEY_RATE_APP_SNOOZED_TIME = "rate_app_snoozed_time"
+
+        const val KEY_APP_LOCK_ENABLED = "app_lock_enabled"
+        const val KEY_APP_LOCK_BIOMETRIC = "app_lock_biometric"
+        const val KEY_APP_LOCK_PIN = "app_lock_pin"
+        const val KEY_APP_LOCK_TIMEOUT = "app_lock_timeout"
+        const val APP_LOCK_TIMEOUT_IMMEDIATELY = 0
+        const val APP_LOCK_TIMEOUT_1_MIN = 1
+        const val APP_LOCK_TIMEOUT_5_MIN = 5
+        const val APP_LOCK_TIMEOUT_15_MIN = 15
+        const val APP_LOCK_TIMEOUT_30_MIN = 30
+
+        const val KEY_FLOATING_CALL_BUBBLE = "floating_call_bubble"
+
+        const val KEY_FLOATING_BAR_ROUNDNESS = "floating_bar_roundness"
+        const val DEFAULT_FLOATING_BAR_ROUNDNESS = 32
+        const val KEY_FLOATING_BAR_BLUR = "floating_bar_blur"
+        const val KEY_UI_BLUR = "ui_blur"
+
+        const val KEY_SWIPE_ACTIONS_ENABLED = "swipe_actions_enabled"
+        const val KEY_SWIPE_RIGHT_ACTION = "swipe_right_action"
+        const val KEY_SWIPE_LEFT_ACTION = "swipe_left_action"
+
+        const val SWIPE_ACTION_NONE = 0
+        const val SWIPE_ACTION_CALL = 1
+        const val SWIPE_ACTION_MESSAGE = 2
+        const val SWIPE_ACTION_VIDEO_CALL = 3
+        const val SWIPE_ACTION_WHATSAPP = 4
+        const val SWIPE_ACTION_COPY_NUMBER = 5
+        const val SWIPE_ACTION_DELETE = 6
 
         const val TAB_RECENTS = 0
         const val TAB_FAVORITES = 1
         const val TAB_CONTACTS = 2
+        const val TAB_RECORDINGS = 3
 
-        val DEFAULT_BOTTOM_NAV_ORDER = listOf(TAB_RECENTS, TAB_CONTACTS, TAB_FAVORITES)
+        val DEFAULT_BOTTOM_NAV_ORDER = listOf(TAB_RECENTS, TAB_CONTACTS, TAB_FAVORITES, TAB_RECORDINGS)
+
+        const val KEY_MISSED_CALL_CARD = "missed_call_card"
+        const val KEY_AUTO_DECLINE_UNKNOWN = "auto_decline_unknown"
+        const val KEY_AUTO_DECLINE_NON_CONTACTS = "auto_decline_non_contacts"
+        const val KEY_DUAL_SIM_DIALPAD_BUTTONS = "dual_sim_dialpad_buttons"
+        const val KEY_CALL_LOG_LIMIT = "call_log_limit"
+        const val CALL_LOG_LIMIT_DEFAULT = 500
+        const val KEY_AUTO_PASTE_CLIPBOARD = "auto_paste_clipboard"
+        const val KEY_SEPARATE_CONTACTS_ICON = "separate_contacts_icon"
+        const val KEY_CALL_ANALYTICS_TRACKING = "call_analytics_tracking"
+    }
+
+    fun getCallLogLimit(): Int = getInt(KEY_CALL_LOG_LIMIT, CALL_LOG_LIMIT_DEFAULT)
+    fun setCallLogLimit(limit: Int) = setInt(KEY_CALL_LOG_LIMIT, limit)
+
+    fun isAutoPasteClipboardEnabled(): Boolean = getBoolean(KEY_AUTO_PASTE_CLIPBOARD, false)
+    fun setAutoPasteClipboardEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_PASTE_CLIPBOARD, enabled)
+
+    fun isSeparateContactsIconEnabled(): Boolean = getBoolean(KEY_SEPARATE_CONTACTS_ICON, false)
+    fun setSeparateContactsIconEnabled(enabled: Boolean) = setBoolean(KEY_SEPARATE_CONTACTS_ICON, enabled)
+
+    fun isCallAnalyticsTrackingEnabled(): Boolean = getBoolean(KEY_CALL_ANALYTICS_TRACKING, true)
+    fun setCallAnalyticsTrackingEnabled(enabled: Boolean) = setBoolean(KEY_CALL_ANALYTICS_TRACKING, enabled)
+
+    fun isAppLockEnabled(): Boolean = getBoolean(KEY_APP_LOCK_ENABLED, false)
+    fun setAppLockEnabled(enabled: Boolean) = setBoolean(KEY_APP_LOCK_ENABLED, enabled)
+    fun isBiometricLockEnabled(): Boolean = getBoolean(KEY_APP_LOCK_BIOMETRIC, true)
+    fun setBiometricLockEnabled(enabled: Boolean) = setBoolean(KEY_APP_LOCK_BIOMETRIC, enabled)
+    fun getAppLockPin(): String = getString(KEY_APP_LOCK_PIN, "") ?: ""
+    fun setAppLockPin(pin: String) = setString(KEY_APP_LOCK_PIN, pin)
+    fun getAppLockTimeout(): Int = getInt(KEY_APP_LOCK_TIMEOUT, APP_LOCK_TIMEOUT_IMMEDIATELY)
+    fun setAppLockTimeout(timeout: Int) = setInt(KEY_APP_LOCK_TIMEOUT, timeout)
+    fun isFloatingCallBubbleEnabled(): Boolean = getBoolean(KEY_FLOATING_CALL_BUBBLE, true)
+    fun setFloatingCallBubbleEnabled(enabled: Boolean) = setBoolean(KEY_FLOATING_CALL_BUBBLE, enabled)
+    fun isHiddenContactsVisible(): Boolean = getBoolean(KEY_HIDDEN_CONTACTS_VISIBLE, false)
+    fun setHiddenContactsVisible(visible: Boolean) = setBoolean(KEY_HIDDEN_CONTACTS_VISIBLE, visible)
+
+    fun getFloatingBarRoundness(): Int = getInt(KEY_FLOATING_BAR_ROUNDNESS, DEFAULT_FLOATING_BAR_ROUNDNESS)
+    fun setFloatingBarRoundness(roundness: Int) = setInt(KEY_FLOATING_BAR_ROUNDNESS, roundness)
+
+    fun isFloatingBarBlurEnabled(): Boolean = isUiBlurEnabled()
+    fun setFloatingBarBlurEnabled(enabled: Boolean) = setUiBlurEnabled(enabled)
+    fun isUiBlurEnabled(): Boolean = getBoolean(KEY_UI_BLUR, getBoolean(KEY_FLOATING_BAR_BLUR, false))
+    fun setUiBlurEnabled(enabled: Boolean) {
+        setBoolean(KEY_UI_BLUR, enabled)
+        setBoolean(KEY_FLOATING_BAR_BLUR, enabled)
+    }
+
+    fun isSwipeActionsEnabled(): Boolean = getBoolean(KEY_SWIPE_ACTIONS_ENABLED, false)
+    fun setSwipeActionsEnabled(enabled: Boolean) = setBoolean(KEY_SWIPE_ACTIONS_ENABLED, enabled)
+
+    fun getSwipeRightAction(): Int = getInt(KEY_SWIPE_RIGHT_ACTION, SWIPE_ACTION_CALL)
+    fun setSwipeRightAction(action: Int) = setInt(KEY_SWIPE_RIGHT_ACTION, action)
+
+    fun getSwipeLeftAction(): Int = getInt(KEY_SWIPE_LEFT_ACTION, SWIPE_ACTION_MESSAGE)
+    fun setSwipeLeftAction(action: Int) = setInt(KEY_SWIPE_LEFT_ACTION, action)
+
+    fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, false)
+    fun setSupporter(isSupporter: Boolean) = setBoolean(KEY_IS_SUPPORTER, isSupporter)
+
+    fun isPostCallScreenEnabled(): Boolean = getBoolean(KEY_POST_CALL_SCREEN, true)
+    fun setPostCallScreenEnabled(enabled: Boolean) = setBoolean(KEY_POST_CALL_SCREEN, enabled)
+
+    fun isMissedCallCardEnabled(): Boolean = getBoolean(KEY_MISSED_CALL_CARD, true)
+    fun setMissedCallCardEnabled(enabled: Boolean) = setBoolean(KEY_MISSED_CALL_CARD, enabled)
+
+    fun isAutoDeclineUnknownEnabled(): Boolean = getBoolean(KEY_AUTO_DECLINE_UNKNOWN, false)
+    fun setAutoDeclineUnknownEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_DECLINE_UNKNOWN, enabled)
+
+    fun isAutoDeclineNonContactsEnabled(): Boolean = getBoolean(KEY_AUTO_DECLINE_NON_CONTACTS, false)
+    fun setAutoDeclineNonContactsEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_DECLINE_NON_CONTACTS, enabled)
+
+    fun isDualSimDialpadButtonsEnabled(): Boolean = getBoolean(KEY_DUAL_SIM_DIALPAD_BUTTONS, false)
+    fun setDualSimDialpadButtonsEnabled(enabled: Boolean) = setBoolean(KEY_DUAL_SIM_DIALPAD_BUTTONS, enabled)
+
+    fun resetSwipeActions() {
+        setBoolean(KEY_SWIPE_ACTIONS_ENABLED, false)
+        setInt(KEY_SWIPE_RIGHT_ACTION, SWIPE_ACTION_CALL)
+        setInt(KEY_SWIPE_LEFT_ACTION, SWIPE_ACTION_MESSAGE)
     }
 }

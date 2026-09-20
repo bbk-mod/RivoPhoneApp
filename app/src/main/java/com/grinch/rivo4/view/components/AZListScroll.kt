@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +25,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.grinch.rivo4.R
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import com.grinch.rivo4.controller.util.SocialUtils
 import com.grinch.rivo4.modal.data.Contact
+import com.grinch.rivo4.modal.data.SwipeActionType
+import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.formatPhoneNumber
 import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
@@ -39,12 +48,23 @@ fun AZListScroll(
     listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: (String) -> Unit = {},
-    grouped: Map<Char, List<Contact>>? = null
+    grouped: Map<Char, List<Contact>>? = null,
+    header: (@Composable () -> Unit)? = null
 ) {
     val prefs = org.koin.compose.koinInject<com.grinch.rivo4.controller.util.PreferenceManager>()
+    val settingsState by prefs.settingsChanged.collectAsState()
 
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val hapticScrollEnabled = prefs.getBoolean(PreferenceManager.KEY_HAPTIC_LIST_SCROLL, false)
+
+    val context = LocalContext.current
+    val callLauncher = rememberCallLauncher()
+    val messageLauncher = rememberMessageLauncher()
+    val videoLauncher = rememberVideoLauncher()
+    val clipboardManager = LocalClipboardManager.current
+    val swipeEnabled = remember(settingsState) { prefs.isSwipeActionsEnabled() } && selectedIds.isEmpty()
+    val swipeRightAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeRightAction()) }
+    val swipeLeftAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeLeftAction()) }
 
     if (hapticScrollEnabled) {
         LaunchedEffect(listState.firstVisibleItemIndex) {
@@ -72,9 +92,9 @@ fun AZListScroll(
         finalMap
     }
 
-    val alphabetIndices = remember(finalGrouped) {
+    val alphabetIndices = remember(finalGrouped, header != null) {
         val map = mutableMapOf<Char, Int>()
-        var currentIndex = 0
+        var currentIndex = if (header != null) 1 else 0
         finalGrouped.forEach { (char, _) ->
             map[char] = currentIndex
             currentIndex += 2 
@@ -101,6 +121,12 @@ fun AZListScroll(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
+            if (header != null) {
+                item {
+                    header()
+                }
+            }
+
             finalGrouped.entries.forEachIndexed { groupIndex, (initial, contactsForChar) ->
                 stickyHeader {
                     Box(
@@ -127,24 +153,63 @@ fun AZListScroll(
                                 val displayName = contact.displayName.ifEmpty {
                                     contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: unknownLabel
                                 }
-                                RivoListItem(
-                                    headline = displayName,
-                                    supporting = null,
-                                    avatarName = contact.displayName,
-                                    photoUri = contact.photoUri,
-                                    onClick = {
-                                        if (selectedIds.isNotEmpty()) {
-                                            onToggleSelection(contact.id)
-                                        } else {
-                                            navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                RivoSwipeToActionBox(
+                                    enabled = swipeEnabled,
+                                    swipeRightAction = swipeRightAction,
+                                    swipeLeftAction = swipeLeftAction,
+                                    onTriggerAction = { action ->
+                                        val phone = contact.phoneNumbers.firstOrNull().orEmpty()
+                                        when (action) {
+                                            SwipeActionType.CALL -> callLauncher.dial(phone, contact)
+                                            SwipeActionType.MESSAGE -> messageLauncher.sendMessage(phone, contact)
+                                            SwipeActionType.VIDEO_CALL -> videoLauncher.startVideoCall(phone, contact)
+                                            SwipeActionType.COPY_NUMBER -> {
+                                                if (phone.isNotBlank()) {
+                                                    clipboardManager.setText(AnnotatedString(phone))
+                                                    Toast.makeText(context, context.getString(R.string.number_copied_toast), Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                            SwipeActionType.DELETE -> {}
+                                            SwipeActionType.NONE -> {}
                                         }
-                                    },
-                                    onLongClick = {
-                                        onToggleSelection(contact.id)
-                                    },
-                                    selected = selectedIds.contains(contact.id),
-                                    isCompact = true
-                                )
+                                    }
+                                ) {
+                                    RivoListItem(
+                                        headline = displayName,
+                                        supporting = null,
+                                        avatarName = contact.displayName,
+                                        photoUri = contact.photoUri,
+                                        trailingContent = {
+                                            if (contact.isHidden) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.VisibilityOff,
+                                                    contentDescription = "Private Storage (Hidden)",
+                                                    tint = MaterialTheme.colorScheme.tertiary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            } else if (contact.isPrivate) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Lock,
+                                                    contentDescription = "Private Storage",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            if (selectedIds.isNotEmpty()) {
+                                                onToggleSelection(contact.id)
+                                            } else {
+                                                navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                            }
+                                        },
+                                        onLongClick = {
+                                            onToggleSelection(contact.id)
+                                        },
+                                        selected = selectedIds.contains(contact.id),
+                                        isCompact = true
+                                    )
+                                }
                                 if (index < contactsForChar.size - 1) {
                                     RivoDivider(modifier = Modifier.padding(horizontal = 16.dp))
                                 }

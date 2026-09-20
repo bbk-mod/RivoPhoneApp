@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -90,8 +91,8 @@ fun BackupRestoreScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Text(
@@ -160,6 +161,7 @@ fun BackupRestoreScreen(
                     )
                 }
             }
+
         }
     }
 
@@ -177,7 +179,6 @@ fun BackupRestoreScreen(
             title = stringResource(R.string.settings_manage_standardize_numbers),
             message = stringResource(R.string.settings_manage_standardize_confirm_message),
             confirmLabel = stringResource(R.string.action_confirm),
-            dismissLabel = stringResource(R.string.action_cancel),
             icon = Icons.Outlined.Numbers
         )
     }

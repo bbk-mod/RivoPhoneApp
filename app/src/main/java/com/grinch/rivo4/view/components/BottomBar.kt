@@ -1,13 +1,39 @@
 package com.grinch.rivo4.view.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MicNone
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShortNavigationBar
@@ -18,15 +44,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.util.PreferenceManager
+import com.ramcosta.composedestinations.generated.destinations.CallRecordingsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.FavoritesScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.RecentScreenDestination
@@ -45,24 +78,28 @@ data class NavigationTab(
 fun navigationTabLabel(tabId: Int): String = when (tabId) {
     PreferenceManager.TAB_FAVORITES -> stringResource(R.string.nav_favorites)
     PreferenceManager.TAB_CONTACTS -> stringResource(R.string.nav_contacts)
+    PreferenceManager.TAB_RECORDINGS -> stringResource(R.string.nav_call_recordings)
     else -> stringResource(R.string.nav_recents)
 }
 
 fun navigationTabIcon(tabId: Int): ImageVector = when (tabId) {
     PreferenceManager.TAB_FAVORITES -> Icons.Filled.Star
     PreferenceManager.TAB_CONTACTS -> Icons.Filled.Person
+    PreferenceManager.TAB_RECORDINGS -> Icons.Filled.Mic
     else -> Icons.Filled.History
 }
 
 fun navigationTabRoute(tabId: Int): String = when (tabId) {
     PreferenceManager.TAB_FAVORITES -> FavoritesScreenDestination.route
     PreferenceManager.TAB_CONTACTS -> ContactScreenDestination.route
+    PreferenceManager.TAB_RECORDINGS -> CallRecordingsScreenDestination.route
     else -> RecentScreenDestination.route
 }
 
 private fun navigationTabUnselectedIcon(tabId: Int): ImageVector = when (tabId) {
     PreferenceManager.TAB_FAVORITES -> Icons.Outlined.Star
     PreferenceManager.TAB_CONTACTS -> Icons.Outlined.Person
+    PreferenceManager.TAB_RECORDINGS -> Icons.Outlined.MicNone
     else -> Icons.Outlined.History
 }
 
@@ -80,6 +117,15 @@ fun BottomBar(
     val iconOnly = remember(settingsState) {
         prefs.getBoolean(PreferenceManager.KEY_ICON_ONLY_NAV, false)
     }
+    val navBarStyle = remember(settingsState) {
+        prefs.getInt(PreferenceManager.KEY_NAV_BAR_STYLE, PreferenceManager.NAV_BAR_STYLE_STANDARD)
+    }
+    val floatingBarRoundness = remember(settingsState) {
+        prefs.getFloatingBarRoundness()
+    }
+    val isBlurEnabled = remember(settingsState) {
+        prefs.isUiBlurEnabled()
+    }
     val storedTabs = remember(settingsState) { prefs.getVisibleBottomNavTabs() }
     val tabIds = visibleTabs ?: storedTabs
 
@@ -96,55 +142,165 @@ fun BottomBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val itemColors = ShortNavigationBarItemDefaults.colors(
-        selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        selectedTextColor = MaterialTheme.colorScheme.onSurface,
-        selectedIndicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    if (navBarStyle == PreferenceManager.NAV_BAR_STYLE_TOOLBAR) {
+        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+        val barShape = if (floatingBarRoundness >= 28) {
+            FloatingToolbarDefaults.ContainerShape
+        } else {
+            RoundedCornerShape(floatingBarRoundness.dp)
+        }
 
-    ShortNavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurface
-    ) {
-        tabs.forEach { tab ->
-            val isSelected = if (pagerState != null) {
-                pagerState.currentPage == tab.value
-            } else {
-                currentDestination?.hierarchy?.any { it.route == tab.route } == true
-            }
-
-            ShortNavigationBarItem(
-                selected = isSelected,
-                onClick = {
-                    if (onPageSelected != null && pagerState != null) {
-                        onPageSelected(tab.value)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+            HorizontalFloatingToolbar(
+                expanded = true,
+                shape = barShape,
+                colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+                    toolbarContainerColor = if (isBlurEnabled) {
+                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.70f)
                     } else {
-                        navController.navigate(tab.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        MaterialTheme.colorScheme.surfaceContainer
+                    }
+                ),
+                contentPadding = FloatingToolbarDefaults.ContentPadding
+            ) {
+                tabs.forEach { tab ->
+                    val isSelected = if (pagerState != null) {
+                        pagerState.currentPage == tab.value
+                    } else {
+                        currentDestination?.hierarchy?.any { it.route == tab.route } == true
+                    }
+
+                    val indicatorColor by animateColorAsState(
+                        targetValue = if (isSelected) {
+                            if (isBlurEnabled) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
+                            else MaterialTheme.colorScheme.secondaryContainer
+                        } else Color.Transparent,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "expressiveIndicatorColor"
+                    )
+                    val iconColor by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "expressiveIconColor"
+                    )
+
+                    val onItemClick = {
+                        if (onPageSelected != null && pagerState != null) {
+                            onPageSelected(tab.value)
+                        } else {
+                            navController.navigate(tab.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     }
-                },
-                icon = {
-                    Icon(
-                        imageVector = if (isSelected) tab.icon else navigationTabUnselectedIcon(tab.id),
-                        contentDescription = if (iconOnly) tab.label else null
-                    )
-                },
-                label = if (iconOnly) null else ({
-                    Text(
-                        text = tab.label,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }),
-                colors = itemColors
-            )
+
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(indicatorColor)
+                            .clickable(onClick = onItemClick)
+                            .padding(
+                                horizontal = if (isSelected && !iconOnly) 12.dp else 10.dp,
+                                vertical = 8.dp
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isSelected) tab.icon else navigationTabUnselectedIcon(tab.id),
+                            contentDescription = tab.label,
+                            tint = iconColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        if (!iconOnly) {
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) + expandHorizontally(spring(stiffness = Spring.StiffnessMediumLow)),
+                                exit = fadeOut(spring(stiffness = Spring.StiffnessMediumLow)) + shrinkHorizontally(spring(stiffness = Spring.StiffnessMediumLow))
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = tab.label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = iconColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        val itemColors = ShortNavigationBarItemDefaults.colors(
+            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+            selectedIndicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        ShortNavigationBar(
+            containerColor = if (isBlurEnabled) {
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.70f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
+            tabs.forEach { tab ->
+                val isSelected = if (pagerState != null) {
+                    pagerState.currentPage == tab.value
+                } else {
+                    currentDestination?.hierarchy?.any { it.route == tab.route } == true
+                }
+
+                ShortNavigationBarItem(
+                    selected = isSelected,
+                    onClick = {
+                        if (onPageSelected != null && pagerState != null) {
+                            onPageSelected(tab.value)
+                        } else {
+                            navController.navigate(tab.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = if (isSelected) tab.icon else navigationTabUnselectedIcon(tab.id),
+                            contentDescription = if (iconOnly) tab.label else null
+                        )
+                    },
+                    label = if (iconOnly) null else ({
+                        Text(
+                            text = tab.label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }),
+                    colors = itemColors
+                )
+            }
         }
     }
 }

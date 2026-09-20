@@ -5,9 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.telecom.Call
+import android.telecom.TelecomManager
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -31,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -67,18 +71,31 @@ class CallActivity : ComponentActivity() {
     private val identityCache = mutableMapOf<String, CachedCallIdentity>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        CallService.isActivityVisible.value = true
+        turnScreenOnAndShowWhileLocked()
         super.onCreate(savedInstanceState)
 
         CallBackgroundStore.attach(preferenceManager)
+        CallRecorder.prepare(this)
 
-        if (CallService.allCalls.value.none { it.state != Call.STATE_DISCONNECTED } &&
-            CallService.currentCallSession.value == null
-        ) {
-            finish()
-            return
+        val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        val isTelecomInCall = try {
+            telecomManager?.isInCall == true
+        } catch (e: SecurityException) {
+            false
         }
 
-        turnScreenOnAndShowWhileLocked()
+        if (!isTelecomInCall &&
+            CallService.allCalls.value.none { it.state != Call.STATE_DISCONNECTED } &&
+            CallService.currentCallSession.value == null &&
+            CallService.instance == null
+        ) {
+            setShowWhenLocked(false)
+            setTurnScreenOn(false)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            finishAndRemoveTask()
+            return
+        }
 
         if (preferenceManager.getBoolean(PreferenceManager.KEY_KEEP_SCREEN_ON, true)) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -106,6 +123,23 @@ class CallActivity : ComponentActivity() {
                     rememberCallIdentity(displayCall, settingsState)
                 } else {
                     null
+                }
+
+                var lastKnownIdentity by remember { mutableStateOf<CallIdentity?>(null) }
+                var lastConnectTime by remember { mutableLongStateOf(0L) }
+                var postCallShown by remember { mutableStateOf(false) }
+
+                LaunchedEffect(identity) {
+                    if (identity != null) {
+                        lastKnownIdentity = identity
+                    }
+                }
+
+                LaunchedEffect(displaySession?.connectTimeMillis) {
+                    val ct = displaySession?.connectTimeMillis ?: 0L
+                    if (ct > 0) {
+                        lastConnectTime = ct
+                    }
                 }
 
                 val darkTheme = isSystemInDarkTheme()
@@ -171,7 +205,22 @@ class CallActivity : ComponentActivity() {
                                 )
                             }
                             releaseProximityLock()
-                            delay(1200)
+                            val isPostCallEnabled = preferenceManager.isPostCallScreenEnabled()
+                            val currentId = identity ?: lastKnownIdentity
+                            delay(350)
+                            if (isPostCallEnabled && currentId != null && lastConnectTime > 0 && !postCallShown) {
+                                val duration = (System.currentTimeMillis() - lastConnectTime) / 1000
+                                if (duration > 0) {
+                                    postCallShown = true
+                                    PostCallActivity.start(
+                                        context = this@CallActivity,
+                                        contactName = currentId.name,
+                                        phoneNumber = currentId.number,
+                                        photoUri = currentId.photoUri,
+                                        durationSeconds = duration
+                                    )
+                                }
+                            }
                             dismissCallScreen()
                         }
 
@@ -179,7 +228,22 @@ class CallActivity : ComponentActivity() {
                     }
 
                     if (session == null) {
-                        delay(1200)
+                        val isPostCallEnabled = preferenceManager.isPostCallScreenEnabled()
+                        val currentId = lastKnownIdentity
+                        delay(350)
+                        if (isPostCallEnabled && currentId != null && lastConnectTime > 0 && !postCallShown) {
+                            val duration = (System.currentTimeMillis() - lastConnectTime) / 1000
+                            if (duration > 0) {
+                                postCallShown = true
+                                PostCallActivity.start(
+                                    context = this@CallActivity,
+                                    contactName = currentId.name,
+                                    phoneNumber = currentId.number,
+                                    photoUri = currentId.photoUri,
+                                    durationSeconds = duration
+                                )
+                            }
+                        }
                         if (CallService.allCalls.value.none { it.state != Call.STATE_DISCONNECTED }) {
                             dismissCallScreen()
                         }
@@ -291,12 +355,21 @@ class CallActivity : ComponentActivity() {
                 ?: identity.backgroundUri.takeIf { resolveFailed }
                 ?: defaultBackground
 
+            val isConference = try {
+                call.details?.hasProperty(Call.Details.PROPERTY_CONFERENCE) == true
+            } catch (_: Exception) { false }
+            val conferenceLabel = context.getString(R.string.conference_call)
+
             val resolved = CallIdentity(
                 number = number,
-                name = contact?.name?.takeIf { it.isNotBlank() }
-                    ?: identity.name.takeIf { contactFailed && it.isNotBlank() }
-                    ?: number.ifEmpty { unknownLabel },
-                photoUri = contact?.photoUri ?: identity.photoUri.takeIf { contactFailed },
+                name = if (isConference) {
+                    conferenceLabel
+                } else {
+                    contact?.name?.takeIf { it.isNotBlank() }
+                        ?: identity.name.takeIf { contactFailed && it.isNotBlank() }
+                        ?: number.ifEmpty { unknownLabel }
+                },
+                photoUri = if (isConference) null else contact?.photoUri ?: identity.photoUri.takeIf { contactFailed },
                 backgroundUri = background
             )
             cacheIdentity(number, resolved, settingsState)
@@ -345,6 +418,7 @@ class CallActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        CallService.isActivityVisible.value = false
         releaseProximityLock()
     }
 
@@ -365,16 +439,36 @@ class CallActivity : ComponentActivity() {
             return
         }
 
-        setShowWhenLocked(false)
-        setTurnScreenOn(false)
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(false)
+            setTurnScreenOn(false)
+        }
+        @Suppress("DEPRECATION")
+        window.clearFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
         finishAndRemoveTask()
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        turnScreenOnAndShowWhileLocked()
+    }
+
     private fun turnScreenOnAndShowWhileLocked() {
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
-        window.addFlags(WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
     }
 
     override fun onStart() {
@@ -382,18 +476,59 @@ class CallActivity : ComponentActivity() {
         CallService.isActivityVisible.value = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        turnScreenOnAndShowWhileLocked()
+        com.grinch.rivo4.controller.floating.FloatingCallService.stop(this)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        checkAndStartFloatingBubble()
+    }
+
     override fun onStop() {
         super.onStop()
-        CallService.isActivityVisible.value = false
+        if (proximityWakeLock?.isHeld != true) {
+            CallService.isActivityVisible.value = false
+            if (!isFinishing && !isDestroyed) {
+                checkAndStartFloatingBubble()
+            }
+        }
+    }
+
+    private fun checkAndStartFloatingBubble() {
+        if (preferenceManager.isFloatingCallBubbleEnabled() &&
+            android.provider.Settings.canDrawOverlays(this)
+        ) {
+            val hasOngoingCall = CallService.allCalls.value.any {
+                it.state == Call.STATE_ACTIVE || it.state == Call.STATE_HOLDING || it.state == Call.STATE_DIALING
+            }
+            if (hasOngoingCall) {
+                com.grinch.rivo4.controller.floating.FloatingCallService.start(this)
+            }
+        }
     }
 
     private fun acquireProximityLock() {
         if (preferenceManager.getBoolean(PreferenceManager.KEY_PROXIMITY_SENSOR, true)) {
-            proximityWakeLock?.let { if (!it.isHeld) it.acquire() }
+            try {
+                proximityWakeLock?.let {
+                    if (!it.isHeld) it.acquire(10 * 60 * 1000L) // 10 min safety timeout
+                }
+            } catch (e: Exception) {
+                Log.e("CallActivity", "Failed to acquire proximity lock", e)
+            }
         }
     }
 
     private fun releaseProximityLock() {
-        proximityWakeLock?.let { if (it.isHeld) it.release() }
+        try {
+            proximityWakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+        } catch (e: Exception) {
+            Log.e("CallActivity", "Failed to release proximity lock", e)
+        }
     }
 }

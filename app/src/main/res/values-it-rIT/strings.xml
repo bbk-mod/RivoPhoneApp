@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">Unisci chiamate</string>
+    <string name="conference_call">Chiamata alla conferenza</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">Secondo nome</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Limite chiamate recenti</string>
+    <string name="settings_call_log_limit_supporting">Limita il numero di voci recenti del registro chiamate caricate per migliorare la velocità di carico e le prestazioni</string>
+    <string name="settings_call_log_limit_100">100 chiamate</string>
+    <string name="settings_call_log_limit_250">250 chiamate</string>
+    <string name="settings_call_log_limit_500">500 chiamate (predefinito)</string>
+    <string name="settings_call_log_limit_1000">1.000 chiamate</string>
+    <string name="settings_call_log_limit_unlimited">Illimitato</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Incolla automaticamente il numero copiato</string>
+    <string name="settings_auto_paste_clipboard_supporting">Riempi automaticamente il tastierino con il numero di telefono attualmente copiato negli appunti</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Separa l\'icona della schermata Home Contatti</string>
+    <string name="settings_contacts_launcher_icon_supporting">Mostra un\'icona dedicata Contatti nel tuo launcher app e nella schermata home</string>
+    <string name="app_name_contacts">Contatti</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Impostazioni chiamata operatore di sistema</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Analisi Delle Chiamate &amp; Tracciamento</string>
+    <string name="settings_call_analytics_supporting">Traccia metriche di chiamata, statistiche del tempo di conversazione, ore di punta, e informazioni di contatto frequenti</string>
+    <string name="settings_call_analytics_disabled_supporting">Le statistiche di monitoraggio e utilizzo delle chiamate sono disabilitate</string>
+    <string name="settings_call_analytics_view_title">Visualizza Analisi &amp; Approfondimenti</string>
+    <string name="settings_call_analytics_view_supporting">Talk tempo leaderboard, ore di punta &amp; distribuzione</string>
+    <string name="call_analytics_disabled_title">Analisi Delle Chiamate &amp; Tracciamento Disabilitato</string>
+    <string name="call_analytics_disabled_desc">L\'analisi delle chiamate e il tracciamento dell\'orario di conversazione sono attualmente disattivati. Abilita questa opzione per calcolare il tempo di conversazione, le ore di punta e le informazioni sui contatti.</string>
+    <string name="call_analytics_enable_action">Abilita Analisi &amp; Tracciamento</string>
 </resources>

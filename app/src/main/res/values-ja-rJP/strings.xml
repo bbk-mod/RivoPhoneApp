@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">通話をマージ</string>
+    <string name="conference_call">電話会議</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">ミドルネーム</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,37 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">最近の通話の制限</string>
+    <string name="settings_call_log_limit_supporting">読み込み速度とパフォーマンスを向上させるために、最近の通話ログエントリの数を制限します</string>
+    <string name="settings_call_log_limit_100">100 通話</string>
+    <string name="settings_call_log_limit_250">250の通話</string>
+    <string name="settings_call_log_limit_500">500 calls (デフォルト)</string>
+    <string name="settings_call_log_limit_1000">1,000件の通話</string>
+    <string name="settings_call_log_limit_unlimited">無制限です</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">コピーされた番号を自動ペーストする</string>
+    <string name="settings_auto_paste_clipboard_supporting">現在クリップボードにコピーされている電話番号をダイヤルパッドに自動的に入力します</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">連絡先のホーム画面アイコンを分離する</string>
+    <string name="settings_contacts_launcher_icon_supporting">アプリランチャーとホーム画面に専用の連絡先アイコンを表示する</string>
+    <string name="app_name_contacts">連絡先</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">システムキャリア通話の設定</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_supporting">通話指標、通話時間統計、ピーク時間、頻繁な連絡先情報を追跡する</string>
+    <string name="settings_call_analytics_disabled_supporting">通話履歴と使用状況の統計は無効になっています</string>
+    <string name="settings_call_analytics_view_supporting">トークタイムリーダーボード、ピーク時間 &amp; 配布</string>
+    <string name="call_analytics_disabled_desc">通話分析と通話時間追跡は現在オフになっています。このオプションを有効にすると、通話時間、ピーク時間、連絡先情報を計算できます。</string>
+    <string name="call_analytics_enable_action">Analytics &amp; 追跡を有効にする</string>
 </resources>

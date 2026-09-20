@@ -28,6 +28,7 @@ data class Contact(
     val id: String,
     val name: String,
     val givenName: String? = null,
+    val middleName: String? = null,
     val familyName: String? = null,
     val nickname: String? = null,
     val phoneNumbers: List<String> = emptyList(),
@@ -42,8 +43,23 @@ data class Contact(
     val accountName: String? = null,
     val accountType: String? = null,
     val isPrivate: Boolean = false,
+    val isHidden: Boolean = false,
     val notes: String? = null
 ) {
     val displayName: String
         get() = nickname?.trim()?.takeIf { it.isNotEmpty() } ?: name
+
+    val formattedDisplayName: String
+        get() {
+            val parts = listOfNotNull(
+                givenName?.trim()?.ifBlank { null },
+                middleName?.trim()?.ifBlank { null },
+                familyName?.trim()?.ifBlank { null }
+            )
+            return if (parts.isNotEmpty()) {
+                parts.joinToString(" ")
+            } else {
+                name
+            }
+        }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RivoPhone</string>
+    <string name="app_name">Rivo</string>
     <!-- Shared actions / generic labels reused across multiple screens -->
     <string name="action_cancel">Cancelar</string>
     <string name="action_confirm">Confirmar</string>
@@ -21,8 +21,11 @@
     <string name="action_decline">Rechazar</string>
     <string name="action_end">Finalizar</string>
     <string name="action_mute">Silenciar</string>
+    <string name="action_unmute">Desactivar silencio</string>
     <string name="action_keypad">Teclado</string>
     <string name="action_add_call">Agregar llamada</string>
+    <string name="action_merge_calls">Combinar llamadas</string>
+    <string name="conference_call">Llamada</string>
     <string name="action_hold">Pausar</string>
     <string name="action_resume">Reanudar</string>
     <string name="action_end_call">Colgar</string>
@@ -34,7 +37,10 @@
     <string name="content_desc_scroll_to_top">Volver arriba</string>
     <string name="sim_picker_title">Seleccionar tarjeta SIM</string>
     <string name="sim_picker_unknown_sim">SIM desconocida</string>
-    <string name="selection_count_selected">%1$d seleccionado(s)</string>
+    <plurals name="selection_count_selected">
+        <item quantity="one">%1$d Seleccionado</item>
+        <item quantity="other">%1$d Seleccionados</item>
+    </plurals>
     <string name="label_unknown">Desconocido</string>
     <string name="label_unknown_number">Número desconocido</string>
     <string name="label_mobile">Móvil</string>
@@ -51,6 +57,7 @@
     <string name="date_yesterday">Ayer</string>
     <string name="nav_contacts">Contactos</string>
     <string name="nav_recents">Recientes</string>
+    <string name="nav_call_recordings">Grabaciones</string>
     <string name="call_type_incoming">Entrante</string>
     <string name="call_type_outgoing">Saliente</string>
     <string name="call_type_missed">Perdida</string>
@@ -68,6 +75,7 @@
     <string name="onboarding_get_started">Primeros pasos</string>
     <string name="onboarding_page1_title">Diseño expresivo</string>
     <string name="onboarding_page1_description">Experimenta una interfaz moderna gracias a las animaciones de Material 3 y Jetpack Compose.</string>
+    <string name="onboarding_page2_title">Marcación ultrarrápida</string>
     <string name="onboarding_page2_description">Encuentra contactos en un instante con nuestra búsqueda inteligente T9 y nuestro historial de llamadas organizado.</string>
     <string name="onboarding_page3_title">Construido para ti</string>
     <string name="onboarding_page3_description">Una experiencia de llamadas de código abierto y de proximidad diseñada para la eficiencia.</string>
@@ -89,7 +97,10 @@
     <string name="call_history_with_contact">Historial con %1$s</string>
     <string name="call_log_no_history_found">No se encontró historial de llamadas</string>
     <string name="call_log_no_filter_match">Ninguna llamada coincide con este filtro</string>
-    <string name="call_log_delete_confirm">¿Está seguro que deseas eliminar %1$d registros de llamadas seleccionados?</string>
+    <plurals name="call_log_delete_confirm">
+        <item quantity="one">¿Seguro que quieres eliminar %1$d registros de llamadas seleccionado?</item>
+        <item quantity="other">¿Seguro que quieres eliminar %1$d registros de llamadas seleccionados?</item>
+    </plurals>
     <string name="call_log_delete_title">Borrar registros de llamadas</string>
     <string name="call_log_clear_all_title">Borrar todos los registros</string>
     <string name="call_log_clear_all_confirm">Borrar todo</string>
@@ -105,11 +116,13 @@
     <string name="contact_filter_private">Privado</string>
     <string name="contact_move_to_storage">Mover al almacenamiento</string>
     <string name="contact_move_private_storage_title">Almacenamiento privado</string>
+    <string name="contact_move_private_storage_supporting">Almacenamiento exclusivo de la aplicación</string>
     <string name="contact_move_local_memory_supporting">Solo en dispositivo</string>
     <string name="content_desc_move">Mover</string>
     <string name="contacts_empty_title">No se encontraron contactos</string>
     <string name="contacts_permission_rationale">Para mostrar tu lista de contactos e identificar llamadas entrantes, Rivo necesita permiso para acceder a tus contactos.</string>
     <!-- Contact details -->
+    <string name="contact_details_qr_title">QR de contacto</string>
     <string name="contact_details_qr_content_desc">Código QR</string>
     <string name="contact_details_call">Llamar</string>
     <string name="contact_details_video">Video</string>
@@ -152,6 +165,7 @@
     <string name="contact_edit_identity_header">Identidad</string>
     <string name="contact_edit_full_name">Nombre completo</string>
     <string name="contact_edit_first_name">Primer nombre</string>
+    <string name="contact_edit_middle_name">Segundo nombre</string>
     <string name="contact_edit_last_name">Apellido(s)</string>
     <string name="contact_edit_nickname">Apodo</string>
     <string name="contact_edit_phone_numbers_header">Número de teléfono</string>
@@ -384,7 +398,6 @@
     <string name="settings_manage_name_format_first_first">Nombre primero</string>
     <string name="settings_manage_name_format_last_first">Apellido primero</string>
     <string name="settings_manage_storage">Almacenamiento</string>
-    <string name="settings_manage_private_contacts">Contactos privados</string>
     <string name="settings_manage_quick_fixes">Correcciones rápidas</string>
     <string name="settings_manage_standardize_numbers_supporting">Remueve espacios y caracteres especiales de todos los números</string>
     <string name="settings_manage_no_duplicates">No se han encontrado duplicados</string>
@@ -394,11 +407,9 @@
     <string name="settings_visibility_accounts_header">Cuentas</string>
     <string name="settings_visibility_local_memory_supporting">Contactos almacenados en el dispositivo</string>
     <string name="settings_visibility_reset_all">Restablecer para mostrar todo</string>
-    <!-- Settings > Private contacts -->
-    <string name="settings_private_title">Contactos privados</string>
+    <!-- Settings > Private storage -->
     <string name="content_desc_import">Importar</string>
     <string name="content_desc_export">Exportar</string>
-    <string name="settings_private_empty">No se encontraron contactos privados</string>
     <!-- Settings > Speed dial -->
     <string name="settings_speed_dial_title">Marcado rápido</string>
     <string name="settings_speed_dial_enable">Activar marcado rápido</string>
@@ -453,4 +464,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Límite de llamadas recientes</string>
+    <string name="settings_call_log_limit_supporting">Limitar el número de entradas recientes de registro de llamadas cargadas para mejorar la velocidad de carga y el rendimiento</string>
+    <string name="settings_call_log_limit_100">100 llamadas</string>
+    <string name="settings_call_log_limit_250">250 llamadas</string>
+    <string name="settings_call_log_limit_500">500 llamadas (por defecto)</string>
+    <string name="settings_call_log_limit_1000">1.000 llamadas</string>
+    <string name="settings_call_log_limit_unlimited">Ilimitado</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Auto pegar número copiado</string>
+    <string name="settings_auto_paste_clipboard_supporting">Rellena automáticamente el dialpad con el número de teléfono actualmente copiado al portapapeles</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Icono separado de la pantalla de inicio de contactos</string>
+    <string name="settings_contacts_launcher_icon_supporting">Mostrar un icono de contactos dedicado en su launcher de aplicaciones y pantalla de inicio</string>
+    <string name="app_name_contacts">Contactos</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Configuración de llamada del operador</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Llamada analítica &amp; Seguimiento</string>
+    <string name="settings_call_analytics_supporting">Rastrear métricas de llamadas, estadísticas de tiempo de charla, horas pico y puntos de contacto frecuentes</string>
+    <string name="settings_call_analytics_disabled_supporting">Las estadísticas de uso y seguimiento de llamadas están desactivadas</string>
+    <string name="settings_call_analytics_view_title">Ver Analytics &amp; Insights</string>
+    <string name="settings_call_analytics_view_supporting">Hablar puntaje de tiempo, horario pico &amp; distribución</string>
+    <string name="call_analytics_disabled_title">Análisis de llamadas &amp; Seguimiento deshabilitado</string>
+    <string name="call_analytics_disabled_desc">Actualmente se han desactivado los análisis de llamadas y el seguimiento del tiempo de habla. Activa esta opción para calcular la hora de habla, las horas pico y los datos de contacto.</string>
+    <string name="call_analytics_enable_action">Habilitar Analytics &amp; Seguimiento</string>
 </resources>

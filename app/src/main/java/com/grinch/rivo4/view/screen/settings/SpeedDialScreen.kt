@@ -66,8 +66,8 @@ fun SpeedDialScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 RivoExpressiveCard {
@@ -149,6 +149,7 @@ fun SpeedDialScreen(
                     }
                 }
             }
+
         }
     }
 
@@ -187,11 +188,7 @@ fun ContactPickerDialog(
     RivoDialog(
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.settings_speed_dial_search_contact),
-        icon = Icons.Outlined.Speed,
-        dismissAction = com.grinch.rivo4.view.components.RivoDialogAction(
-            label = stringResource(R.string.action_cancel),
-            onClick = onDismissRequest
-        )
+        icon = Icons.Outlined.Speed
     ) {
         OutlinedTextField(
             value = searchQuery,

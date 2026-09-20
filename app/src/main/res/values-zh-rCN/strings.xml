@@ -22,6 +22,8 @@
     <string name="action_mute">静音</string>
     <string name="action_keypad">键盘</string>
     <string name="action_add_call">添加通话</string>
+    <string name="action_merge_calls">合并来电</string>
+    <string name="conference_call">电话会议</string>
     <string name="action_hold">挂起</string>
     <string name="action_resume">恢复</string>
     <string name="action_end_call">结束通话</string>
@@ -33,7 +35,6 @@
     <string name="content_desc_scroll_to_top">滚动至顶部</string>
     <string name="sim_picker_title">选择 SIM 卡</string>
     <string name="sim_picker_unknown_sim">未知SIM 卡</string>
-    <string name="selection_count_selected">已选中 %1$d 项</string>
     <string name="label_unknown">未知</string>
     <string name="label_unknown_number">未知号码</string>
     <string name="label_mobile">手机</string>
@@ -79,7 +80,6 @@
     <string name="content_desc_search">搜索</string>
     <!-- Recents / Call log -->
     <string name="call_history_title">通话记录</string>
-    <string name="call_log_delete_confirm">您确定要删除 %1$d 个选定的通话记录吗？</string>
     <string name="call_log_delete_title">删除通话记录</string>
     <string name="call_log_clear_all_title">清除所有记录</string>
     <string name="call_log_clear_all_confirm">全部清空</string>
@@ -144,6 +144,7 @@
     <string name="contact_edit_private_storage_description">其他应用不可见</string>
     <string name="contact_edit_full_name">全名</string>
     <string name="contact_edit_first_name">名</string>
+    <string name="contact_edit_middle_name">中间名</string>
     <string name="contact_edit_last_name">姓</string>
     <!-- Dialpad -->
     <!-- Search -->
@@ -171,7 +172,7 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Favorites -->
@@ -184,4 +185,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">最近通话限制</string>
+    <string name="settings_call_log_limit_supporting">限制最近通话记录的加载次数，以提高加载速度和性能。</string>
+    <string name="settings_call_log_limit_100">100次呼叫</string>
+    <string name="settings_call_log_limit_250">250个呼叫</string>
+    <string name="settings_call_log_limit_500">500次呼叫 (默认)</string>
+    <string name="settings_call_log_limit_1000">1 000个呼叫</string>
+    <string name="settings_call_log_limit_unlimited">无限制</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">自动粘贴复制的号码</string>
+    <string name="settings_auto_paste_clipboard_supporting">自动用当前复制到剪贴板的电话号码填充拨号</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">分离联系人主屏幕图标</string>
+    <string name="settings_contacts_launcher_icon_supporting">在您的应用程序启动器和主屏幕上显示一个专用联系人图标</string>
+    <string name="app_name_contacts">联系人</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">系统运营商通话设置</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">通话分析 &amp; 跟踪</string>
+    <string name="settings_call_analytics_supporting">跟踪通话计量、交谈时间统计、高峰时数和频繁的联系人见解。</string>
+    <string name="settings_call_analytics_disabled_supporting">通话跟踪和使用统计已禁用</string>
+    <string name="settings_call_analytics_view_title">查看分析 &amp; 信息</string>
+    <string name="settings_call_analytics_view_supporting">朗读时间排行榜，高峰时段 &amp; 分布</string>
+    <string name="call_analytics_disabled_title">通话分析 &amp; 跟踪已禁用</string>
+    <string name="call_analytics_disabled_desc">通话分析和谈话时间跟踪当前已关闭。启用此选项以计算谈话时间、高峰时段和联系人洞察力。</string>
+    <string name="call_analytics_enable_action">启用分析 &amp; 跟踪</string>
 </resources>

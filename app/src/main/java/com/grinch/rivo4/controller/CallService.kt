@@ -20,15 +20,20 @@ import android.telecom.DisconnectCause
 import android.telecom.InCallService
 import android.telecom.TelecomManager
 import android.telecom.VideoProfile
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.grinch.rivo4.R
+import com.grinch.rivo4.controller.sensor.FlipToSilenceManager
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.modal.`interface`.IContactsRepository
+import com.grinch.rivo4.modal.data.Contact
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.koin.android.ext.android.inject
+import java.util.Collections
+import java.util.WeakHashMap
 
 data class CallSession(
     val call: Call,
@@ -43,7 +48,44 @@ class CallService : InCallService() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var redialCount = 0
     private val callStartTimes = mutableMapOf<Call, Long>()
-    private val locallyRejectedCalls = mutableSetOf<Call>()
+    private val callRingStartTimes = mutableMapOf<Call, Long>()
+    private val cachedContactNames = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private var flipToSilenceManager: FlipToSilenceManager? = null
+    private var screenWakeLock: PowerManager.WakeLock? = null
+
+    private fun acquireScreenWakeLock() {
+        try {
+            if (screenWakeLock == null) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                @Suppress("DEPRECATION")
+                screenWakeLock = powerManager?.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                    "Rivo:IncomingCallWakeLock"
+                )?.apply {
+                    setReferenceCounted(false)
+                }
+            }
+            screenWakeLock?.let {
+                if (!it.isHeld) {
+                    it.acquire(15000L) // 15 sec safety timeout
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("CallService", "Failed to acquire screen wake lock: ${e.message}")
+        }
+    }
+
+    private fun releaseScreenWakeLock() {
+        try {
+            screenWakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("CallService", "Failed to release screen wake lock: ${e.message}")
+        }
+    }
 
     private fun getContactBitmap(photoUri: String?): Bitmap? {
         if (photoUri == null) return null
@@ -59,6 +101,8 @@ class CallService : InCallService() {
     companion object {
         private const val CHANNEL_ID = "call_channel_v2"
         private const val LEGACY_CHANNEL_ID = "call_channel"
+        private const val SILENT_CHANNEL_ID = "call_silent_channel_v2"
+        private const val LEGACY_SILENT_CHANNEL_ID = "call_silent_channel"
         private const val MISSED_CHANNEL_ID = "missed_call_channel"
         private const val NOTIFICATION_ID = 101
 
@@ -75,7 +119,7 @@ class CallService : InCallService() {
 
         val isActivityVisible = MutableStateFlow(false)
 
-        private var instance: CallService? = null
+        var instance: CallService? = null
 
         fun setPreferredCall(call: Call) {
             _preferredCall.value = call
@@ -155,24 +199,40 @@ class CallService : InCallService() {
         }
 
         fun mergeCalls() {
-            val calls = instance?.getCalls() ?: return
-            if (calls.size >= 2) {
-                val activeCall = calls.find { it.state == Call.STATE_ACTIVE }
-                val heldCall = calls.find { it.state == Call.STATE_HOLDING }
+            val inst = instance ?: return
+            val calls = inst.getCalls() ?: return
+            val activeCall = calls.find { it.state == Call.STATE_ACTIVE }
+            val heldCall = calls.find { it.state == Call.STATE_HOLDING }
+
+            try {
+                if (activeCall != null && activeCall.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE)) {
+                    activeCall.mergeConference()
+                    return
+                }
+            } catch (e: Exception) {
+                Log.w("CallService", "mergeConference failed: ${e.message}")
+            }
+
+            try {
                 if (activeCall != null && heldCall != null) {
                     activeCall.conference(heldCall)
                 } else if (calls.size >= 2) {
                     calls[0].conference(calls[1])
                 }
+            } catch (e: Exception) {
+                Log.e("CallService", "Error conferencing calls: ${e.message}")
             }
         }
 
         fun answerCall() {
+            instance?.let { CallRecorder.prepare(it) }
             _currentCallSession.value?.call?.answer(VideoProfile.STATE_AUDIO_ONLY)
         }
 
         fun answerRingingCall(endActive: Boolean) {
-            val calls = instance?.getCalls() ?: return
+            val inst = instance ?: return
+            CallRecorder.prepare(inst)
+            val calls = inst.getCalls() ?: return
             val ringing = calls.find { it.state == Call.STATE_RINGING } ?: return
             val others = calls.filter { it != ringing && it.state != Call.STATE_DISCONNECTED }
 
@@ -193,15 +253,18 @@ class CallService : InCallService() {
             }
         }
 
-        fun declineCall() {
-            val call = _currentCallSession.value?.call ?: return
-            rejectRingingCall(call)
+        private val userRejectedCalls = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<Call, Boolean>()))
+
+        fun markLocallyRejected(call: Call) {
+            userRejectedCalls.add(call)
+        }
+
+        fun isCallRejectedByUser(call: Call): Boolean {
+            return userRejectedCalls.remove(call)
         }
 
         fun rejectRingingCall(call: Call) {
-            if (call.state == Call.STATE_RINGING) {
-                instance?.markLocallyRejected(call)
-            }
+            markLocallyRejected(call)
             try {
                 if (call.state == Call.STATE_RINGING) {
                     call.reject(Call.REJECT_REASON_DECLINED)
@@ -215,11 +278,17 @@ class CallService : InCallService() {
                 }
             }
         }
+
+        fun declineCall() {
+            val call = _currentCallSession.value?.call ?: return
+            rejectRingingCall(call)
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        flipToSilenceManager = FlipToSilenceManager(this)
         serviceScope.launch {
             isActivityVisible.collect {
                 _currentCallSession.value?.call
@@ -229,53 +298,85 @@ class CallService : InCallService() {
         }
     }
 
-    private val callCallback =
-        object : Call.Callback() {
-            override fun onStateChanged(
-                call: Call,
-                state: Int,
-            ) {
-                super.onStateChanged(call, state)
-                updateCallState()
+    private val callCallback = object : Call.Callback() {
+        override fun onStateChanged(call: Call, state: Int) {
+            super.onStateChanged(call, state)
+            updateCallState()
 
-                if (state == Call.STATE_ACTIVE) {
-                    redialCount = 0
-                    startAutoRecordingIfEnabled(call)
+            if (state != Call.STATE_RINGING) {
+                val hasRinging = getCalls()?.any { it.state == Call.STATE_RINGING } == true
+                if (!hasRinging) {
+                    flipToSilenceManager?.stopListening()
+                    releaseScreenWakeLock()
                 }
+            } else if (!callRingStartTimes.containsKey(call)) {
+                callRingStartTimes[call] = System.currentTimeMillis()
+                acquireScreenWakeLock()
+            }
 
-                if (state == Call.STATE_DISCONNECTED) {
-                    val cause = call.details.disconnectCause
-                    handleDisconnect(call, cause)
+            if (state == Call.STATE_ACTIVE) {
+                redialCount = 0
+                startAutoRecordingIfEnabled(call)
+            }
 
-                    val remaining = getCalls()?.filter { it.state != Call.STATE_DISCONNECTED } ?: emptyList()
-                    if (remaining.isEmpty()) {
-                        removeForeground()
-                        cancelNotification()
-                    }
-                } else {
-                    updateNotification(call)
+            if (state == Call.STATE_DISCONNECTED) {
+                val cause = call.details.disconnectCause
+                handleDisconnect(call, cause)
+
+                val remaining = getCalls()?.filter { it.state != Call.STATE_DISCONNECTED } ?: emptyList()
+                if (remaining.isEmpty()) {
+                    removeForeground()
+                    cancelNotification()
                 }
+            } else if (state == Call.STATE_DISCONNECTING) {
+            } else {
+                updateNotification(call)
             }
         }
+    }
 
     private fun startAutoRecordingIfEnabled(call: Call) {
-        if (!preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING, false)) return
+        if (!preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING, true)) return
         if (!preferenceManager.getBoolean(PreferenceManager.KEY_CALL_RECORDING_AUTO, false)) return
         if (CallRecorder.isRecording.value) return
 
+        val filter = preferenceManager.getInt(PreferenceManager.KEY_CALL_RECORDING_FILTER, PreferenceManager.RECORD_FILTER_ALL)
+        val isIncoming = call.details.callDirection == Call.Details.DIRECTION_INCOMING
+        val isOutgoing = call.details.callDirection == Call.Details.DIRECTION_OUTGOING
+
+        if (filter == PreferenceManager.RECORD_FILTER_INCOMING_ONLY && !isIncoming) return
+        if (filter == PreferenceManager.RECORD_FILTER_OUTGOING_ONLY && !isOutgoing) return
+
         val number = call.details.handle?.schemeSpecificPart ?: ""
-        serviceScope.launch(Dispatchers.IO) {
-            val name =
-                if (number.isNotEmpty()) {
-                    try {
-                        contactsRepository.getContactByNumber(number)?.displayName
-                    } catch (e: Exception) {
-                        null
-                    } ?: number
-                } else {
-                    getString(R.string.label_unknown_number)
+        val immediateName = call.details.callerDisplayName?.takeIf { it.isNotBlank() }
+            ?: cachedContactNames[number]
+            ?: number.ifEmpty { getString(R.string.label_unknown_number) }
+
+        if (filter == PreferenceManager.RECORD_FILTER_ALL) {
+            // Start recording IMMEDIATELY with 0ms delay
+            CallRecorder.start(this@CallService, immediateName)
+        } else {
+            val cached = cachedContactNames[number]
+            if (cached != null) {
+                if (filter == PreferenceManager.RECORD_FILTER_UNKNOWN_ONLY) return
+                CallRecorder.start(this@CallService, cached)
+            } else {
+                serviceScope.launch(Dispatchers.IO) {
+                    val contact = if (number.isNotEmpty()) {
+                        try { contactsRepository.getContactByNumber(number) } catch (e: Exception) { null }
+                    } else null
+                    val isKnownContact = contact != null
+
+                    if (filter == PreferenceManager.RECORD_FILTER_UNKNOWN_ONLY && isKnownContact) return@launch
+                    if (filter == PreferenceManager.RECORD_FILTER_CONTACTS_ONLY && !isKnownContact) return@launch
+
+                    val name = contact?.displayName ?: immediateName
+                    if (contact?.displayName != null) {
+                        cachedContactNames[number] = contact.displayName
+                    }
+                    CallRecorder.start(this@CallService, name)
                 }
-            CallRecorder.start(this@CallService, name)
+            }
         }
     }
 
@@ -289,6 +390,9 @@ class CallService : InCallService() {
             (getCalls()?.none { it != call && it.state == Call.STATE_ACTIVE } != false)
         ) {
             CallRecorder.stop()
+        }
+        if (getCalls()?.none { it != call && it.state != Call.STATE_DISCONNECTED } != false) {
+            CallRecorder.releasePrewarm()
         }
 
         if (cause?.code == DisconnectCause.BUSY &&
@@ -310,30 +414,32 @@ class CallService : InCallService() {
             }
         }
 
-        val wasNeverConnected = call.details.connectTimeMillis == 0L
+        val wasConnected = call.details.connectTimeMillis > 0L || callStartTimes.containsKey(call)
+        val wasNeverConnected = !wasConnected
         val isIncoming = call.details.callDirection == Call.Details.DIRECTION_INCOMING
         val isOutgoing = call.details.callDirection == Call.Details.DIRECTION_OUTGOING
 
+        val wasUserRejected = isCallRejectedByUser(call) ||
+                cause?.code == DisconnectCause.REJECTED ||
+                (isIncoming && cause?.code == DisconnectCause.LOCAL)
+
         if (isOutgoing && wasNeverConnected) {
-            val failMessage =
-                when {
-                    com.grinch.rivo4.controller.util
-                        .isAirplaneModeOn(this) -> {
-                        getString(R.string.call_failed_airplane_mode)
-                    }
-
-                    cause?.code == DisconnectCause.RESTRICTED -> {
-                        getString(R.string.call_failed_restricted)
-                    }
-
-                    cause?.code == DisconnectCause.ERROR -> {
-                        cause.description?.toString()?.takeIf { it.isNotBlank() } ?: getString(R.string.call_failed_generic)
-                    }
-
-                    else -> {
-                        null
-                    }
+            val isAirplane = com.grinch.rivo4.controller.util.isAirplaneModeOn(this)
+            val isWifi = com.grinch.rivo4.controller.util.isWifiConnected(this)
+            val failMessage = when {
+                cause?.code == DisconnectCause.RESTRICTED -> {
+                    if (isAirplane && !isWifi) getString(R.string.call_failed_airplane_mode)
+                    else getString(R.string.call_failed_restricted)
                 }
+                cause?.code == DisconnectCause.ERROR -> {
+                    if (isAirplane && !isWifi) getString(R.string.call_failed_airplane_mode)
+                    else cause.description?.toString()?.takeIf { it.isNotBlank() } ?: getString(R.string.call_failed_generic)
+                }
+                isAirplane && !isWifi && cause?.code != DisconnectCause.LOCAL && cause?.code != DisconnectCause.CANCELED -> {
+                    getString(R.string.call_failed_airplane_mode)
+                }
+                else -> null
+            }
             if (failMessage != null) {
                 serviceScope.launch(Dispatchers.Main) {
                     android.widget.Toast
@@ -342,14 +448,36 @@ class CallService : InCallService() {
                 }
             }
         }
-
-        val wasLocallyRejected = locallyRejectedCalls.remove(call)
-
-        if (!wasLocallyRejected && isIncoming && wasNeverConnected &&
-            (cause?.code == DisconnectCause.MISSED || cause?.code == DisconnectCause.REMOTE || cause?.code == DisconnectCause.REJECTED)
+        
+        val ringStartTime = callRingStartTimes.remove(call)
+        val ringDurationSeconds = if (ringStartTime != null && ringStartTime > 0L) {
+            ((System.currentTimeMillis() - ringStartTime) / 1000L).coerceAtLeast(1L).toInt()
+        } else 0
+        
+        if (isIncoming && wasNeverConnected && !wasUserRejected &&
+            (cause?.code == DisconnectCause.MISSED || cause?.code == DisconnectCause.REMOTE || cause?.code == DisconnectCause.CANCELED)
         ) {
-            if (!isNumberBlocked(number) || preferenceManager.getInt(PreferenceManager.KEY_BLOCK_LOG_VISIBILITY, 0) == 1) {
-                showMissedCallNotification(call)
+            val contact = if (number.isNotEmpty()) {
+                try {
+                    contactsRepository.getContactByNumber(number)
+                } catch (e: Exception) { null }
+            } else null
+            val contactName = contact?.displayName ?: cachedContactNames[number] ?: number.ifEmpty { getString(R.string.label_unknown_number) }
+
+            val isBlocked = isNumberBlocked(number) && preferenceManager.getInt(PreferenceManager.KEY_BLOCK_LOG_VISIBILITY, 0) == 0
+
+            if (!isBlocked) {
+                showMissedCallNotification(call, contact, contactName, ringDurationSeconds)
+
+                if (preferenceManager.isMissedCallCardEnabled()) {
+                    MissedCallActivity.start(
+                        context = this,
+                        contactName = contactName,
+                        phoneNumber = number,
+                        photoUri = contact?.photoUri,
+                        ringSeconds = ringDurationSeconds
+                    )
+                }
             }
         }
     }
@@ -395,7 +523,7 @@ class CallService : InCallService() {
         notificationManager.notify(number.hashCode(), builder.build())
     }
 
-    private fun showMissedCallNotification(call: Call) {
+    private fun showMissedCallNotification(call: Call, contact: Contact?, contactName: String, ringDurationSeconds: Int) {
         if (!preferenceManager.getBoolean(PreferenceManager.KEY_MISSED_CALL_NOTIFICATIONS, true)) {
             return
         }
@@ -416,19 +544,6 @@ class CallService : InCallService() {
 
         val handle = call.details.handle
         val number = handle?.schemeSpecificPart ?: ""
-
-        val contact =
-            if (number.isNotEmpty()) {
-                try {
-                    contactsRepository.getContactByNumber(number)
-                } catch (e: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-
-        val contactName = contact?.displayName ?: number.ifEmpty { getString(R.string.label_unknown_number) }
         val contactPhoto = getContactBitmap(contact?.photoUri)
 
         val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
@@ -441,11 +556,20 @@ class CallService : InCallService() {
                 }
             }
 
-        val intent =
+        val intent = if (preferenceManager.isMissedCallCardEnabled()) {
+            Intent(this, MissedCallActivity::class.java).apply {
+                putExtra(MissedCallActivity.EXTRA_CONTACT_NAME, contactName)
+                putExtra(MissedCallActivity.EXTRA_PHONE_NUMBER, number)
+                putExtra(MissedCallActivity.EXTRA_PHOTO_URI, contact?.photoUri)
+                putExtra(MissedCallActivity.EXTRA_RING_SECONDS, ringDurationSeconds)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        } else {
             Intent(this, com.grinch.rivo4.MainActivity::class.java).apply {
                 action = "com.grinch.rivo4.ACTION_VIEW_RECENTS"
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
+        }
         val pendingIntent = PendingIntent.getActivity(this, 10, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val timeString =
@@ -541,15 +665,63 @@ class CallService : InCallService() {
             return
         }
 
-        updateCallState()
-        if (shouldShowFullscreen(call)) {
-            launchCallActivity()
-        }
-        updateNotification(call)
-    }
+        val isUnknownNumber = number.isBlank() || number == "null" || number == "-1" || number == "-2" ||
+                call.details.handlePresentation == TelecomManager.PRESENTATION_RESTRICTED ||
+                call.details.handlePresentation == TelecomManager.PRESENTATION_UNKNOWN
 
-    private fun markLocallyRejected(call: Call) {
-        locallyRejectedCalls.add(call)
+        if (isUnknownNumber && preferenceManager.isAutoDeclineUnknownEnabled()) {
+            handleBlockedCall(call, number.ifBlank { getString(R.string.label_unknown_number) })
+            return
+        }
+
+        if (preferenceManager.isAutoDeclineNonContactsEnabled()) {
+            val contact = if (number.isNotBlank()) {
+                try { contactsRepository.getContactByNumber(number) } catch (e: Exception) { null }
+            } else null
+            if (contact == null) {
+                handleBlockedCall(call, number.ifBlank { getString(R.string.label_unknown_number) })
+                return
+            }
+        }
+
+        if (call.state == Call.STATE_RINGING) {
+            callRingStartTimes[call] = System.currentTimeMillis()
+        }
+
+        // Prime CallRecorder asynchronously so recording starts with zero delay when call answers
+        CallRecorder.prepare(this)
+        if (number.isNotEmpty()) {
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    val contact = contactsRepository.getContactByNumber(number)
+                    if (contact != null) {
+                        cachedContactNames[number] = contact.displayName
+                    }
+                } catch (e: Exception) {
+                    Log.e("CallService", "Failed to pre-cache contact name: ${e.message}")
+                }
+            }
+        }
+
+        updateCallState()
+
+        val isIncoming = call.state == Call.STATE_RINGING
+        if (isIncoming) {
+            acquireScreenWakeLock()
+            if (preferenceManager.getBoolean(PreferenceManager.KEY_FLIP_TO_SILENCE, false)) {
+                flipToSilenceManager?.startListening()
+            }
+        }
+
+        val showFullScreen = shouldShowFullscreen(call)
+
+        updateNotification(call, showFullScreen)
+
+        if (showFullScreen) {
+            launchCallActivity()
+        } else {
+            Log.i("CallService", "User is actively using phone; presenting heads-up incoming call notification only.")
+        }
     }
 
     private fun shouldShowFullscreen(call: Call): Boolean =
@@ -575,17 +747,24 @@ class CallService : InCallService() {
         try {
             startActivity(intent)
         } catch (e: Exception) {
+            Log.e("CallService", "Failed to start CallActivity: ${e.message}", e)
         }
     }
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
         call.unregisterCallback(callCallback)
-        locallyRejectedCalls.remove(call)
+        isCallRejectedByUser(call)
         updateCallState()
         val calls = getCalls() ?: emptyList()
+        val hasRinging = calls.any { it.state == Call.STATE_RINGING }
+        if (!hasRinging) {
+            flipToSilenceManager?.stopListening()
+            releaseScreenWakeLock()
+        }
         if (calls.isEmpty()) {
             if (CallRecorder.isRecording.value) CallRecorder.stop()
+            com.grinch.rivo4.controller.floating.FloatingCallService.stop(this)
             removeForeground()
             cancelNotification()
         } else {
@@ -607,11 +786,14 @@ class CallService : InCallService() {
         when (intent?.action) {
             "ANSWER_CALL" -> {
                 answerCall()
-                val activityIntent =
-                    Intent(this, CallActivity::class.java).apply {
+                if (preferenceManager.isFloatingCallBubbleEnabled() && android.provider.Settings.canDrawOverlays(this)) {
+                    com.grinch.rivo4.controller.floating.FloatingCallService.start(this)
+                } else {
+                    val activityIntent = Intent(this, CallActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                     }
-                startActivity(activityIntent)
+                    startActivity(activityIntent)
+                }
             }
 
             "DECLINE_CALL" -> {
@@ -629,8 +811,12 @@ class CallService : InCallService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun updateNotification(call: Call) {
+    private fun updateNotification(call: Call, directFullScreen: Boolean? = null) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+            notificationManager.deleteNotificationChannel(LEGACY_SILENT_CHANNEL_ID)
+        } catch (_: Exception) {}
 
         val channel =
             NotificationChannel(
@@ -638,14 +824,29 @@ class CallService : InCallService() {
                 getString(R.string.notif_channel_calls),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
+                description = getString(R.string.notif_channel_calls_desc)
                 setSound(null, null)
                 enableVibration(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setShowBadge(true)
             }
         notificationManager.createNotificationChannel(channel)
         if (CHANNEL_ID != LEGACY_CHANNEL_ID) {
             notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         }
+
+        val silentChannel = NotificationChannel(
+            SILENT_CHANNEL_ID,
+            getString(R.string.notif_channel_calls),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = getString(R.string.notif_channel_calls_desc)
+            lockscreenVisibility = Notification.VISIBILITY_SECRET
+            enableVibration(false)
+            setSound(null, null)
+            setShowBadge(false)
+        }
+        notificationManager.createNotificationChannel(silentChannel)
 
         val handle = call.details.handle
         val number = handle?.schemeSpecificPart ?: ""
@@ -711,6 +912,9 @@ class CallService : InCallService() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
+        val muteIntent = Intent(this, CallService::class.java).apply { action = "TOGGLE_MUTE" }
+        val mutePendingIntent = PendingIntent.getService(this, 3, muteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
         val speakerIntent = Intent(this, CallService::class.java).apply { action = "TOGGLE_SPEAKER" }
         val speakerPendingIntent =
             PendingIntent.getService(
@@ -756,20 +960,13 @@ class CallService : InCallService() {
                 }
             }
 
-        val contentText =
-            buildString {
-                if (call.state ==
-                    Call.STATE_RINGING
-                ) {
-                    append(getString(R.string.call_status_incoming))
-                } else {
-                    append(getString(R.string.notif_active_call))
-                }
-                if (!simLabel.isNullOrEmpty()) {
-                    append(" ")
-                    append(getString(R.string.notif_via_sim, simLabel))
-                }
+        val contentText = buildString {
+            if (call.state == Call.STATE_RINGING) append(getString(R.string.call_status_incoming)) else append(getString(R.string.notif_active_call))
+            if (!simLabel.isNullOrEmpty()) {
+                append(" ")
+                append(getString(R.string.notif_via_sim, simLabel))
             }
+        }
 
         val suppressBanner =
             call.state == Call.STATE_RINGING && isScreenOffOrLocked() && !canUseFullScreenIntent()
@@ -797,9 +994,23 @@ class CallService : InCallService() {
                     },
                 )
 
-        if (call.state == Call.STATE_RINGING) {
-            builder.setFullScreenIntent(fullScreenPendingIntent, true)
-        } else {
+        if (call.state == Call.STATE_ACTIVE) {
+            val connectTime = callStartTimes[call]
+                ?: call.details.connectTimeMillis.takeIf { it > 0 }
+                ?: System.currentTimeMillis()
+            builder.setWhen(connectTime)
+            builder.setUsesChronometer(true)
+        }
+
+        if (call.state != Call.STATE_RINGING) {
+            val isMuted = audioState?.isMuted ?: false
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.stat_notify_call_mute,
+                    if (isMuted) getString(R.string.action_unmute) else getString(R.string.action_mute),
+                    mutePendingIntent
+                ).build()
+            )
             builder.addAction(
                 NotificationCompat.Action
                     .Builder(
@@ -811,7 +1022,19 @@ class CallService : InCallService() {
         }
 
         val notification = builder.build()
-        startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var fgsType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && CallRecorder.isRecording.value && CallRecorder.hasAudioPermission(this)) {
+                    fgsType = fgsType or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                }
+                startForeground(NOTIFICATION_ID, notification, fgsType)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("CallService", "Error starting foreground notification: ${e.message}", e)
+        }
     }
 
     private fun cancelNotification() {
@@ -820,7 +1043,9 @@ class CallService : InCallService() {
     }
 
     override fun onDestroy() {
+        releaseScreenWakeLock()
         super.onDestroy()
+        flipToSilenceManager?.stopListening()
         if (CallRecorder.isRecording.value) CallRecorder.stop()
         if (instance == this) instance = null
         serviceScope.cancel()

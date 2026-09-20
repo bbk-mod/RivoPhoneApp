@@ -19,17 +19,67 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:node="remove"/>
 
+    <queries>
+        <!-- Shizuku Privileged API -->
+        <package android:name="moe.shizuku.privileged.api" />
+
+        <!-- Messaging & Social Apps -->
+        <package android:name="org.thoughtcrime.securesms" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tg" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="sgnl" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="viber" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="skype" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="line" />
+        </intent>
+    </queries>
+
     <application
         android:name=".RivoApp"
         android:allowBackup="true"
+        android:requestLegacyExternalStorage="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -103,6 +153,20 @@
             </intent-filter>
         </activity>
 
+        <activity-alias
+            android:name=".ContactsAliasActivity"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_contacts"
+            android:roundIcon="@mipmap/ic_launcher_contacts_round"
+            android:label="@string/app_name_contacts">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".controller.CallActivity"
             android:exported="false"
@@ -112,8 +176,57 @@
             android:showForAllUsers="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:inheritShowWhenLocked="true"
             android:directBootAware="true"
             android:theme="@style/Theme.RivoPhone" />
+
+        <activity
+            android:name=".controller.PostCallActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:showForAllUsers="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Rivo.TranslucentPostCall" />
+
+        <activity
+            android:name=".controller.MissedCallActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:showForAllUsers="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Rivo.TranslucentPostCall" />
+
+        <activity
+            android:name=".controller.fakecall.FakeCallActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
+            android:excludeFromRecents="true"
+            android:showForAllUsers="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.RivoPhone" />
+
+        <receiver
+            android:name=".controller.fakecall.FakeCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.grinch.rivo4.ACTION_TRIGGER_FAKE_CALL" />
+                <action android:name="com.grinch.rivo4.ACTION_DECLINE_FAKE_CALL" />
+                <action android:name="com.grinch.rivo4.ACTION_MUTE_FAKE_CALL" />
+                <action android:name="com.grinch.rivo4.ACTION_SPEAKER_FAKE_CALL" />
+                <action android:name="com.grinch.rivo4.ACTION_CANCEL_FAKE_CALL" />
+                <action android:name="com.grinch.rivo4.ACTION_TEST_RECORD" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -124,6 +237,14 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <service
             android:name=".controller.CallService"
@@ -139,6 +260,19 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".controller.CallRecordingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <service
+            android:name=".controller.floating.FloatingCallService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false" />
+
+        <receiver
+            android:name=".controller.reminder.CallbackReminderReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -2,6 +2,8 @@ package com.grinch.rivo4.modal.repository
 
 import android.content.ContentResolver
 import android.database.Cursor
+import android.os.Build
+import android.os.Bundle
 import android.net.Uri
 import android.provider.CallLog
 import android.telecom.PhoneAccountHandle
@@ -15,6 +17,7 @@ import com.grinch.rivo4.modal.data.CallLogEntry
 import com.grinch.rivo4.modal.`interface`.IContactsRepository
 import com.grinch.rivo4.modal.data.Contact
 import com.grinch.rivo4.controller.util.normalizePhoneNumber
+import com.grinch.rivo4.controller.util.areNumbersEqual
 
 class CallLogRepository(
     private val contentResolver: ContentResolver,
@@ -54,16 +57,37 @@ class CallLogRepository(
         baseProjection.add(CallLog.Calls.PHONE_ACCOUNT_ID)
         baseProjection.add(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME)
 
-        try {
-            val cursor = contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                baseProjection.toTypedArray(),
-                null,
-                null,
-                "${CallLog.Calls.DATE} DESC"
-            )
+        val limit = preferenceManager.getCallLogLimit()
 
-            cursor?.use { parseCursor(it, callLogs, contactMap) }
+        try {
+            val cursor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && limit > 0) {
+                val queryArgs = Bundle().apply {
+                    putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+                    putStringArray(
+                        ContentResolver.QUERY_ARG_SORT_COLUMNS,
+                        arrayOf(CallLog.Calls.DATE)
+                    )
+                    putInt(
+                        ContentResolver.QUERY_ARG_SORT_DIRECTION,
+                        ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
+                    )
+                }
+                try {
+                    contentResolver.query(CallLog.Calls.CONTENT_URI, baseProjection.toTypedArray(), queryArgs, null)
+                } catch (e: Exception) {
+                    contentResolver.query(CallLog.Calls.CONTENT_URI, baseProjection.toTypedArray(), null, null, "${CallLog.Calls.DATE} DESC")
+                }
+            } else {
+                contentResolver.query(
+                    CallLog.Calls.CONTENT_URI,
+                    baseProjection.toTypedArray(),
+                    null,
+                    null,
+                    "${CallLog.Calls.DATE} DESC"
+                )
+            }
+
+            cursor?.use { parseCursor(it, callLogs, contactMap, limit) }
         } catch (e: Exception) {
             try {
                 val safeProjection = arrayOf(
@@ -79,7 +103,7 @@ class CallLogRepository(
                     null,
                     "${CallLog.Calls.DATE} DESC"
                 )
-                cursor?.use { parseCursor(it, callLogs, contactMap) }
+                cursor?.use { parseCursor(it, callLogs, contactMap, limit) }
             } catch (e2: Exception) {
                 e2.printStackTrace()
             }
@@ -112,7 +136,7 @@ class CallLogRepository(
         }
     }
 
-    private fun parseCursor(cursor: Cursor, callLogs: MutableList<CallLogEntry>, contactMap: Map<String, Contact>) {
+    private fun parseCursor(cursor: Cursor, callLogs: MutableList<CallLogEntry>, contactMap: Map<String, Contact>, limit: Int = 0) {
         val idIdx = cursor.getColumnIndex(CallLog.Calls._ID)
         val numberIdx = cursor.getColumnIndex(CallLog.Calls.NUMBER)
         val cachedNameIdx = cursor.getColumnIndex(CallLog.Calls.CACHED_NAME)
@@ -129,17 +153,28 @@ class CallLogRepository(
         val tempLogs = mutableListOf<CallLogEntry>()
         val simCache = mutableMapOf<String, String>()
         val unknownLabel = context.getString(R.string.label_unknown)
+        val hiddenNumbers = if (!preferenceManager.isHiddenContactsVisible()) {
+            try { contactsRepo.getHiddenNumbers() } catch (e: Exception) { emptyList() }
+        } else {
+            emptyList()
+        }
 
         while (cursor.moveToNext()) {
+            if (limit > 0 && tempLogs.size >= limit) {
+                break
+            }
             val callId = cursor.getLong(idIdx)
             val number = cursor.getString(numberIdx) ?: unknownLabel
+            if (hiddenNumbers.isNotEmpty() && hiddenNumbers.any { areNumbersEqual(it, number) }) {
+                continue
+            }
             val type = cursor.getInt(typeIdx)
             val date = cursor.getLong(dateIdx)
             val duration = cursor.getLong(durationIdx)
             
             var simLabel = if (labelIdx != -1) cursor.getString(labelIdx) else null
             
-            val isBlocked = type == CallLog.Calls.BLOCKED_TYPE || type == CallLog.Calls.REJECTED_TYPE
+            val isBlocked = type == CallLog.Calls.BLOCKED_TYPE
             
             if (simLabel.isNullOrEmpty() && accountIdIdx != -1 && componentNameIdx != -1) {
                 val accountId = cursor.getString(accountIdIdx)

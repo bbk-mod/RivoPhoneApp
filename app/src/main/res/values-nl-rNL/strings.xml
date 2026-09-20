@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared actions / generic labels reused across multiple screens -->
+    <string name="action_merge_calls">Oproepen samenvoegen</string>
+    <string name="conference_call">Telefonische vergadering</string>
     <!-- Onboarding -->
     <!-- Permission Popup -->
     <!-- Patreon support prompt (MainActivity) -->
@@ -11,6 +13,7 @@
     <!-- Contacts list -->
     <!-- Contact details -->
     <!-- Contact edit -->
+    <string name="contact_edit_middle_name">Tweede naam</string>
     <!-- Dialpad -->
     <!-- Search -->
     <!-- Call screen -->
@@ -24,11 +27,12 @@
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
     <!-- Settings > Contact visibility -->
-    <!-- Settings > Private contacts -->
+    <!-- Settings > Private storage -->
     <!-- Settings > Speed dial -->
     <!-- Settings > Voicemail -->
     <!-- Settings > About -->
     <!-- Settings > Contributors -->
+    <!-- OEM & Xiaomi Call Recording Optimization -->
     <!-- Favorites -->
     <!-- Bottom navigation layout -->
     <!-- Blocking -->
@@ -39,4 +43,40 @@
     <!-- Call screen background and active controls -->
     <!-- Incoming call controls and in-call keypad -->
     <!-- IMEI / Secret codes -->
+    <!-- Fake Call feature -->
+    <!-- Navigation Bar Style -->
+    <!-- Contact Management & Duplicates -->
+    <!-- Floating Bar Customization & Blur -->
+    <!-- Global UI Blur Effects -->
+    <!-- Swipe Actions on Contacts & Call Logs -->
+    <!-- Ongoing Call Top Banner & Vivo Notifications -->
+    <!-- Missed Call Card & Auto Decline -->
+    <!-- Favorites Modernization -->
+    <!-- Dual SIM Buttons -->
+    <!-- Call Log Limit (#161) -->
+    <string name="settings_call_log_limit">Recente oproepen limiet</string>
+    <string name="settings_call_log_limit_supporting">Beperk het aantal recente oproeplogboek dat geladen is om de laadsnelheid en prestaties te verbeteren</string>
+    <string name="settings_call_log_limit_100">100 oproepen</string>
+    <string name="settings_call_log_limit_250">250 oproepen</string>
+    <string name="settings_call_log_limit_500">500 oproepen (standaard)</string>
+    <string name="settings_call_log_limit_1000">1.000 oproepen</string>
+    <string name="settings_call_log_limit_unlimited">Onbeperkt</string>
+    <!-- Auto Paste Clipboard (#168) -->
+    <string name="settings_auto_paste_clipboard">Automatisch plakken gekopieerde nummer</string>
+    <string name="settings_auto_paste_clipboard_supporting">Vul automatisch het toetsenbord in met het telefoonnummer dat momenteel naar het klembord is gekopieerd</string>
+    <!-- Separate Contacts Home Screen Icon (#167) -->
+    <string name="settings_contacts_launcher_icon">Scheid contacten homescherm icoon</string>
+    <string name="settings_contacts_launcher_icon_supporting">Eigen contacten pictogram weergeven in uw app launcher en het startscherm</string>
+    <string name="app_name_contacts">Contactpersonen</string>
+    <!-- Call Waiting Carrier Settings (#62) -->
+    <string name="settings_call_waiting_system_settings">Oproepinstellingen systeem provider</string>
+    <!-- Call Analytics & Tracking -->
+    <string name="settings_call_analytics_title">Oproep Analytics &amp; Tracking</string>
+    <string name="settings_call_analytics_supporting">Volg oproepstatistieken, praat tijd statistieken, piekuren en frequent contact inzichten</string>
+    <string name="settings_call_analytics_disabled_supporting">Oproepregistratie en gebruiksstatistieken zijn uitgeschakeld</string>
+    <string name="settings_call_analytics_view_title">Bekijk Analytics &amp; Inzichten</string>
+    <string name="settings_call_analytics_view_supporting">Talk tijd leiderschap, piekuren &amp; distributie</string>
+    <string name="call_analytics_disabled_title">Oproep-Analytics &amp; Tracking uitgeschakeld</string>
+    <string name="call_analytics_disabled_desc">Oproep analytics en talk time tracking zijn momenteel uitgeschakeld. Schakel deze optie in om de gesprekstijd, piekuren en contact met inzichten te berekenen.</string>
+    <string name="call_analytics_enable_action">Activeer Analytics &amp; Tracking</string>
 </resources>

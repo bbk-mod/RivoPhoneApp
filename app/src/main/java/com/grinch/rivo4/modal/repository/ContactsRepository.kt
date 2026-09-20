@@ -35,14 +35,40 @@ class ContactsRepository(
         return rawName
     }
 
-    override fun getContacts(includePrivate: Boolean): List<Contact> {
+    override fun getContacts(includePrivate: Boolean, includeHidden: Boolean): List<Contact> {
         val contactsMap = LinkedHashMap<String, Contact>()
         
         if (includePrivate) {
             privateContactDao.getAll().forEach {
                 val contact = it.toContact()
-                contactsMap[contact.id] = contact
+                if (!contact.isHidden || includeHidden) {
+                    contactsMap[contact.id] = contact
+                }
             }
+        }
+
+        val accountMap = mutableMapOf<String, Pair<String?, String?>>()
+        try {
+            contentResolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.ACCOUNT_NAME, ContactsContract.RawContacts.ACCOUNT_TYPE),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndex(ContactsContract.RawContacts.CONTACT_ID)
+                val nameCol = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)
+                val typeCol = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE)
+                while (cursor.moveToNext()) {
+                    val contactId = if (idCol != -1) cursor.getString(idCol) else null
+                    val name = if (nameCol != -1) cursor.getString(nameCol) else null
+                    val type = if (typeCol != -1) cursor.getString(typeCol) else null
+                    if (!contactId.isNullOrBlank()) {
+                        accountMap[contactId] = Pair(name, type)
+                    }
+                }
+            }
+        } catch (e: Exception) {
         }
 
         val projection = arrayOf(
@@ -79,12 +105,15 @@ class ContactsRepository(
                             contactsMap[id] = existingContact.copy(phoneNumbers = numbers)
                         }
                     } else {
+                        val accInfo = accountMap[id]
                         contactsMap[id] = Contact(
                             id = id,
                             name = formatName(cursor.getString(nameIdx) ?: unknownLabel),
                             photoUri = cursor.getString(photoIdx),
                             isFavorite = cursor.getInt(starredIdx) == 1,
-                            phoneNumbers = mutableListOf(number)
+                            phoneNumbers = mutableListOf(number),
+                            accountName = accInfo?.first,
+                            accountType = accInfo?.second
                         )
                     }
                 }
@@ -202,6 +231,7 @@ class ContactsRepository(
             ContactsContract.Data.DATA1,
             ContactsContract.Data.DATA2,
             ContactsContract.Data.DATA3,
+            ContactsContract.Data.DATA5,
             ContactsContract.Data.STARRED,
             ContactsContract.Data.CUSTOM_RINGTONE
         )
@@ -223,6 +253,7 @@ class ContactsRepository(
                 val data1Idx = cursor.getColumnIndex(ContactsContract.Data.DATA1)
                 val data2Idx = cursor.getColumnIndex(ContactsContract.Data.DATA2)
                 val data3Idx = cursor.getColumnIndex(ContactsContract.Data.DATA3)
+                val data5Idx = cursor.getColumnIndex(ContactsContract.Data.DATA5)
                 val starredIdx = cursor.getColumnIndex(ContactsContract.Data.STARRED)
                 val ringtoneIdx = cursor.getColumnIndex(ContactsContract.Data.CUSTOM_RINGTONE)
 
@@ -248,9 +279,19 @@ class ContactsRepository(
 
                     contact = when (mimeType) {
                         ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> {
+                            val given = cursor.getString(data2Idx)
+                            val family = cursor.getString(data3Idx)
+                            val middle = if (data5Idx != -1) cursor.getString(data5Idx) else null
+                            val constructed = listOfNotNull(
+                                given?.trim()?.ifBlank { null },
+                                middle?.trim()?.ifBlank { null },
+                                family?.trim()?.ifBlank { null }
+                            ).joinToString(" ")
                             currentContact.copy(
-                                givenName = cursor.getString(data2Idx),
-                                familyName = cursor.getString(data3Idx)
+                                name = if (constructed.isNotBlank()) constructed else currentContact.name,
+                                givenName = given,
+                                middleName = middle,
+                                familyName = family
                             )
                         }
                         ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> {
@@ -450,6 +491,7 @@ class ContactsRepository(
                     )
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, contact.givenName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, contact.middleName)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, contact.familyName)
                     .build()
             )
@@ -561,6 +603,7 @@ class ContactsRepository(
                         )
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, contact.givenName)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, contact.middleName)
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, contact.familyName)
                         .build()
                 )
@@ -753,23 +796,30 @@ class ContactsRepository(
     }
 
     override fun moveContacts(contactIds: List<String>, accountName: String?, accountType: String?) {
-        val ops = ArrayList<ContentProviderOperation>()
+        val isTargetPrivate = accountType == "com.grinch.rivo4.private" || accountName == "private"
+
         contactIds.forEach { id ->
-            val rawContactId = getRawContactId(id)
-            if (rawContactId != null) {
-                ops.add(
-                    ContentProviderOperation.newUpdate(ContactsContract.RawContacts.CONTENT_URI)
-                        .withSelection("${ContactsContract.RawContacts._ID}=?", arrayOf(rawContactId))
-                        .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, accountType)
-                        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, accountName)
-                        .build()
-                )
+            try {
+                if (isTargetPrivate) {
+                    if (!id.startsWith("p")) {
+                        makeContactPrivate(id)
+                    }
+                } else {
+                    val contact = getContactById(id) ?: return@forEach
+                    if (contact.isPrivate) {
+                        // Move from private to system account
+                        saveContact(contact.copy(id = "", accountName = accountName, accountType = accountType, isPrivate = false))
+                        val lid = id.substring(1).toLongOrNull()
+                        if (lid != null) privateContactDao.deleteById(lid)
+                    } else {
+                        // Move between system accounts: create copy in target account and delete original
+                        saveContact(contact.copy(id = "", accountName = accountName, accountType = accountType, isPrivate = false))
+                        deleteContactInternal(id, clearBackground = false)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        }
-        try {
-            contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
@@ -883,69 +933,174 @@ class ContactsRepository(
     }
 
     override fun findDuplicates(): List<List<Contact>> {
-        val allContacts = getContacts()
-        val duplicates = mutableListOf<List<Contact>>()
+        val allContacts = getContacts(includePrivate = true, includeHidden = preferenceManager.isHiddenContactsVisible())
+        if (allContacts.size < 2) return emptyList()
 
-        val byName = allContacts.groupBy { it.name.lowercase().trim() }
-            .filter { it.value.size > 1 }
+        val parent = IntArray(allContacts.size) { it }
+        fun find(i: Int): Int {
+            var root = i
+            while (root != parent[root]) root = parent[root]
+            var curr = i
+            while (curr != root) {
+                val nxt = parent[curr]
+                parent[curr] = root
+                curr = nxt
+            }
+            return root
+        }
+        fun union(i: Int, j: Int) {
+            val rootI = find(i)
+            val rootJ = find(j)
+            if (rootI != rootJ) {
+                parent[rootI] = rootJ
+            }
+        }
 
-        val byNumber = mutableMapOf<String, MutableSet<Contact>>()
-        allContacts.forEach { contact ->
-            contact.phoneNumbers.forEach { number ->
-                val normalized = number.replace(Regex("[^0-9+]"), "")
-                if (normalized.length >= 7) {
-                    byNumber.getOrPut(normalized) { mutableSetOf() }.add(contact)
+        val nameMap = mutableMapOf<String, Int>()
+        val phoneBuckets = mutableMapOf<String, MutableList<Pair<String, Int>>>()
+        val emailMap = mutableMapOf<String, Int>()
+
+        allContacts.forEachIndexed { index, contact ->
+            val cleanName = contact.name.trim().lowercase()
+            if (cleanName.isNotBlank() && cleanName != unknownLabel.lowercase() && cleanName != "(no name)") {
+                val existing = nameMap[cleanName]
+                if (existing != null) {
+                    union(index, existing)
+                } else {
+                    nameMap[cleanName] = index
+                }
+            }
+
+            contact.phoneNumbers.forEach { num ->
+                val cleanNum = num.trim()
+                if (cleanNum.isNotBlank()) {
+                    val normalized = com.grinch.rivo4.controller.util.normalizePhoneNumber(cleanNum)
+                    val bucketKey = if (normalized.length >= 7) normalized.takeLast(7) else normalized
+                    val bucket = phoneBuckets.getOrPut(bucketKey) { mutableListOf() }
+                    val match = bucket.find { areNumbersEqual(it.first, cleanNum) }
+                    if (match != null) {
+                        union(index, match.second)
+                    } else {
+                        bucket.add(Pair(cleanNum, index))
+                    }
+                }
+            }
+
+            contact.emails.forEach { email ->
+                val cleanEmail = email.trim().lowercase()
+                if (cleanEmail.isNotBlank()) {
+                    val existing = emailMap[cleanEmail]
+                    if (existing != null) {
+                        union(index, existing)
+                    } else {
+                        emailMap[cleanEmail] = index
+                    }
                 }
             }
         }
-        val byNumberFiltered = byNumber.filter { it.value.size > 1 }
 
-        val processedIds = mutableSetOf<String>()
-
-        byName.values.forEach { group ->
-            duplicates.add(group)
-            processedIds.addAll(group.map { it.id })
+        val groups = mutableMapOf<Int, MutableList<Contact>>()
+        allContacts.forEachIndexed { index, contact ->
+            val root = find(index)
+            groups.getOrPut(root) { mutableListOf() }.add(contact)
         }
 
-        byNumberFiltered.values.forEach { group ->
-            val uniqueGroup = group.filter { it.id !in processedIds }
-            if (uniqueGroup.size > 1) {
-                duplicates.add(uniqueGroup)
+        return groups.values
+            .filter { it.size > 1 }
+            .map { group ->
+                group.sortedWith(
+                    compareByDescending<Contact> { it.photoUri != null }
+                        .thenByDescending { it.phoneNumbers.size }
+                        .thenByDescending { it.emails.size }
+                        .thenByDescending { !it.isPrivate }
+                        .thenBy { it.id }
+                )
             }
-        }
-
-        return duplicates
     }
 
     override fun mergeContacts(targetContactId: String, sourceContactIds: List<String>) {
         val targetContact = getContactById(targetContactId) ?: return
-        val ops = ArrayList<ContentProviderOperation>()
+        val sources = sourceContactIds.filter { it != targetContactId }.mapNotNull { getContactById(it) }
+        if (sources.isEmpty()) return
 
-        sourceContactIds.forEach { sourceId ->
-            if (sourceId == targetContactId) return@forEach
-            val sourceContact = getContactById(sourceId) ?: return@forEach
-
-            sourceContact.phoneNumbers.forEach { number ->
-                if (!targetContact.phoneNumbers.contains(number)) {
-                    ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, getRawContactId(targetContactId))
-                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, number)
-                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
-                        .build())
+        // 1. Merge phone numbers
+        val mergedNumbers = targetContact.phoneNumbers.toMutableList()
+        val mergedPhones = targetContact.phones.toMutableList()
+        sources.forEach { source ->
+            source.phoneNumbers.forEach { num ->
+                if (mergedNumbers.none { areNumbersEqual(it, num) }) {
+                    mergedNumbers.add(num)
                 }
             }
-
-            CallBackgroundStore.clearBlocking(context, sourceId, emptyList())
-
-            ops.add(ContentProviderOperation.newDelete(Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, sourceId))
-                .build())
+            source.phones.forEach { entry ->
+                if (mergedPhones.none { areNumbersEqual(it.number, entry.number) }) {
+                    mergedPhones.add(entry)
+                }
+            }
         }
 
-        try {
-            contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        // 2. Merge emails
+        val mergedEmails = targetContact.emails.toMutableList()
+        val mergedEmailEntries = targetContact.emailEntries.toMutableList()
+        sources.forEach { source ->
+            source.emails.forEach { email ->
+                if (mergedEmails.none { it.equals(email, ignoreCase = true) }) {
+                    mergedEmails.add(email)
+                }
+            }
+            source.emailEntries.forEach { entry ->
+                if (mergedEmailEntries.none { it.address.equals(entry.address, ignoreCase = true) }) {
+                    mergedEmailEntries.add(entry)
+                }
+            }
+        }
+
+        // 3. Merge addresses
+        val mergedAddresses = targetContact.addresses.toMutableList()
+        sources.forEach { source ->
+            source.addresses.forEach { addr ->
+                if (mergedAddresses.none { it.equals(addr, ignoreCase = true) }) {
+                    mergedAddresses.add(addr)
+                }
+            }
+        }
+
+        // 4. Merge notes
+        val notesList = mutableListOf<String>()
+        if (!targetContact.notes.isNullOrBlank()) notesList.add(targetContact.notes)
+        sources.forEach { source ->
+            if (!source.notes.isNullOrBlank() && !notesList.contains(source.notes)) {
+                notesList.add(source.notes)
+            }
+        }
+        val mergedNotes = if (notesList.isNotEmpty()) notesList.joinToString("\n---\n") else null
+
+        // 5. Photo & Favorites
+        val mergedPhoto = targetContact.photoUri ?: sources.firstNotNullOfOrNull { it.photoUri }
+        val isFav = targetContact.isFavorite || sources.any { it.isFavorite }
+
+        val updatedTarget = targetContact.copy(
+            phoneNumbers = mergedNumbers,
+            phones = mergedPhones,
+            emails = mergedEmails,
+            emailEntries = mergedEmailEntries,
+            addresses = mergedAddresses,
+            notes = mergedNotes,
+            photoUri = mergedPhoto,
+            isFavorite = isFav
+        )
+
+        // Save target
+        saveContact(updatedTarget)
+
+        // Delete sources & handle call background
+        sources.forEach { source ->
+            if (targetContact.photoUri == null && source.photoUri != null) {
+                CallBackgroundStore.carryBlocking(context, source.id, targetContactId, source.phoneNumbers)
+            } else {
+                CallBackgroundStore.clearBlocking(context, source.id, source.phoneNumbers)
+            }
+            deleteContactInternal(source.id, false)
         }
     }
 
@@ -1095,5 +1250,31 @@ class ContactsRepository(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    override fun setContactHidden(contactId: String, isHidden: Boolean) {
+        if (contactId.startsWith("p")) {
+            val id = contactId.substring(1).toLongOrNull() ?: return
+            privateContactDao.setHidden(id, isHidden)
+        }
+    }
+
+    override fun getHiddenNumbers(): List<String> {
+        return try {
+            privateContactDao.getAll()
+                .filter { it.isHidden }
+                .flatMap { entity ->
+                    runCatching { Json.decodeFromString<List<String>>(entity.phoneNumbersJson) }
+                        .getOrDefault(emptyList())
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    override fun isNumberHidden(number: String): Boolean {
+        if (number.isBlank()) return false
+        val clean = number.replace(" ", "")
+        return getHiddenNumbers().any { areNumbersEqual(it, clean) }
     }
 }

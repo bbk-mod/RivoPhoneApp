@@ -59,8 +59,9 @@ fun ContactEditScreen(
     val context = LocalContext.current
 
     val initialSplit = remember { splitDisplayName(initialName ?: "") }
-    var givenName by remember { mutableStateOf(initialSplit.first) }
-    var familyName by remember { mutableStateOf(initialSplit.second) }
+    var givenName by remember { mutableStateOf(initialSplit.givenName) }
+    var middleName by remember { mutableStateOf(initialSplit.middleName) }
+    var familyName by remember { mutableStateOf(initialSplit.familyName) }
     var nickname by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<String?>(null) }
@@ -71,7 +72,11 @@ fun ContactEditScreen(
     val emails = remember { mutableStateListOf(EmailEntry("")) }
     val addresses = remember { mutableStateListOf<String>("") }
 
-    val displayName = "${givenName.trim()} ${familyName.trim()}".trim()
+    val displayName = listOfNotNull(
+        givenName.trim().ifBlank { null },
+        middleName.trim().ifBlank { null },
+        familyName.trim().ifBlank { null }
+    ).joinToString(" ")
 
     val scope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
@@ -81,13 +86,16 @@ fun ContactEditScreen(
         if (contactId != null && contactId != "0" && contactId != "null") {
             val existing = contactsVM.getFullContactById(contactId)
             if (existing != null) {
-                val split = if (!existing.givenName.isNullOrBlank() || !existing.familyName.isNullOrBlank()) {
-                    (existing.givenName ?: "") to (existing.familyName ?: "")
+                if (!existing.givenName.isNullOrBlank() || !existing.middleName.isNullOrBlank() || !existing.familyName.isNullOrBlank()) {
+                    givenName = existing.givenName ?: ""
+                    middleName = existing.middleName ?: ""
+                    familyName = existing.familyName ?: ""
                 } else {
-                    splitDisplayName(existing.name)
+                    val split = splitDisplayName(existing.name)
+                    givenName = split.givenName
+                    middleName = split.middleName
+                    familyName = split.familyName
                 }
-                givenName = split.first
-                familyName = split.second
                 nickname = existing.nickname ?: ""
                 notes = existing.notes ?: ""
                 photoUri = existing.photoUri
@@ -148,6 +156,7 @@ fun ContactEditScreen(
     )
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
@@ -186,8 +195,9 @@ fun ContactEditScreen(
                                     val savedEmails = emails.filter { it.address.isNotBlank() }
                                     val contactToSave = Contact(
                                         id = if (contactId == "null" || contactId == "0" || contactId == null) "0" else contactId,
-                                        name = displayName,
+                                        name = displayName.ifBlank { nickname.trim() },
                                         givenName = givenName.trim().ifBlank { null },
+                                        middleName = middleName.trim().ifBlank { null },
                                         familyName = familyName.trim().ifBlank { null },
                                         nickname = nickname.ifBlank { null },
                                         phoneNumbers = savedPhones.map { it.number },
@@ -215,11 +225,7 @@ fun ContactEditScreen(
                             Text(stringResource(R.string.action_save))
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                }
             )
         }
     ) { innerPadding ->
@@ -244,8 +250,8 @@ fun ContactEditScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Column(
@@ -399,6 +405,18 @@ fun ContactEditScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             leadingIcon = { Icon(Icons.Default.Person, null) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                        OutlinedTextField(
+                            value = middleName,
+                            onValueChange = { middleName = it },
+                            label = { Text(stringResource(R.string.contact_edit_middle_name)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            leadingIcon = { Icon(Icons.Default.PersonOutline, null) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                                 focusedBorderColor = MaterialTheme.colorScheme.primary
@@ -565,14 +583,24 @@ fun ContactEditScreen(
     }
 }
 
-fun splitDisplayName(full: String): Pair<String, String> {
+data class NameComponents(
+    val givenName: String = "",
+    val middleName: String = "",
+    val familyName: String = ""
+)
+
+fun splitDisplayName(full: String): NameComponents {
     val trimmed = full.trim()
-    if (trimmed.isEmpty()) return "" to ""
+    if (trimmed.isEmpty()) return NameComponents()
     val parts = trimmed.split(Regex("\\s+"))
-    return if (parts.size == 1) {
-        parts[0] to ""
-    } else {
-        parts.first() to parts.drop(1).joinToString(" ")
+    return when (parts.size) {
+        1 -> NameComponents(givenName = parts[0])
+        2 -> NameComponents(givenName = parts[0], familyName = parts[1])
+        else -> NameComponents(
+            givenName = parts.first(),
+            middleName = parts.subList(1, parts.size - 1).joinToString(" "),
+            familyName = parts.last()
+        )
     }
 }
 
