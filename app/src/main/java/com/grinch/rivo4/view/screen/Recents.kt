@@ -43,6 +43,7 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactSelectionScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DialPadScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -99,6 +100,7 @@ fun RecentScreenContent(
     val viewModel: CallLogViewModel = koinActivityViewModel()
 
     var selectedEntries by remember { mutableStateOf(setOf<CallLogEntry>()) }
+    var addToContactNumber by remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = selectedEntries.isNotEmpty()) {
         selectedEntries = emptySet()
@@ -133,11 +135,7 @@ fun RecentScreenContent(
             },
             onAddContact = if (isUnsaved && singleSelected != null) {
                 {
-                    navigator.navigate(
-                        ContactEditScreenDestination(
-                            initialPhone = singleSelected.number
-                        )
-                    )
+                    addToContactNumber = singleSelected.number
                     selectedEntries = emptySet()
                 }
             } else null,
@@ -248,6 +246,32 @@ fun RecentScreenContent(
                 }
             )
         }
+    }
+
+    if (addToContactNumber != null) {
+        AddToContactBottomSheet(
+            phoneNumber = addToContactNumber!!,
+            onDismissRequest = { addToContactNumber = null },
+            onCreateNewContact = {
+                val num = addToContactNumber
+                addToContactNumber = null
+                navigator.navigate(
+                    ContactEditScreenDestination(
+                        initialPhone = num
+                    )
+                )
+            },
+            onAddToExistingContact = {
+                val num = addToContactNumber
+                addToContactNumber = null
+                navigator.navigate(
+                    ContactSelectionScreenDestination(
+                        title = "Add to Existing Contact",
+                        initialPhoneToAssign = num
+                    )
+                )
+            }
+        )
     }
 }
 }
@@ -439,8 +463,7 @@ fun CallLogFullContent(
         }
         var showAddFavoriteDialog by remember { mutableStateOf(false) }
         val showRecentsStats = remember(settingsState) {
-            prefs.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SHOW_RECENTS_STATS, true) &&
-                prefs.isCallAnalyticsTrackingEnabled()
+            prefs.isCallAnalyticsTrackingEnabled()
         }
 
         val favRowState = rememberLazyListState()
@@ -547,9 +570,6 @@ fun CallLogFullContent(
                                     totalDurationSeconds = todayStats.totalDurationSeconds,
                                     onOpenAnalytics = {
                                         navigator.navigate(com.ramcosta.composedestinations.generated.destinations.CallAnalyticsScreenDestination())
-                                    },
-                                    onHideStats = {
-                                        prefs.setBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_SHOW_RECENTS_STATS, false)
                                     },
                                     modifier = Modifier.padding(vertical = 6.dp)
                                 )
@@ -816,8 +836,7 @@ fun RecentsDailyStatusHeader(
     missedCalls: Int = 0,
     totalDurationSeconds: Long = 0L,
     onOpenAnalytics: () -> Unit,
-    modifier: Modifier = Modifier,
-    onHideStats: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
