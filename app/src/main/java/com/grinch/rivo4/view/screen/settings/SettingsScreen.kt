@@ -17,13 +17,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.openLink
-import com.grinch.rivo4.view.components.TipJarDialog
 import com.grinch.rivo4.view.components.RivoDialog
 import com.grinch.rivo4.view.components.RivoDialogAction
 import com.grinch.rivo4.view.components.RivoDivider
@@ -47,9 +44,6 @@ fun SettingsScreen(
     val prefs = koinInject<PreferenceManager>()
     val settingsState by prefs.settingsChanged.collectAsState()
     val listState = rememberLazyListState()
-
-    var showTipJarDialog by remember { mutableStateOf(false) }
-    val isSupporter = remember(settingsState) { prefs.isSupporter() }
 
     Scaffold(
         topBar = {
@@ -225,25 +219,6 @@ fun SettingsScreen(
                     )
                 }
             }
-
-            // 5. Support & About
-            item {
-                RivoExpressiveCard(
-                    title = "Support & About",
-                    icon = Icons.Outlined.HelpOutline
-                ) {
-                    RivoListItem(
-                        headline = if (isSupporter) "Rivo Supporter ⭐" else "Support Us",
-                        supporting = if (isSupporter) "Thank you for supporting Rivo!" else "Support development via Patreon",
-                        leadingIcon = if (isSupporter) Icons.Outlined.Star else Icons.Outlined.Favorite,
-                        onClick = { showTipJarDialog = true }
-                    )
-                }
-            }
-        }
-
-        if (showTipJarDialog) {
-            TipJarDialog(onDismissRequest = { showTipJarDialog = false })
         }
     }
 }
