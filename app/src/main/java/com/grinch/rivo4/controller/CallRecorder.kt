@@ -4,11 +4,14 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
+import androidx.documentfile.provider.DocumentFile
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -30,12 +33,60 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+
+object AudioMetadataCache {
+    private val durationCache = ConcurrentHashMap<String, Long>()
+
+    fun getCachedDurationMs(file: File): Long? {
+        val key = "${file.absolutePath}_${file.lastModified()}"
+        return durationCache[key]
+    }
+
+    suspend fun getDurationMs(context: Context, file: File): Long = withContext(Dispatchers.IO) {
+        val key = "${file.absolutePath}_${file.lastModified()}"
+        durationCache[key]?.let { return@withContext it }
+        val dur = runCatching {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(context, Uri.fromFile(file))
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            durationStr?.toLongOrNull() ?: 0L
+        }.getOrDefault(0L)
+        durationCache[key] = dur
+        dur
+    }
+
+    fun getDurationMsSync(context: Context, file: File): Long {
+        val key = "${file.absolutePath}_${file.lastModified()}"
+        durationCache[key]?.let { return it }
+        val dur = runCatching {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(context, Uri.fromFile(file))
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            durationStr?.toLongOrNull() ?: 0L
+        }.getOrDefault(0L)
+        durationCache[key] = dur
+        return dur
+    }
+
+    fun evict(file: File) {
+        val key = "${file.absolutePath}_${file.lastModified()}"
+        durationCache.remove(key)
+    }
+
+    fun clear() {
+        durationCache.clear()
+    }
+}
 
 object CallRecorder {
 
@@ -99,6 +150,7 @@ object CallRecorder {
     fun isWritableDirectory(dir: File): Boolean {
         return runCatching {
             if (!dir.exists() && !dir.mkdirs()) return false
+            if (dir.canWrite()) return true
             val testFile = File(dir, ".probe_${System.currentTimeMillis()}")
             val created = testFile.createNewFile()
             if (created) {
@@ -110,7 +162,73 @@ object CallRecorder {
         }.getOrDefault(false)
     }
 
+    fun getCustomRecordingDirectory(context: Context): File? {
+        val prefs = try {
+            val deviceContext = context.createDeviceProtectedStorageContext()
+            deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
+        } catch (e: Exception) {
+            null
+        }
+        val uriStr =
+            prefs?.getString(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_FOLDER_URI, null)
+                ?: return null
+        return runCatching {
+            getFileFromTreeUri(Uri.parse(uriStr))
+        }.getOrNull()
+    }
+
+    fun getFileFromTreeUri(treeUri: Uri): File? {
+        return try {
+            val docId = DocumentsContract.getTreeDocumentId(treeUri)
+            if (docId.startsWith("primary:")) {
+                val relPath = docId.removePrefix("primary:").trim('/')
+                if (relPath.isEmpty()) {
+                    Environment.getExternalStorageDirectory()
+                } else {
+                    File(Environment.getExternalStorageDirectory(), relPath)
+                }
+            } else if (docId.contains(":")) {
+                val parts = docId.split(":", limit = 2)
+                val storageId = parts[0]
+                val relPath = parts.getOrNull(1)?.trim('/') ?: ""
+                val base = File("/storage/$storageId")
+                if (base.exists()) {
+                    if (relPath.isEmpty()) base else File(base, relPath)
+                } else null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun getFolderDisplayName(context: Context, treeUri: Uri): String {
+        return try {
+            val docId = DocumentsContract.getTreeDocumentId(treeUri)
+            if (docId.startsWith("primary:")) {
+                val rel = docId.removePrefix("primary:").trim('/')
+                if (rel.isEmpty()) "Internal Storage" else rel
+            } else if (docId.contains(":")) {
+                val parts = docId.split(":", limit = 2)
+                val rel = parts.getOrNull(1)?.trim('/') ?: ""
+                if (rel.isEmpty()) parts[0] else "${parts[0]}/$rel"
+            } else {
+                DocumentFile.fromTreeUri(context, treeUri)?.name ?: "Custom Folder"
+            }
+        } catch (e: Exception) {
+            DocumentFile.fromTreeUri(context, treeUri)?.name ?: "Custom Folder"
+        }
+    }
+
     fun getRecordingsDirectory(context: Context): File {
+        // 0. Custom user-defined directory if writable
+        getCustomRecordingDirectory(context)?.let { customDir ->
+            if (isWritableDirectory(customDir)) {
+                return customDir
+            }
+        }
+
         // 1. If All Files Access is granted, allow direct root storage
         if (hasStoragePermission(context)) {
             val directInternal = File(Environment.getExternalStorageDirectory(), DIRECTORY_NAME)
@@ -155,12 +273,18 @@ object CallRecorder {
 
     fun getAllRecordingDirectories(context: Context): List<File> {
         val dirs = mutableListOf<File>()
+        getCustomRecordingDirectory(context)?.let { customDir ->
+            if (customDir.exists() && customDir.isDirectory) {
+                dirs.add(customDir)
+            }
+        }
         runCatching {
             val d = File(Environment.getExternalStorageDirectory(), DIRECTORY_NAME)
             if (d.exists() && d.isDirectory) dirs.add(d)
         }
         runCatching {
-            val d = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RECORDINGS), DIRECTORY_NAME)
+            val d =
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RECORDINGS), DIRECTORY_NAME)
             if (d.exists() && d.isDirectory) dirs.add(d)
         }
         runCatching {
@@ -184,7 +308,8 @@ object CallRecorder {
             }
         }
         runCatching {
-            val d = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RECORDINGS), "Voice Recorder")
+            val d =
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RECORDINGS), "Voice Recorder")
             if (d.exists() && d.isDirectory) dirs.add(d)
         }
         runCatching {
@@ -259,15 +384,24 @@ object CallRecorder {
                 val prefs = try {
                     val deviceContext = appContext.createDeviceProtectedStorageContext()
                     deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
-                } catch (e: Exception) { null }
-                val isShizukuEnabled = prefs?.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_SHIZUKU, true) ?: true
-                if (isShizukuEnabled && ShizukuConnectionManager.isAvailable() && ShizukuConnectionManager.hasPermission(appContext)) {
+                } catch (e: Exception) {
+                    null
+                }
+                val isShizukuEnabled = prefs?.getBoolean(
+                    com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_SHIZUKU,
+                    true
+                ) ?: true
+                if (isShizukuEnabled && ShizukuConnectionManager.isAvailable() && ShizukuConnectionManager.hasPermission(
+                        appContext
+                    )
+                ) {
                     val serverPath = ScrcpyConfig.ensureServerJar(appContext)
                     if (serverPath != null) {
                         prewarmShizuku(appContext)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -330,8 +464,12 @@ object CallRecorder {
         val prefs = try {
             val deviceContext = context.createDeviceProtectedStorageContext()
             deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
-        } catch (e: Exception) { null }
-        val isShizukuEnabled = prefs?.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_SHIZUKU, true) ?: true
+        } catch (e: Exception) {
+            null
+        }
+        val isShizukuEnabled =
+            prefs?.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_SHIZUKU, true)
+                ?: true
 
         // Priority 1: Use Shizuku + scrcpy-server ONLY if enabled and available
         if (isShizukuEnabled && ShizukuConnectionManager.isAvailable() && ShizukuConnectionManager.hasPermission(context)) {
@@ -526,7 +664,9 @@ object CallRecorder {
         val prefs = try {
             val deviceContext = context.createDeviceProtectedStorageContext()
             deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            null
+        }
         val targetBitrate = prefs?.getInt("call_recording_bitrate", 128000) ?: 128000
         val profiles = getFormatProfiles(targetBitrate)
 
@@ -570,8 +710,14 @@ object CallRecorder {
                     return true
                 } catch (e: Exception) {
                     Log.w(TAG, "Source $source with ${profile.extension} failed: ${e.message}")
-                    try { instance.reset() } catch (ignored: Exception) {}
-                    try { instance.release() } catch (ignored: Exception) {}
+                    try {
+                        instance.reset()
+                    } catch (ignored: Exception) {
+                    }
+                    try {
+                        instance.release()
+                    } catch (ignored: Exception) {
+                    }
                     if (stagingFile.exists()) stagingFile.delete()
                 }
             }
@@ -652,14 +798,23 @@ object CallRecorder {
             val instance = recorder
             try {
                 if (actualDuration < 1) {
-                    try { Thread.sleep(600) } catch (ignored: Exception) {}
+                    try {
+                        Thread.sleep(600)
+                    } catch (ignored: Exception) {
+                    }
                 }
                 instance?.stop()
             } catch (e: Exception) {
                 Log.w(TAG, "MediaRecorder.stop() exception: ${e.message}")
             } finally {
-                try { instance?.reset() } catch (ignored: Exception) {}
-                try { instance?.release() } catch (ignored: Exception) {}
+                try {
+                    instance?.reset()
+                } catch (ignored: Exception) {
+                }
+                try {
+                    instance?.release()
+                } catch (ignored: Exception) {
+                }
                 recorder = null
             }
         }
@@ -685,7 +840,9 @@ object CallRecorder {
         val prefs = try {
             val deviceContext = ctx.createDeviceProtectedStorageContext()
             deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            null
+        }
         val minDuration = prefs?.getInt("call_recording_min_duration", 0) ?: 0
         if (minDuration > 0 && actualDuration < minDuration) {
             Log.i(TAG, "Call duration ($actualDuration s) was below filter ($minDuration s), discarding.")
@@ -694,22 +851,68 @@ object CallRecorder {
         }
 
         val cleanName = saved.name.removePrefix("staging_")
-        val destinationDir = getRecordingsDirectory(ctx)
-        val finalTargetFile = File(destinationDir, cleanName)
+        val customUriStr =
+            prefs?.getString(com.grinch.rivo4.controller.util.PreferenceManager.KEY_CALL_RECORDING_FOLDER_URI, null)
+        val customDir = getCustomRecordingDirectory(ctx)
+        var destinationFile: File? = null
 
-        // Single move to the target destination
-        val effectiveFile = if (saved.absolutePath != finalTargetFile.absolutePath) {
+        if (customDir != null) {
             try {
-                destinationDir.mkdirs()
-                saved.copyTo(finalTargetFile, overwrite = true)
+                if (!customDir.exists()) customDir.mkdirs()
+                val target = File(customDir, cleanName)
+                saved.copyTo(target, overwrite = true)
                 saved.delete()
-                finalTargetFile
+                destinationFile = target
+                Log.i(TAG, "Recording saved directly to custom folder: ${target.absolutePath}")
             } catch (e: Exception) {
-                Log.w(TAG, "Could not move recording to $finalTargetFile: ${e.message}", e)
-                saved // Keep staging file if copy failed
+                Log.w(TAG, "Direct copy to custom folder failed: ${e.message}")
             }
+        }
+
+        if (destinationFile == null && !customUriStr.isNullOrBlank()) {
+            try {
+                val treeUri = Uri.parse(customUriStr)
+                val docDir = DocumentFile.fromTreeUri(ctx, treeUri)
+                if (docDir != null && docDir.canWrite()) {
+                    val mimeType = if (cleanName.endsWith(".m4a")) "audio/mp4" else "audio/*"
+                    val newDocFile = docDir.createFile(mimeType, cleanName)
+                    if (newDocFile != null) {
+                        ctx.contentResolver.openOutputStream(newDocFile.uri)?.use { out ->
+                            saved.inputStream().use { input -> input.copyTo(out) }
+                        }
+                        if (customDir != null) {
+                            val target = File(customDir, cleanName)
+                            if (target.exists()) {
+                                destinationFile = target
+                            }
+                        }
+                        saved.delete()
+                        Log.i(TAG, "Recording written via SAF DocumentFile to: ${newDocFile.uri}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed writing to custom DocumentFile: ${e.message}", e)
+            }
+        }
+
+        val effectiveFile = if (destinationFile != null && destinationFile.exists()) {
+            destinationFile
         } else {
-            saved
+            val destinationDir = getRecordingsDirectory(ctx)
+            val finalTargetFile = File(destinationDir, cleanName)
+            if (saved.exists() && saved.absolutePath != finalTargetFile.absolutePath) {
+                try {
+                    destinationDir.mkdirs()
+                    saved.copyTo(finalTargetFile, overwrite = true)
+                    saved.delete()
+                    finalTargetFile
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not move recording to $finalTargetFile: ${e.message}", e)
+                    saved
+                }
+            } else {
+                if (saved.exists()) saved else finalTargetFile
+            }
         }
 
         // Notify MediaScanner once on the physical output path
@@ -728,7 +931,8 @@ object CallRecorder {
         recorderScope.launch(Dispatchers.Main) {
             try {
                 Toast.makeText(ctx, "Call recorded: ${effectiveFile.name}", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+            }
         }
 
         return effectiveFile
@@ -770,14 +974,28 @@ object CallRecorder {
         val supportedExts = listOf(".m4a", ".mp3", ".aac", ".3gp", ".wav")
         for (dir in dirs) {
             dir.listFiles()
-                ?.filter { file -> file.isFile && file.length() > 0 && supportedExts.any { ext -> file.name.endsWith(ext, ignoreCase = true) } }
+                ?.filter { file ->
+                    file.isFile && file.length() > 0 && supportedExts.any { ext ->
+                        file.name.endsWith(
+                            ext,
+                            ignoreCase = true
+                        )
+                    }
+                }
                 ?.let { files.addAll(it) }
         }
 
         // 3. Scan cacheDir for direct audio fallback files
         runCatching {
             context.cacheDir.listFiles()
-                ?.filter { file -> file.isFile && file.length() > 0 && supportedExts.any { ext -> file.name.endsWith(ext, ignoreCase = true) } }
+                ?.filter { file ->
+                    file.isFile && file.length() > 0 && supportedExts.any { ext ->
+                        file.name.endsWith(
+                            ext,
+                            ignoreCase = true
+                        )
+                    }
+                }
                 ?.let { files.addAll(it) }
         }
 
@@ -787,7 +1005,10 @@ object CallRecorder {
             .sortedByDescending { it.lastModified() }
     }
 
-    fun delete(file: File): Boolean = file.delete()
+    fun delete(file: File): Boolean {
+        AudioMetadataCache.evict(file)
+        return file.delete()
+    }
 
     fun uriFor(context: Context, file: File): Uri {
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

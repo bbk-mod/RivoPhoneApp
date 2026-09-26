@@ -27,6 +27,8 @@
     <!-- Settings > Interface -->
     <!-- Settings > Sound & Vibration -->
     <!-- Settings > Call accounts -->
+    <string name="settings_call_auto_speaker_proximity">Автоматичний гучний зв\'язок</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Динамік при відхиленні від вуха, елементи у режимі навушників (придушується при підключенні навушників)</string>
     <!-- Settings > Blocked numbers -->
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
@@ -84,4 +86,28 @@
     <string name="settings_call_analytics_view_supporting">Таблиця лідерів часу розмови, пік годин &amp; розподіл</string>
     <string name="call_analytics_disabled_title">Аналітика викликів &amp; Відстеження вимкнено</string>
     <string name="call_analytics_disabled_desc">Викликати аналітику і відстежування часу розмови в даний час вимкнено. Увімкніть цю опцію для обчислення часу розмови, пікових годин і зверніться до особистої інформації.</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">SIM-карта за замовчуванням</string>
+    <string name="contact_default_sim_supporting">Виберіть, яку SIM-карту використовувати при дзвінках цього контакту</string>
+    <string name="sim_remember_for_contact">Завжди використовувати цю SIM-карту для цього контакту</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_save_folder">Зберегти розташування</string>
+    <string name="settings_recording_save_folder_default">Типовий (запис/Rivo записування)</string>
+    <string name="settings_recording_reset_folder">Відновити папку за замовчуванням</string>
+    <string name="settings_recording_reset_folder_supporting">Зберегти записи у стандартний каталог Rivo запис</string>
+    <string name="settings_recording_folder_changed">Зберегти оновлено: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Скинути налаштування місця розташування</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">Режим \"Не турбувати\" під час дзвінків</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Автоматично вимикати сповіщення та інші переривання під час дзвінка</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Набрати фони</string>
+    <string name="settings_call_unknown_background">Невідомий фон виклику</string>
+    <string name="settings_call_unknown_background_set">Зображення для невідомих абонентів показано на екрані блокування</string>
+    <string name="settings_call_unknown_background_none">Не встановлено — тло виклику за замовчуванням</string>
+    <string name="settings_call_unknown_background_supporting">Показані вхідні дзвінки з невідомих або незбережених телефонних номерів.</string>
+    <string name="settings_call_background_no_preview">Немає користувацького фону</string>
+    <string name="settings_call_background_change_gallery">Змінити зображення</string>
+    <string name="settings_call_background_choose_gallery">З галереї</string>
+    <string name="settings_call_background_remove">Видалити тло</string>
 </resources>

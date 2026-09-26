@@ -24,12 +24,20 @@ data class EmailEntry(
 )
 
 @Serializable
+data class AccountEntry(
+    val name: String?,
+    val type: String?
+)
+
+@Serializable
 data class Contact(
     val id: String,
     val name: String,
+    val prefix: String? = null,
     val givenName: String? = null,
     val middleName: String? = null,
     val familyName: String? = null,
+    val suffix: String? = null,
     val nickname: String? = null,
     val phoneNumbers: List<String> = emptyList(),
     val emails: List<String> = emptyList(),
@@ -44,7 +52,8 @@ data class Contact(
     val accountType: String? = null,
     val isPrivate: Boolean = false,
     val isHidden: Boolean = false,
-    val notes: String? = null
+    val notes: String? = null,
+    val linkedAccounts: List<AccountEntry> = emptyList()
 ) {
     val displayName: String
         get() = nickname?.trim()?.takeIf { it.isNotEmpty() } ?: name
@@ -52,9 +61,11 @@ data class Contact(
     val formattedDisplayName: String
         get() {
             val parts = listOfNotNull(
+                prefix?.trim()?.ifBlank { null },
                 givenName?.trim()?.ifBlank { null },
                 middleName?.trim()?.ifBlank { null },
-                familyName?.trim()?.ifBlank { null }
+                familyName?.trim()?.ifBlank { null },
+                suffix?.trim()?.ifBlank { null }
             )
             return if (parts.isNotEmpty()) {
                 parts.joinToString(" ")

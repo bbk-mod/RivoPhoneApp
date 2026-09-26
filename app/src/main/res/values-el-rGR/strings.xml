@@ -27,6 +27,8 @@
     <!-- Settings > Interface -->
     <!-- Settings > Sound & Vibration -->
     <!-- Settings > Call accounts -->
+    <string name="settings_call_auto_speaker_proximity">Αυτόματο Ηχείο</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Μετάβαση στο ηχείο όταν είναι μακριά από το αυτί, ακουστικό όταν είναι κοντά στο αυτί (καταστέλλεται όταν τα ακουστικά είναι συνδεδεμένα)</string>
     <!-- Settings > Blocked numbers -->
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
@@ -83,4 +85,29 @@
     <string name="settings_call_analytics_view_title">Προβολή Αναλυτικών Στοιχείων &amp; Insights</string>
     <string name="call_analytics_disabled_desc">Τα αναλυτικά στοιχεία κλήσεων και ο εντοπισμός χρόνου ομιλίας είναι απενεργοποιημένα. Ενεργοποιήστε αυτή την επιλογή για τον υπολογισμό του χρόνου ομιλίας, των ωρών αιχμής και των γνώσεων επαφής.</string>
     <string name="call_analytics_enable_action">Ενεργοποίηση Analytics &amp; Tracking</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">Προεπιλεγμένη κάρτα SIM</string>
+    <string name="contact_default_sim_supporting">Επιλέξτε τη SIM που θα χρησιμοποιηθεί κατά την κλήση αυτής της επαφής</string>
+    <string name="sim_remember_for_contact">Χρήση αυτής της SIM πάντα για αυτήν την επαφή</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_storage_title">Αποθήκευση &amp; Τοποθεσία</string>
+    <string name="settings_recording_save_folder">Αποθήκευση Τοποθεσίας</string>
+    <string name="settings_recording_save_folder_default">Προεπιλογή (Εγγραφές/Εγγραφές Rivo)</string>
+    <string name="settings_recording_reset_folder">Επαναφορά στον προεπιλεγμένο φάκελο</string>
+    <string name="settings_recording_reset_folder_supporting">Αποθήκευση ηχογραφήσεων στον κατάλογο Rivo Recordings</string>
+    <string name="settings_recording_folder_changed">Ενημέρωση τοποθεσίας αποθήκευσης: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Αποθήκευση επαναφοράς τοποθεσίας στις προεπιλεγμένες</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">Μην ενοχλείτε κατά τη διάρκεια κλήσεων</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Αυτόματη σίγαση ειδοποιήσεων και άλλων διακοπών κατά τη διάρκεια μιας κλήσης</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Φόντο Κλήσης</string>
+    <string name="settings_call_unknown_background">Άγνωστο Φόντο Κλήσεων</string>
+    <string name="settings_call_unknown_background_set">Εμφανίζεται μια προσαρμοσμένη εικόνα για άγνωστους καλούντες</string>
+    <string name="settings_call_unknown_background_none">Δεν έχει ρυθμιστεί - χρησιμοποιεί προεπιλεγμένο φόντο κλήσεων</string>
+    <string name="settings_call_unknown_background_supporting">Εμφανίζονται σε εισερχόμενες κλήσεις από άγνωστους ή μη αποθηκευμένους αριθμούς τηλεφώνου.</string>
+    <string name="settings_call_background_no_preview">Χωρίς προσαρμοσμένο φόντο</string>
+    <string name="settings_call_background_change_gallery">Αλλαγή εικόνας</string>
+    <string name="settings_call_background_choose_gallery">Επιλέξτε από τη συλλογή</string>
+    <string name="settings_call_background_remove">Αφαίρεση φόντου</string>
 </resources>

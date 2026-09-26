@@ -27,6 +27,8 @@
     <!-- Settings > Interface -->
     <!-- Settings > Sound & Vibration -->
     <!-- Settings > Call accounts -->
+    <string name="settings_call_auto_speaker_proximity">Automatische luidspreker</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Schakel over naar de luidspreker wanneer weg van oor, oortelefoon wanneer dichtbij oor staat (onderdrukt wanneer een koptelefoon is aangesloten)</string>
     <!-- Settings > Blocked numbers -->
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
@@ -85,4 +87,29 @@
     <string name="call_analytics_disabled_title">Oproep-Analytics &amp; Tracking uitgeschakeld</string>
     <string name="call_analytics_disabled_desc">Oproep analytics en talk time tracking zijn momenteel uitgeschakeld. Schakel deze optie in om de gesprekstijd, piekuren en contact met inzichten te berekenen.</string>
     <string name="call_analytics_enable_action">Activeer Analytics &amp; Tracking</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">Standaard SIM-kaart</string>
+    <string name="contact_default_sim_supporting">Kies welke simkaart gebruikt moet worden bij het aanroepen van dit contact</string>
+    <string name="sim_remember_for_contact">Deze simkaart altijd gebruiken voor dit contact</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_storage_title">Opslag &amp; Locatie</string>
+    <string name="settings_recording_save_folder">Locatie opslaan</string>
+    <string name="settings_recording_save_folder_default">Standaard (opnames/Rivo opnames)</string>
+    <string name="settings_recording_reset_folder">Terugzetten naar standaardmap</string>
+    <string name="settings_recording_reset_folder_supporting">Sla opnames op in de standaard Rivo opnamemap</string>
+    <string name="settings_recording_folder_changed">Opslaan locatie bijgewerkt: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Locatie resetten naar standaard opslaan</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">Niet storen tijdens gesprekken</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Automatisch meldingen en andere onderbrekingen tijdens een oproep negeren</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Achtergronden bellen</string>
+    <string name="settings_call_unknown_background">Onbekende gespreksachtergrond</string>
+    <string name="settings_call_unknown_background_set">Een aangepaste afbeelding wordt weergegeven voor onbekende bellers</string>
+    <string name="settings_call_unknown_background_none">Niet ingesteld — gebruikt standaard gespreksachtergrond</string>
+    <string name="settings_call_unknown_background_supporting">Wordt weergegeven op inkomende oproepen van onbekende of niet-opgeslagen telefoonnummers.</string>
+    <string name="settings_call_background_no_preview">Geen aangepaste achtergrond</string>
+    <string name="settings_call_background_change_gallery">Afbeelding wijzigen</string>
+    <string name="settings_call_background_choose_gallery">Kies uit gallerij</string>
+    <string name="settings_call_background_remove">Achtergrond verwijderen</string>
 </resources>

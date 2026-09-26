@@ -27,6 +27,8 @@
     <!-- Settings > Interface -->
     <!-- Settings > Sound & Vibration -->
     <!-- Settings > Call accounts -->
+    <string name="settings_call_auto_speaker_proximity">Altoparlante Automatico</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Passare all\'altoparlante quando lontano dall\'orecchio, auricolare quando vicino all\'orecchio (soppresso quando le cuffie si sono collegate)</string>
     <!-- Settings > Blocked numbers -->
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
@@ -85,4 +87,29 @@
     <string name="call_analytics_disabled_title">Analisi Delle Chiamate &amp; Tracciamento Disabilitato</string>
     <string name="call_analytics_disabled_desc">L\'analisi delle chiamate e il tracciamento dell\'orario di conversazione sono attualmente disattivati. Abilita questa opzione per calcolare il tempo di conversazione, le ore di punta e le informazioni sui contatti.</string>
     <string name="call_analytics_enable_action">Abilita Analisi &amp; Tracciamento</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">Scheda SIM predefinita</string>
+    <string name="contact_default_sim_supporting">Scegli quale SIM usare quando chiami questo contatto</string>
+    <string name="sim_remember_for_contact">Usa sempre questa SIM per questo contatto</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_storage_title">Memoria &amp; Posizione</string>
+    <string name="settings_recording_save_folder">Salva Posizione</string>
+    <string name="settings_recording_save_folder_default">Predefinito (Recordings/Rivo Recordings)</string>
+    <string name="settings_recording_reset_folder">Ripristina cartella predefinita</string>
+    <string name="settings_recording_reset_folder_supporting">Salva le registrazioni nella directory standard di Rivo Recordings</string>
+    <string name="settings_recording_folder_changed">Posizione di salvataggio aggiornata: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Salva la posizione reimpostata come predefinita</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">Non disturbare durante le chiamate</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Silenzia automaticamente le notifiche e altre interruzioni durante una chiamata</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Sfondi Di Chiamata</string>
+    <string name="settings_call_unknown_background">Sfondo Chiamate Sconosciuto</string>
+    <string name="settings_call_unknown_background_set">Viene mostrata un\'immagine personalizzata per i chiamanti sconosciuti</string>
+    <string name="settings_call_unknown_background_none">Non impostato — utilizza lo sfondo predefinito della chiamata</string>
+    <string name="settings_call_unknown_background_supporting">Mostrato sulle chiamate in arrivo da numeri di telefono sconosciuti o non salvati.</string>
+    <string name="settings_call_background_no_preview">Nessuno sfondo personalizzato</string>
+    <string name="settings_call_background_change_gallery">Cambia immagine</string>
+    <string name="settings_call_background_choose_gallery">Scegli dalla galleria</string>
+    <string name="settings_call_background_remove">Rimuovi sfondo</string>
 </resources>

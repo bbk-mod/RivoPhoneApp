@@ -52,6 +52,47 @@ class CallService : InCallService() {
     private val cachedContactNames = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var flipToSilenceManager: FlipToSilenceManager? = null
     private var screenWakeLock: PowerManager.WakeLock? = null
+    private var originalDndFilter: Int? = null
+    private var isDndActivatedByCall: Boolean = false
+
+    private fun applyDndIfEnabled() {
+        if (!preferenceManager.getBoolean(PreferenceManager.KEY_DND_DURING_CALLS, false)) return
+        if (isDndActivatedByCall) return
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                originalDndFilter = notificationManager.currentInterruptionFilter
+                if (originalDndFilter != NotificationManager.INTERRUPTION_FILTER_PRIORITY &&
+                    originalDndFilter != NotificationManager.INTERRUPTION_FILTER_NONE &&
+                    originalDndFilter != NotificationManager.INTERRUPTION_FILTER_ALARMS
+                ) {
+                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+                    isDndActivatedByCall = true
+                    Log.i("CallService", "DND enabled for call duration (original filter: $originalDndFilter)")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("CallService", "Failed to enable DND during call: ${e.message}")
+        }
+    }
+
+    private fun restoreDndIfEnabled() {
+        if (!isDndActivatedByCall) return
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                val restoreTo = originalDndFilter ?: NotificationManager.INTERRUPTION_FILTER_ALL
+                notificationManager.setInterruptionFilter(restoreTo)
+                Log.i("CallService", "Restored DND filter to $restoreTo")
+            }
+        } catch (e: Exception) {
+            Log.w("CallService", "Failed to restore DND after call: ${e.message}")
+        } finally {
+            isDndActivatedByCall = false
+            originalDndFilter = null
+        }
+    }
 
     private fun acquireScreenWakeLock() {
         try {
@@ -688,6 +729,8 @@ class CallService : InCallService() {
             callRingStartTimes[call] = System.currentTimeMillis()
         }
 
+        applyDndIfEnabled()
+
         // Prime CallRecorder asynchronously so recording starts with zero delay when call answers
         CallRecorder.prepare(this)
         if (number.isNotEmpty()) {
@@ -763,8 +806,8 @@ class CallService : InCallService() {
             releaseScreenWakeLock()
         }
         if (calls.isEmpty()) {
+            restoreDndIfEnabled()
             if (CallRecorder.isRecording.value) CallRecorder.stop()
-            com.grinch.rivo4.controller.floating.FloatingCallService.stop(this)
             removeForeground()
             cancelNotification()
         } else {
@@ -786,14 +829,10 @@ class CallService : InCallService() {
         when (intent?.action) {
             "ANSWER_CALL" -> {
                 answerCall()
-                if (preferenceManager.isFloatingCallBubbleEnabled() && android.provider.Settings.canDrawOverlays(this)) {
-                    com.grinch.rivo4.controller.floating.FloatingCallService.start(this)
-                } else {
-                    val activityIntent = Intent(this, CallActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                    }
-                    startActivity(activityIntent)
+                val activityIntent = Intent(this, CallActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                 }
+                startActivity(activityIntent)
             }
 
             "DECLINE_CALL" -> {
@@ -924,14 +963,16 @@ class CallService : InCallService() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
-        val personBuilder =
-            androidx.core.app.Person
-                .Builder()
-                .setName(contactName)
-                .setImportant(true)
+        val avatarBitmap = com.grinch.rivo4.controller.util.CallNotificationHelper.getAvatarBitmap(this, contactName, contactPhoto)
+        val personBuilder = androidx.core.app.Person.Builder()
+            .setName(contactName)
+            .setImportant(true)
+            .setBot(false)
+            .setIcon(IconCompat.createWithBitmap(avatarBitmap))
 
-        if (contactPhoto != null) {
-            personBuilder.setIcon(IconCompat.createWithBitmap(contactPhoto))
+        if (number.isNotBlank()) {
+            personBuilder.setUri("tel:")
+            personBuilder.setKey(number)
         }
         val person = personBuilder.build()
 
@@ -963,13 +1004,15 @@ class CallService : InCallService() {
         val contentText = buildString {
             if (call.state == Call.STATE_RINGING) append(getString(R.string.call_status_incoming)) else append(getString(R.string.notif_active_call))
             if (!simLabel.isNullOrEmpty()) {
-                append(" ")
+                append(" • ")
                 append(getString(R.string.notif_via_sim, simLabel))
             }
         }
 
         val suppressBanner =
             call.state == Call.STATE_RINGING && isScreenOffOrLocked() && !canUseFullScreenIntent()
+
+        val notifColor = com.grinch.rivo4.controller.util.CallNotificationHelper.getNotificationColor(this)
 
         val builder =
             NotificationCompat
@@ -986,6 +1029,10 @@ class CallService : InCallService() {
                 .setSilent(call.state != Call.STATE_RINGING || suppressBanner)
                 .setOnlyAlertOnce(true)
                 .setDefaults(0)
+                .setColorized(true)
+                .setColor(notifColor)
+                .setLargeIcon(avatarBitmap)
+                .addPerson(person)
                 .setStyle(
                     if (call.state == Call.STATE_RINGING) {
                         NotificationCompat.CallStyle.forIncomingCall(person, declinePendingIntent, answerPendingIntent)
@@ -1043,6 +1090,7 @@ class CallService : InCallService() {
     }
 
     override fun onDestroy() {
+        restoreDndIfEnabled()
         releaseScreenWakeLock()
         super.onDestroy()
         flipToSilenceManager?.stopListening()

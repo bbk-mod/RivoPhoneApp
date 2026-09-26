@@ -16,11 +16,21 @@ import com.grinch.rivo4.modal.data.PhoneNumberEntry
 import com.grinch.rivo4.modal.`interface`.IContactsRepository
 import com.grinch.rivo4.modal.db.PrivateContactDao
 import com.grinch.rivo4.modal.db.PrivateContactEntity
+import com.grinch.rivo4.modal.data.AccountEntry
+import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.deduplicateNumbers
 import com.grinch.rivo4.controller.util.areNumbersEqual
 import com.grinch.rivo4.controller.util.CallBackgroundStore
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+
+private data class StructuredNameData(
+    val prefix: String? = null,
+    val givenName: String? = null,
+    val middleName: String? = null,
+    val familyName: String? = null,
+    val suffix: String? = null
+)
 
 class ContactsRepository(
     private val context: Context,
@@ -35,6 +45,27 @@ class ContactsRepository(
         return rawName
     }
 
+    private fun isSyncAdapterAccount(type: String?): Boolean {
+        if (type == null) return false
+        val t = type.lowercase()
+        return t.contains("whatsapp") || t.contains("telegram") || t.contains("viber") || t.contains("skype")
+    }
+
+    private fun pickPrimaryAccount(
+        rawList: List<AccountEntry>,
+        availableAccounts: List<Account>
+    ): Pair<String?, String?> {
+        if (rawList.isEmpty()) return Pair(null, null)
+        val local = rawList.find { ContactUtils.isLocalAccount(it.type, it.name, availableAccounts) }
+        if (local != null) return Pair(local.name, local.type)
+
+        val cloud = rawList.find { !isSyncAdapterAccount(it.type) }
+        if (cloud != null) return Pair(cloud.name, cloud.type)
+
+        // If only sync adapters exist (e.g. WhatsApp), do not prioritize WhatsApp over Device storage!
+        return Pair(null, null)
+    }
+
     override fun getContacts(includePrivate: Boolean, includeHidden: Boolean): List<Contact> {
         val contactsMap = LinkedHashMap<String, Contact>()
         
@@ -47,12 +78,13 @@ class ContactsRepository(
             }
         }
 
-        val accountMap = mutableMapOf<String, Pair<String?, String?>>()
+        val availableAccountsList = getAvailableAccounts()
+        val rawAccountsMap = mutableMapOf<String, MutableList<AccountEntry>>()
         try {
             contentResolver.query(
                 ContactsContract.RawContacts.CONTENT_URI,
                 arrayOf(ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.ACCOUNT_NAME, ContactsContract.RawContacts.ACCOUNT_TYPE),
-                null,
+                "${ContactsContract.RawContacts.DELETED} = 0",
                 null,
                 null
             )?.use { cursor ->
@@ -64,7 +96,11 @@ class ContactsRepository(
                     val name = if (nameCol != -1) cursor.getString(nameCol) else null
                     val type = if (typeCol != -1) cursor.getString(typeCol) else null
                     if (!contactId.isNullOrBlank()) {
-                        accountMap[contactId] = Pair(name, type)
+                        val entry = AccountEntry(name, type)
+                        val list = rawAccountsMap.getOrPut(contactId) { mutableListOf() }
+                        if (list.none { it.name == name && it.type == type }) {
+                            list.add(entry)
+                        }
                     }
                 }
             }
@@ -105,15 +141,17 @@ class ContactsRepository(
                             contactsMap[id] = existingContact.copy(phoneNumbers = numbers)
                         }
                     } else {
-                        val accInfo = accountMap[id]
+                        val linked = rawAccountsMap[id] ?: emptyList()
+                        val (primaryName, primaryType) = pickPrimaryAccount(linked, availableAccountsList)
                         contactsMap[id] = Contact(
                             id = id,
                             name = formatName(cursor.getString(nameIdx) ?: unknownLabel),
                             photoUri = cursor.getString(photoIdx),
                             isFavorite = cursor.getInt(starredIdx) == 1,
                             phoneNumbers = mutableListOf(number),
-                            accountName = accInfo?.first,
-                            accountType = accInfo?.second
+                            accountName = primaryName,
+                            accountType = primaryType,
+                            linkedAccounts = linked
                         )
                     }
                 }
@@ -144,12 +182,54 @@ class ContactsRepository(
             }
         } catch (e: Exception) {}
 
-        val finalList = list.map { contact ->
-            if (nicknameMap.containsKey(contact.id)) {
-                contact.copy(nickname = nicknameMap[contact.id])
-            } else {
-                contact
+        val structuredNameMap = mutableMapOf<String, StructuredNameData>()
+        try {
+            contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(
+                    ContactsContract.Data.CONTACT_ID,
+                    ContactsContract.CommonDataKinds.StructuredName.PREFIX,
+                    ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
+                    ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME,
+                    ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME,
+                    ContactsContract.CommonDataKinds.StructuredName.SUFFIX
+                ),
+                "${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf(ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
+                null
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID)
+                val prefixIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredName.PREFIX)
+                val givenIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME)
+                val middleIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME)
+                val familyIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME)
+                val suffixIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredName.SUFFIX)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(idIdx)
+                    if (id != null && !structuredNameMap.containsKey(id)) {
+                        structuredNameMap[id] = StructuredNameData(
+                            prefix = if (prefixIdx != -1) cursor.getString(prefixIdx) else null,
+                            givenName = if (givenIdx != -1) cursor.getString(givenIdx) else null,
+                            middleName = if (middleIdx != -1) cursor.getString(middleIdx) else null,
+                            familyName = if (familyIdx != -1) cursor.getString(familyIdx) else null,
+                            suffix = if (suffixIdx != -1) cursor.getString(suffixIdx) else null
+                        )
+                    }
+                }
             }
+        } catch (e: Exception) {}
+
+        val finalList = list.map { contact ->
+            val nameData = structuredNameMap[contact.id]
+            val nickname = nicknameMap[contact.id]
+            contact.copy(
+                prefix = nameData?.prefix ?: contact.prefix,
+                givenName = nameData?.givenName ?: contact.givenName,
+                middleName = nameData?.middleName ?: contact.middleName,
+                familyName = nameData?.familyName ?: contact.familyName,
+                suffix = nameData?.suffix ?: contact.suffix,
+                nickname = nickname ?: contact.nickname
+            )
         }
 
         return finalList.sortedBy { it.displayName.lowercase() }
@@ -231,7 +311,9 @@ class ContactsRepository(
             ContactsContract.Data.DATA1,
             ContactsContract.Data.DATA2,
             ContactsContract.Data.DATA3,
+            ContactsContract.Data.DATA4,
             ContactsContract.Data.DATA5,
+            ContactsContract.Data.DATA6,
             ContactsContract.Data.STARRED,
             ContactsContract.Data.CUSTOM_RINGTONE
         )
@@ -253,7 +335,9 @@ class ContactsRepository(
                 val data1Idx = cursor.getColumnIndex(ContactsContract.Data.DATA1)
                 val data2Idx = cursor.getColumnIndex(ContactsContract.Data.DATA2)
                 val data3Idx = cursor.getColumnIndex(ContactsContract.Data.DATA3)
+                val data4Idx = cursor.getColumnIndex(ContactsContract.Data.DATA4)
                 val data5Idx = cursor.getColumnIndex(ContactsContract.Data.DATA5)
+                val data6Idx = cursor.getColumnIndex(ContactsContract.Data.DATA6)
                 val starredIdx = cursor.getColumnIndex(ContactsContract.Data.STARRED)
                 val ringtoneIdx = cursor.getColumnIndex(ContactsContract.Data.CUSTOM_RINGTONE)
 
@@ -265,33 +349,40 @@ class ContactsRepository(
                     val ringtone = cursor.getString(ringtoneIdx)
 
                     val currentContact = contact ?: run {
-                        val (accName, accType) = getAccountInfo(resolvedId)
+                        val (accInfo, linked) = getAccountInfoWithLinked(resolvedId)
                         Contact(
                             id = id,
                             name = formatName(cursor.getString(nameIdx) ?: unknownLabel),
                             photoUri = cursor.getString(photoIdx),
                             isFavorite = isStarred,
                             customRingtone = ringtone,
-                            accountName = accName,
-                            accountType = accType
+                            accountName = accInfo.first,
+                            accountType = accInfo.second,
+                            linkedAccounts = linked
                         )
                     }
 
                     contact = when (mimeType) {
                         ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> {
+                            val prefix = if (data4Idx != -1) cursor.getString(data4Idx) else null
                             val given = cursor.getString(data2Idx)
                             val family = cursor.getString(data3Idx)
                             val middle = if (data5Idx != -1) cursor.getString(data5Idx) else null
+                            val suffix = if (data6Idx != -1) cursor.getString(data6Idx) else null
                             val constructed = listOfNotNull(
+                                prefix?.trim()?.ifBlank { null },
                                 given?.trim()?.ifBlank { null },
                                 middle?.trim()?.ifBlank { null },
-                                family?.trim()?.ifBlank { null }
+                                family?.trim()?.ifBlank { null },
+                                suffix?.trim()?.ifBlank { null }
                             ).joinToString(" ")
                             currentContact.copy(
                                 name = if (constructed.isNotBlank()) constructed else currentContact.name,
+                                prefix = prefix,
                                 givenName = given,
                                 middleName = middle,
-                                familyName = family
+                                familyName = family,
+                                suffix = suffix
                             )
                         }
                         ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> {
@@ -426,7 +517,8 @@ class ContactsRepository(
         return getRawContactIds(contactId).firstOrNull()
     }
 
-    private fun getAccountInfo(contactId: String): Pair<String?, String?> {
+    private fun getAccountInfoWithLinked(contactId: String): Pair<Pair<String?, String?>, List<AccountEntry>> {
+        val entries = mutableListOf<AccountEntry>()
         try {
             contentResolver.query(
                 ContactsContract.RawContacts.CONTENT_URI,
@@ -435,18 +527,26 @@ class ContactsRepository(
                 arrayOf(contactId),
                 null
             )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameIdx = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)
-                    val typeIdx = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE)
+                val nameIdx = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)
+                val typeIdx = cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE)
+                while (cursor.moveToNext()) {
                     val name = if (nameIdx != -1) cursor.getString(nameIdx) else null
                     val type = if (typeIdx != -1) cursor.getString(typeIdx) else null
-                    return Pair(name, type)
+                    val entry = AccountEntry(name, type)
+                    if (entries.none { it.name == name && it.type == type }) {
+                        entries.add(entry)
+                    }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return Pair(null, null)
+        val primary = pickPrimaryAccount(entries, getAvailableAccounts())
+        return Pair(primary, entries)
+    }
+
+    private fun getAccountInfo(contactId: String): Pair<String?, String?> {
+        return getAccountInfoWithLinked(contactId).first
     }
 
     override fun saveContact(contact: Contact) {
@@ -490,9 +590,11 @@ class ContactsRepository(
                         ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
                     )
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.PREFIX, contact.prefix)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, contact.givenName)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, contact.middleName)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, contact.familyName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.SUFFIX, contact.suffix)
                     .build()
             )
 
@@ -602,9 +704,11 @@ class ContactsRepository(
                             ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
                         )
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.PREFIX, contact.prefix)
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, contact.givenName)
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, contact.middleName)
                         .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, contact.familyName)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.SUFFIX, contact.suffix)
                         .build()
                 )
 
@@ -915,6 +1019,7 @@ class ContactsRepository(
                         listOf(number)
                     }
 
+                    val (accInfo, linked) = if (id.isNotBlank()) getAccountInfoWithLinked(id) else Pair(Pair(null, null), emptyList())
                     return Contact(
                         id = id,
                         name = formatName(name ?: unknownLabel),
@@ -922,7 +1027,10 @@ class ContactsRepository(
                         photoUri = photoUri,
                         isFavorite = starred,
                         phoneNumbers = numbers,
-                        customRingtone = ringtone
+                        customRingtone = ringtone,
+                        accountName = accInfo.first,
+                        accountType = accInfo.second,
+                        linkedAccounts = linked
                     )
                 }
             }

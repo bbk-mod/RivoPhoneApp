@@ -453,7 +453,7 @@ private fun HeroFavoriteCard(
                     )
                 }
                 Text(
-                    text = ContactUtils.formatContactName(contact.name, displayOrder),
+                    text = ContactUtils.formatContactName(contact, displayOrder),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -792,7 +792,7 @@ private fun AddFavoriteBottomSheet(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = ContactUtils.formatContactName(contact.name, displayOrder),
+                                        text = ContactUtils.formatContactName(contact, displayOrder),
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,

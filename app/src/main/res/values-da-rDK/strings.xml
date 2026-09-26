@@ -27,6 +27,8 @@
     <!-- Settings > Interface -->
     <!-- Settings > Sound & Vibration -->
     <!-- Settings > Call accounts -->
+    <string name="settings_call_auto_speaker_proximity">Automatisk Højttalertelefon</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Skift til højttaler, når den er væk fra øret, øreemnet når nær øret (undertrykket, når hovedtelefoner er tilsluttet)</string>
     <!-- Settings > Blocked numbers -->
     <!-- Settings > Backup & Restore -->
     <!-- Settings > Manage contacts -->
@@ -85,4 +87,29 @@
     <string name="call_analytics_disabled_title">Ring Til Analytics &amp; Sporing Deaktiveret</string>
     <string name="call_analytics_disabled_desc">Opkaldsanalyse og sporing af taletid er i øjeblikket slået fra. Aktivér denne mulighed for at beregne taletid, spidstider og kontaktindsigt.</string>
     <string name="call_analytics_enable_action">Aktiver Analytics &amp; Tracking</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">Standard SIM-kort</string>
+    <string name="contact_default_sim_supporting">Vælg hvilket SIM-kort der skal bruges, når du ringer til denne kontakt</string>
+    <string name="sim_remember_for_contact">Brug altid dette SIM-kort til denne kontakt</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_storage_title">Lagerplads &amp; Placering</string>
+    <string name="settings_recording_save_folder">Gem Placering</string>
+    <string name="settings_recording_save_folder_default">Standard (Optagelser/Rivo Optagelser)</string>
+    <string name="settings_recording_reset_folder">Nulstil til standardmappe</string>
+    <string name="settings_recording_reset_folder_supporting">Gem optagelser til den almindelige Rivo Optagelsesmappe</string>
+    <string name="settings_recording_folder_changed">Gem placering opdateret: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Gem placering nulstilling til standard</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">Forstyr ikke under opkald</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Gør notifikationer og andre afbrydelser automatisk lydløse under et opkald</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Ring Baggrunde</string>
+    <string name="settings_call_unknown_background">Ukendt Opkaldsbaggrund</string>
+    <string name="settings_call_unknown_background_set">Et brugerdefineret billede er vist for ukendte opkaldere</string>
+    <string name="settings_call_unknown_background_none">Ikke indstillet — bruger standardopkaldsbaggrund</string>
+    <string name="settings_call_unknown_background_supporting">Vist ved indgående opkald fra ukendte eller ikke-gemte telefonnumre.</string>
+    <string name="settings_call_background_no_preview">Ingen brugerdefineret baggrund</string>
+    <string name="settings_call_background_change_gallery">Skift billede</string>
+    <string name="settings_call_background_choose_gallery">Vælg fra galleri</string>
+    <string name="settings_call_background_remove">Fjern baggrund</string>
 </resources>

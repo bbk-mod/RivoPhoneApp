@@ -331,6 +331,8 @@
     <string name="settings_call_t9_dialing_supporting">Predice palabras de las entradas del teclado numérico</string>
     <string name="settings_call_proximity_sensor">Sensor de proximidad</string>
     <string name="settings_call_proximity_sensor_supporting">Apagar la pantalla durante las llamadas cerca de la oreja</string>
+    <string name="settings_call_auto_speaker_proximity">Altavoz automático</string>
+    <string name="settings_call_auto_speaker_proximity_supporting">Cambiar al altavoz cuando esté lejos de la oreja, auricular cuando esté cerca de la oreja (reprimido cuando los auriculares se conectan)</string>
     <string name="settings_call_incoming_ui">IU de la llamada entrante</string>
     <string name="settings_call_incoming_ui_supporting">Elige cómo responder a llamadas entrantes</string>
     <string name="settings_call_incoming_ui_horizontal_swipe">Deslizamiento horizontal</string>
@@ -500,4 +502,29 @@
     <string name="call_analytics_disabled_title">Análisis de llamadas &amp; Seguimiento deshabilitado</string>
     <string name="call_analytics_disabled_desc">Actualmente se han desactivado los análisis de llamadas y el seguimiento del tiempo de habla. Activa esta opción para calcular la hora de habla, las horas pico y los datos de contacto.</string>
     <string name="call_analytics_enable_action">Habilitar Analytics &amp; Seguimiento</string>
+    <!-- Dual SIM per Contact -->
+    <string name="contact_default_sim">Tarjeta SIM por defecto</string>
+    <string name="contact_default_sim_supporting">Elige qué SIM usar al llamar a este contacto</string>
+    <string name="sim_remember_for_contact">Usar siempre esta SIM para este contacto</string>
+    <!-- Call Recording Custom Save Folder -->
+    <string name="settings_recording_storage_title">Almacenamiento &amp; Ubicación</string>
+    <string name="settings_recording_save_folder">Guardar ubicación</string>
+    <string name="settings_recording_save_folder_default">Por defecto (Grabaciones/Rivo Grabaciones)</string>
+    <string name="settings_recording_reset_folder">Restablecer carpeta predeterminada</string>
+    <string name="settings_recording_reset_folder_supporting">Guardar grabaciones en el directorio estándar de Rivo Recordings</string>
+    <string name="settings_recording_folder_changed">Guardar ubicación actualizada: %1$s</string>
+    <string name="settings_recording_reset_folder_toast">Guardar ubicación restablecida por defecto</string>
+    <!-- Do Not Disturb during calls -->
+    <string name="settings_sound_dnd_during_calls">No molestar durante las llamadas</string>
+    <string name="settings_sound_dnd_during_calls_supporting">Silenciar automáticamente las notificaciones y otras interrupciones durante una llamada</string>
+    <!-- Unknown Call Background & Image Preview Strings -->
+    <string name="settings_call_backgrounds_title">Fondo de llamadas</string>
+    <string name="settings_call_unknown_background">Fondo de llamada desconocido</string>
+    <string name="settings_call_unknown_background_set">Se muestra una imagen personalizada para llamadas desconocidas</string>
+    <string name="settings_call_unknown_background_none">No establecido — utiliza el fondo de llamada por defecto</string>
+    <string name="settings_call_unknown_background_supporting">Mostrar en llamadas entrantes de números de teléfono desconocidos o no guardados.</string>
+    <string name="settings_call_background_no_preview">Sin fondo personalizado</string>
+    <string name="settings_call_background_change_gallery">Cambiar imagen</string>
+    <string name="settings_call_background_choose_gallery">Seleccionar de la galería</string>
+    <string name="settings_call_background_remove">Eliminar fondo</string>
 </resources>

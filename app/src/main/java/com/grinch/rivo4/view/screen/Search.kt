@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.grinch.rivo4.view.components.rivoGroupedItemShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -305,56 +307,50 @@ fun ContactSearchContent(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            item {
-                                RivoSectionHeader(
-                                    title = stringResource(R.string.search_results_header),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-                                )
-                            }
-
                             if (filteredContacts.isNotEmpty()) {
                                 item {
                                     RivoSectionHeader(
                                         title = stringResource(R.string.nav_contacts),
-                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 4.dp)
                                     )
                                 }
 
-                                item {
-                                    RivoExpressiveCard {
-                                        filteredContacts.forEachIndexed { index, contact ->
-                                            RivoListItem(
-                                                headline = contact.displayName,
-                                                supporting = buildString {
-                                                    contact.nickname?.let { append("$it • ") }
-                                                    contact.phoneNumbers.firstOrNull()?.let { append(formatPhoneNumber(it)) }
-                                                }.ifEmpty { null },
-                                                avatarName = contact.displayName,
-                                                photoUri = contact.photoUri,
-                                                onClick = {
-                                                    navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
-                                                },
-                                                trailingContent = {
-                                                    contact.phoneNumbers.firstOrNull()?.let { num ->
-                                                        IconButton(
-                                                            onClick = { callLauncher.dial(num, contact) }
-                                                        ) {
-                                                            Icon(
-                                                                Icons.Rounded.Call,
-                                                                contentDescription = stringResource(R.string.action_call),
-                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                modifier = Modifier.size(20.dp)
-                                                            )
-                                                        }
+                                itemsIndexed(filteredContacts, key = { _, c -> "contact_${c.id}" }) { index, contact ->
+                                    val shape = rivoGroupedItemShape(index, filteredContacts.size)
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = shape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                                    ) {
+                                        RivoListItem(
+                                            headline = contact.displayName,
+                                            supporting = buildString {
+                                                contact.nickname?.let { append("$it • ") }
+                                                contact.phoneNumbers.firstOrNull()?.let { append(formatPhoneNumber(it)) }
+                                            }.ifEmpty { null },
+                                            avatarName = contact.displayName,
+                                            photoUri = contact.photoUri,
+                                            onClick = {
+                                                navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                            },
+                                            trailingContent = {
+                                                contact.phoneNumbers.firstOrNull()?.let { num ->
+                                                    IconButton(
+                                                        onClick = { callLauncher.dial(num, contact) }
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Rounded.Call,
+                                                            contentDescription = stringResource(R.string.action_call),
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
                                                     }
                                                 }
-                                            )
-                                            if (index < filteredContacts.size - 1) {
-                                                RivoDivider(modifier = Modifier.padding(horizontal = 16.dp))
                                             }
-                                        }
+                                        )
                                     }
                                 }
                             }
@@ -363,31 +359,32 @@ fun ContactSearchContent(
                                 item {
                                     RivoSectionHeader(
                                         title = stringResource(R.string.nav_recents),
-                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 4.dp)
                                     )
                                 }
 
-                                item {
-                                    RivoExpressiveCard {
-                                        filteredCallLogs.forEachIndexed { index, lg ->
-                                            CallLogTileSimple(
-                                                log = lg,
-                                                onClick = {
-                                                    navigator.navigate(
-                                                        ContactDetailsScreenDestination(
-                                                            contactId = lg.contactId,
-                                                            phoneNumber = lg.number
-                                                        )
+                                itemsIndexed(filteredCallLogs, key = { _, lg -> "call_${lg.id}_${lg.date}" }) { index, lg ->
+                                    val shape = rivoGroupedItemShape(index, filteredCallLogs.size)
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = shape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow
+                                    ) {
+                                        CallLogTileSimple(
+                                            log = lg,
+                                            onClick = {
+                                                navigator.navigate(
+                                                    ContactDetailsScreenDestination(
+                                                        contactId = lg.contactId,
+                                                        phoneNumber = lg.number
                                                     )
-                                                },
-                                                onCallClick = {
-                                                    callLauncher.dial(lg.number, null)
-                                                }
-                                            )
-                                            if (index < filteredCallLogs.size - 1) {
-                                                RivoDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                                )
+                                            },
+                                            onCallClick = {
+                                                callLauncher.dial(lg.number, null)
                                             }
-                                        }
+                                        )
                                     }
                                 }
                             }

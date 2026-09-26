@@ -79,11 +79,51 @@ class PreferenceManager(context: Context) {
     }
 
     fun setFavoriteSim(contactId: String, simHandle: String?) {
-        prefs.edit().putString("favorite_sim_$contactId", simHandle).apply()
+        prefs.edit()
+            .putString("favorite_sim_$contactId", simHandle)
+            .putString("contact_default_sim_$contactId", simHandle)
+            .apply()
     }
 
     fun getFavoriteSim(contactId: String): String? {
-        return prefs.getString("favorite_sim_$contactId", null)
+        return prefs.getString("contact_default_sim_$contactId", null)
+            ?: prefs.getString("favorite_sim_$contactId", null)
+    }
+
+    fun setDefaultSimForContact(contactId: String, simHandle: String?) {
+        setFavoriteSim(contactId, simHandle)
+    }
+
+    fun getDefaultSimForContact(contactId: String): String? {
+        return getFavoriteSim(contactId)
+    }
+
+    fun getCustomRecordingFolderUri(): String? {
+        return getString(KEY_CALL_RECORDING_FOLDER_URI, null)
+    }
+
+    fun setCustomRecordingFolderUri(uri: String?) {
+        setString(KEY_CALL_RECORDING_FOLDER_URI, uri)
+    }
+
+    fun getCustomRecordingFolderName(): String? {
+        return getString(KEY_CALL_RECORDING_FOLDER_NAME, null)
+    }
+
+    fun setCustomRecordingFolderName(name: String?) {
+        setString(KEY_CALL_RECORDING_FOLDER_NAME, name)
+    }
+
+    fun saveCustomRecordingFolder(uri: String, name: String? = null) {
+        setCustomRecordingFolderUri(uri)
+        if (name != null) setCustomRecordingFolderName(name)
+    }
+
+    fun resetCustomRecordingFolder() {
+        prefs.edit()
+            .remove(KEY_CALL_RECORDING_FOLDER_URI)
+            .remove(KEY_CALL_RECORDING_FOLDER_NAME)
+            .apply()
     }
 
     fun setFavoriteEmail(contactId: String, email: String?) {
@@ -258,6 +298,7 @@ class PreferenceManager(context: Context) {
         const val KEY_SPEED_DIAL = "speed_dial"
         const val KEY_T9_DIALING = "t9_dialing"
         const val KEY_PROXIMITY_SENSOR = "proximity_sensor"
+        const val KEY_AUTO_SPEAKER_PROXIMITY = "auto_speaker_proximity"
         const val KEY_INCOMING_CALL_POPUP = "incoming_call_popup"
         const val KEY_ALWAYS_FULL_SCREEN_CALLS = "always_full_screen_calls"
         const val KEY_AUTO_REDIAL_BUSY = "auto_redial_busy"
@@ -311,6 +352,8 @@ class PreferenceManager(context: Context) {
         const val KEY_CALL_RECORDING_AUTO = "call_recording_auto"
         const val KEY_CALL_RECORDING_SHIZUKU = "call_recording_shizuku"
         const val KEY_CALL_RECORDING_FILTER = "call_recording_filter"
+        const val KEY_CALL_RECORDING_FOLDER_URI = "call_recording_folder_uri"
+        const val KEY_CALL_RECORDING_FOLDER_NAME = "call_recording_folder_name"
         const val RECORD_FILTER_ALL = 0
         const val RECORD_FILTER_INCOMING_ONLY = 1
         const val RECORD_FILTER_OUTGOING_ONLY = 2
@@ -319,6 +362,7 @@ class PreferenceManager(context: Context) {
 
         const val KEY_POCKET_MODE = "pocket_mode"
         const val KEY_VOLUME_SQUEEZE_DND = "volume_squeeze_dnd"
+        const val KEY_DND_DURING_CALLS = "dnd_during_calls"
         const val KEY_QUICK_RESPONSES = "custom_quick_responses"
         val DEFAULT_QUICK_RESPONSES = listOf(
             "Can't talk now. What's up?",
@@ -467,6 +511,9 @@ class PreferenceManager(context: Context) {
 
     fun isDualSimDialpadButtonsEnabled(): Boolean = getBoolean(KEY_DUAL_SIM_DIALPAD_BUTTONS, false)
     fun setDualSimDialpadButtonsEnabled(enabled: Boolean) = setBoolean(KEY_DUAL_SIM_DIALPAD_BUTTONS, enabled)
+
+    fun isAutoSpeakerProximityEnabled(): Boolean = getBoolean(KEY_AUTO_SPEAKER_PROXIMITY, false)
+    fun setAutoSpeakerProximityEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_SPEAKER_PROXIMITY, enabled)
 
     fun resetSwipeActions() {
         setBoolean(KEY_SWIPE_ACTIONS_ENABLED, false)
