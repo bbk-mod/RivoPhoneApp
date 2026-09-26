@@ -112,40 +112,12 @@ class ContactsViewModel(
             }
         }
         
-        if (sortOrder == 1) {
-            baseFiltered.sortedBy { contact ->
-                val sortKey = when {
-                    !contact.familyName.isNullOrBlank() -> contact.familyName
-                    !contact.givenName.isNullOrBlank() -> contact.givenName
-                    else -> contact.displayName.split(" ").lastOrNull() ?: contact.displayName
-                }
-                sortKey.lowercase()
-            }
-        } else {
-            baseFiltered.sortedBy { contact ->
-                val sortKey = when {
-                    !contact.givenName.isNullOrBlank() -> contact.givenName
-                    else -> contact.displayName
-                }
-                sortKey.lowercase()
-            }
-        }
+        baseFiltered.sortedBy { contact -> contactSortKey(contact, sortOrder).lowercase() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val groupedContacts = combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
         val mainGroups = contacts.groupBy { contact ->
-            val nameToUse = if (sortOrder == 1) {
-                when {
-                    !contact.familyName.isNullOrBlank() -> contact.familyName
-                    !contact.givenName.isNullOrBlank() -> contact.givenName
-                    else -> contact.displayName.split(" ").lastOrNull() ?: contact.displayName
-                }
-            } else {
-                when {
-                    !contact.givenName.isNullOrBlank() -> contact.givenName
-                    else -> contact.displayName
-                }
-            }
+            val nameToUse = contactSortKey(contact, sortOrder)
             val firstChar = nameToUse.trim().firstOrNull()?.uppercaseChar() ?: '#'
             if (firstChar.isLetter()) firstChar else '#'
         }.toMutableMap()
@@ -161,6 +133,22 @@ class ContactsViewModel(
 
         finalMap
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private fun contactSortKey(contact: Contact, sortOrder: Int): String {
+        if (!contact.nickname.isNullOrBlank()) return contact.displayName.trim()
+        return if (sortOrder == 1) {
+            when {
+                !contact.familyName.isNullOrBlank() -> contact.familyName
+                !contact.givenName.isNullOrBlank() -> contact.givenName
+                else -> contact.displayName.split(" ").lastOrNull() ?: contact.displayName
+            }
+        } else {
+            when {
+                !contact.givenName.isNullOrBlank() -> contact.givenName
+                else -> contact.displayName
+            }
+        }
+    }
 
     init {
         fetchAccounts()
