@@ -315,7 +315,7 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
         ) {
             if (!isEditing && items.size >= 3) {
                 val heroContact = items.first()
-                item(span = { GridItemSpan(2) }, key = "hero_${heroContact.id}") {
+                item(span = { GridItemSpan(2) }, key = "hero_${heroContact.id}_${heroContact.phoneNumbers.joinToString()}") {
                     HeroFavoriteCard(
                         contact = heroContact,
                         displayOrder = displayOrder,
@@ -334,7 +334,7 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
                 }
             }
 
-            itemsIndexed(items, key = { _, contact -> contact.id }) { index, contact ->
+            itemsIndexed(items, key = { _, contact -> "${contact.id}_${contact.phoneNumbers.joinToString()}_" + contact.name }) { index, contact ->
                 val dragging = index == dragDropState.draggingItemIndex
                 val itemModifier = if (dragging) {
                     Modifier
