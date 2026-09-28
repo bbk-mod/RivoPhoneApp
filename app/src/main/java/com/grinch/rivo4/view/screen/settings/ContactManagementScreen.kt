@@ -627,6 +627,7 @@ fun ContactManagementScreen(
         RivoConfirmationDialog(
             onDismissRequest = { showMergeAllDialog = false },
             onConfirm = {
+                showMergeAllDialog = false
                 contactsVM.mergeAllDuplicates()
                 scope.launch {
                     snackbarHostState.showSnackbar(context.getString(R.string.contact_management_merge_success, duplicateGroups.size))
