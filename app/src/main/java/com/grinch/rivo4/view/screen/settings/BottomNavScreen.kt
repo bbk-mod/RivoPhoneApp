@@ -1,4 +1,6 @@
 package com.grinch.rivo4.view.screen.settings
+import com.grinch.rivo4.view.components.RivoResetButton
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -82,13 +84,9 @@ fun BottomNavScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Navigation Bar", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_bottom_nav_title),
+                navigator = navigator
             )
         },
         containerColor = MaterialTheme.colorScheme.surface
@@ -103,7 +101,7 @@ fun BottomNavScreen(
             // 1. Style & Appearance
             item {
                 RivoExpressiveGroup(
-                    title = "Style & Appearance",
+                    title = stringResource(R.string.settings_group_style_appearance),
                     icon = Icons.Outlined.Dock
                 ) {
                     item {
@@ -223,24 +221,19 @@ fun BottomNavScreen(
                             }
                         }
                     }
-                    item {
-                        Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-                            OutlinedButton(
-                                onClick = {
-                                    prefs.resetBottomNavLayout()
-                                    order = prefs.getBottomNavOrder()
-                                    hidden = prefs.getHiddenBottomNavTabs()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.large
-                            ) {
-                                Icon(Icons.Outlined.Restore, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.settings_bottom_nav_reset))
-                            }
-                        }
-                    }
                 }
+            }
+
+            item {
+                RivoResetButton(
+                    onClick = {
+                        prefs.resetBottomNavLayout()
+                        order = prefs.getBottomNavOrder()
+                        hidden = prefs.getHiddenBottomNavTabs()
+                    },
+                    text = stringResource(R.string.settings_bottom_nav_reset),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
 
             // 3. Behavior & Defaults

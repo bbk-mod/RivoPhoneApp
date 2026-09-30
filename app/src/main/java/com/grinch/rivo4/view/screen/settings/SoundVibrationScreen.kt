@@ -1,4 +1,5 @@
 package com.grinch.rivo4.view.screen.settings
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import android.content.Intent
 import android.provider.Settings
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.PhoneMissed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -53,15 +55,12 @@ fun SoundVibrationScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_sound_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_sound_title),
+                navigator = navigator
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -71,7 +70,7 @@ fun SoundVibrationScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item {
-                RivoExpressiveGroup(title = "Dialpad & Tones") {
+                RivoExpressiveGroup(title = stringResource(R.string.settings_group_dialpad_tones)) {
                     item {
                         RivoSwitchListItem(
                             headline = stringResource(R.string.settings_sound_dtmf_tone),
@@ -112,7 +111,7 @@ fun SoundVibrationScreen(
             }
 
             item {
-                RivoExpressiveGroup(title = "Call Vibration & Haptics") {
+                RivoExpressiveGroup(title = stringResource(R.string.settings_group_call_vibration_haptics)) {
                     item {
                         RivoSwitchListItem(
                             headline = stringResource(R.string.settings_sound_vibrate_on_answer),
@@ -153,7 +152,7 @@ fun SoundVibrationScreen(
             }
 
             item {
-                RivoExpressiveGroup(title = "Gestures & Do Not Disturb") {
+                RivoExpressiveGroup(title = stringResource(R.string.settings_group_gestures_dnd)) {
                     item {
                         RivoSwitchListItem(
                             headline = stringResource(R.string.settings_sound_flip_to_silence),
@@ -208,7 +207,7 @@ fun SoundVibrationScreen(
             }
 
             item {
-                RivoExpressiveGroup(title = "Alerts & Ringtones") {
+                RivoExpressiveGroup(title = stringResource(R.string.settings_group_alerts_ringtones)) {
                     item {
                         RivoListItem(
                             headline = stringResource(R.string.priority_contacts_title),
@@ -221,7 +220,7 @@ fun SoundVibrationScreen(
                         RivoSwitchListItem(
                             headline = stringResource(R.string.settings_sound_missed_call_notifications),
                             supporting = stringResource(R.string.settings_sound_missed_call_notifications_supporting),
-                            leadingIcon = Icons.Outlined.PhoneMissed,
+                            leadingIcon = Icons.AutoMirrored.Outlined.PhoneMissed,
                             checked = missedCallNotifications,
                             onCheckedChange = {
                                 missedCallNotifications = it

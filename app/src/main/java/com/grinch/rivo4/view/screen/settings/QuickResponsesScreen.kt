@@ -1,4 +1,7 @@
 package com.grinch.rivo4.view.screen.settings
+import androidx.compose.material.icons.automirrored.outlined.Message
+import com.grinch.rivo4.view.components.RivoFloatingActionButton
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
@@ -52,31 +55,30 @@ fun QuickResponsesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Quick Responses", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_quick_responses_title),
+                navigator = navigator,
                 actions = {
                     IconButton(onClick = { showResetConfirm = true }) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Reset to Defaults")
+                        Icon(
+                            Icons.Outlined.RestartAlt,
+                            contentDescription = stringResource(R.string.settings_quick_responses_reset_tooltip)
+                        )
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            RivoFloatingActionButton(
                 onClick = {
                     editingText = ""
                     isAddingNew = true
-                },
-                shape = CircleShape
+                }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Response")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.settings_quick_responses_add))
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -125,8 +127,8 @@ fun QuickResponsesScreen(
             if (responses.isEmpty()) {
                 item {
                     RivoExpressiveCard(
-                        title = "Canned Responses (0)",
-                        icon = Icons.Outlined.Message
+                        title = stringResource(R.string.settings_group_canned_responses, 0),
+                        icon = Icons.AutoMirrored.Outlined.Message
                     ) {
                         Box(
                             modifier = Modifier
@@ -135,7 +137,7 @@ fun QuickResponsesScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No quick responses configured",
+                                text = stringResource(R.string.settings_quick_responses_no_responses),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -145,8 +147,8 @@ fun QuickResponsesScreen(
             } else {
                 item {
                     RivoExpressiveGroup(
-                        title = "Canned Responses (${responses.size})",
-                        icon = Icons.Outlined.Message
+                        title = stringResource(R.string.settings_group_canned_responses, responses.size),
+                        icon = Icons.AutoMirrored.Outlined.Message
                     ) {
                         responses.forEachIndexed { index, responseText ->
                             item {

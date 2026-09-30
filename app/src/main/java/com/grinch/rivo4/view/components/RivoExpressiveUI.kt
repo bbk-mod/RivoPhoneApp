@@ -1,4 +1,5 @@
 package com.grinch.rivo4.view.components
+import androidx.compose.material.icons.outlined.Restore
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -143,6 +144,22 @@ fun rivoGroupedItemShape(
 }
 
 /**
+ * Dynamic grouped item shape that scales its outer and inner corner radii with [LocalCardRoundness].
+ */
+@Composable
+fun rivoGroupedItemShape(
+    index: Int,
+    total: Int,
+    roundness: Int = LocalCardRoundness.current,
+    baseCorner: Int = 20,
+    innerCorner: Int = 4
+): Shape {
+    val outerDp = rivoCornerDp(baseCorner, roundness)
+    val innerDp = rivoCornerDp(innerCorner, roundness)
+    return rivoGroupedItemShape(index, total, outerDp, innerDp)
+}
+
+/**
  * Reusable container for grouped card items matching the Recents M3 Expressive design.
  */
 @Composable
@@ -151,8 +168,8 @@ fun RivoGroupedCardContainer(
     total: Int,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
-    cornerRadius: Dp = 20.dp,
-    innerCorner: Dp = 4.dp,
+    cornerRadius: Dp = rivoCornerDp(20, LocalCardRoundness.current),
+    innerCorner: Dp = rivoCornerDp(4, LocalCardRoundness.current),
     content: @Composable BoxScope.() -> Unit
 ) {
     val shape = rivoGroupedItemShape(index, total, cornerRadius, innerCorner)
@@ -207,27 +224,43 @@ fun RivoExpressiveGroup(
     scope.content()
     if (scope.items.isEmpty() && title == null && icon == null) return
 
+    val surfaceStyle = rivoSurfaceStyle()
+    val roundness = LocalCardRoundness.current
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+        verticalArrangement = Arrangement.spacedBy(if (surfaceStyle.showCards) 3.dp else 0.dp)
     ) {
         if (title != null || icon != null) {
             RivoSectionHeader(
                 title = title.orEmpty(),
                 icon = icon,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                 modifier = Modifier.padding(headerPadding)
             )
         }
         val total = scope.items.size
         scope.items.forEachIndexed { index, (itemKey, itemLambda) ->
             key(itemKey ?: index) {
-                val shape = rivoGroupedItemShape(index, total)
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = shape,
-                    color = containerColor
-                ) {
-                    itemLambda()
+                if (surfaceStyle.showCards) {
+                    val shape = rivoGroupedItemShape(index, total, roundness)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shape,
+                        color = containerColor
+                    ) {
+                        itemLambda()
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        itemLambda()
+                        if (index < total - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -292,7 +325,8 @@ fun RivoExpressiveCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val cardsEnabled = showCards ?: rivoSurfaceStyle().showCards
-    val resolvedShape = shape ?: RoundedCornerShape(20.dp)
+    val roundness = LocalCardRoundness.current
+    val resolvedShape = shape ?: RoundedCornerShape(rivoCornerDp(20, roundness))
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -302,6 +336,7 @@ fun RivoExpressiveCard(
             RivoSectionHeader(
                 title = title.orEmpty(),
                 icon = icon,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                 modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
             )
         }
@@ -342,7 +377,7 @@ fun RivoSectionHeader(
     title: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
     trailingContent: @Composable (() -> Unit)? = null
 ) {
     Row(
@@ -373,6 +408,46 @@ fun RivoSectionHeader(
         if (trailingContent != null) {
             trailingContent()
         }
+    }
+}
+
+
+@Composable
+fun RivoResetButton(
+    onClick: () -> Unit,
+    text: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Outlined.Restore,
+    enabled: Boolean = true
+) {
+    val roundness = LocalCardRoundness.current
+    val shape = RoundedCornerShape(rivoCornerDp(16, roundness))
+
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        shape = shape,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

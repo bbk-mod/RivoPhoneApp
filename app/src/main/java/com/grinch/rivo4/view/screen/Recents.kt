@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +65,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.PhoneMissed
+import com.grinch.rivo4.view.theme.LocalCardRoundness
+import com.grinch.rivo4.view.theme.rivoCornerDp
+import com.grinch.rivo4.controller.util.normalizePhoneNumber
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -206,12 +209,8 @@ fun RecentScreenContent(
         floatingActionButton = {
             if (selectedEntries.isEmpty()) {
                 val fabBottomPadding = LocalScrollToTopBottomPadding.current
-                FloatingActionButton(
+                RivoFloatingActionButton(
                     onClick = { navigator.navigate(DialPadScreenDestination()) },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp, pressedElevation = 6.dp),
                     modifier = Modifier.padding(bottom = fabBottomPadding)
                 ) {
                     Icon(Icons.Default.Dialpad, stringResource(R.string.content_desc_dialpad))
@@ -346,6 +345,7 @@ fun FavoriteCircleItem(
 @Composable
 fun AddFavoriteDialog(
     allContacts: List<Contact>,
+    displayOrder: Int = 0,
     onDismissRequest: () -> Unit,
     onContactSelected: (Contact) -> Unit
 ) {
@@ -513,6 +513,17 @@ fun CallLogFullContent(
             )
         }
         val contactsById = remember(allContacts) { allContacts.associateBy { it.id } }
+        val contactsByNumber = remember(allContacts) {
+            val map = mutableMapOf<String, Contact>()
+            for (c in allContacts) {
+                for (p in c.phoneNumbers) {
+                    val norm = normalizePhoneNumber(p)
+                    val key = if (norm.length >= 10) norm.takeLast(10) else norm
+                    if (key.isNotEmpty()) map[key] = c
+                }
+            }
+            map
+        }
         val favoriteContactIds = remember(favorites) { favorites.map { it.id }.toSet() }
         val surfaceStyle = rememberRivoSurfaceStyle(prefs)
 
@@ -532,11 +543,25 @@ fun CallLogFullContent(
             filteredLogs.groupBy { formatDateHeader(context, it.date) }
         }
 
+        // Precompute contact matches for all displayed call logs to prevent expensive
+        // phone number normalization and string operations on every LazyColumn frame during scrolling
+        val contactsByLogId = remember(filteredLogs, contactsById, contactsByNumber) {
+            filteredLogs.associate { lg ->
+                val matched = lg.contactId?.let { contactsById[it] } ?: run {
+                    val norm = normalizePhoneNumber(lg.number)
+                    val key = if (norm.length >= 10) norm.takeLast(10) else norm
+                    if (key.isNotEmpty()) contactsByNumber[key] else null
+                }
+                lg.id to matched
+            }
+        }
+
         val pullToRefreshState = rememberPullToRefreshState()
 
         if (showAddFavoriteDialog) {
             AddFavoriteDialog(
                 allContacts = allContacts,
+                displayOrder = displayOrder,
                 onDismissRequest = { showAddFavoriteDialog = false },
                 onContactSelected = { contact ->
                     contactsVM.toggleFavorite(contact)
@@ -753,7 +778,12 @@ fun CallLogFullContent(
                             item(key = "header_${header}_$groupIndex", contentType = "header") {
                                 RivoSectionHeader(
                                     title = header,
-                                    modifier = Modifier.padding(top = if (groupIndex == 0) 4.dp else 16.dp, bottom = 4.dp)
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = if (groupIndex == 0) 4.dp else 16.dp,
+                                        bottom = 4.dp
+                                    )
                                 )
                             }
 
@@ -762,26 +792,29 @@ fun CallLogFullContent(
                                 key = { _, lg -> lg.id },
                                 contentType = { _, _ -> "call_log" }
                             ) { index, lg ->
-                                val isFirst = index == 0
-                                val isLast = index == logsInGroup.size - 1
-                                val isSingle = logsInGroup.size == 1
+                                val showCards = surfaceStyle.showCards
+                                val shape = rivoGroupedItemShape(index, logsInGroup.size)
 
-                                val shape = when {
-                                    isSingle -> RoundedCornerShape(20.dp)
-                                    isFirst -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                                    isLast -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                    else -> RoundedCornerShape(4.dp)
-                                }
-
-                                Box(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .clip(shape)
-                                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                        .then(if (showCards) Modifier.padding(horizontal = 16.dp) else Modifier)
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(
+                                                if (showCards) {
+                                                    Modifier
+                                                        .clip(shape)
+                                                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                                } else Modifier
+                                            )
+                                    ) {
+                                    val matchedContact = contactsByLogId[lg.id]
                                     CallLogTile(
                                         log = lg,
+                                        contact = matchedContact,
                                         displayOrder = displayOrder,
                                         showSim = callLogConfig.showSim,
                                         isFavorite = lg.contactId != null && lg.contactId in favoriteContactIds,
@@ -801,7 +834,7 @@ fun CallLogFullContent(
                                             }
                                         },
                                         onButtonClick = { log ->
-                                            val contact = contactsById[log.contactId]
+                                            val contact = matchedContact ?: contactsById[log.contactId]
                                             callLauncher.dial(log.number, contact)
                                         },
                                         onLongClick = { log ->
@@ -826,6 +859,13 @@ fun CallLogFullContent(
                                             }
                                         }
                                     )
+                                    }
+                                    if (!showCards && index < logsInGroup.size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -846,20 +886,21 @@ fun CallLogFullContent(
 
 @Composable
 fun EmptyCallLogsState() {
+    val roundness = LocalCardRoundness.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
-            shape = RoundedCornerShape(32.dp),
+            shape = RoundedCornerShape(rivoCornerDp(32, roundness)),
             color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier.size(120.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     modifier = Modifier.size(64.dp),
-                    imageVector = Icons.Default.PhoneMissed,
+                    imageVector = Icons.AutoMirrored.Filled.PhoneMissed,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -990,12 +1031,13 @@ private fun DailyStatCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val roundness = LocalCardRoundness.current
     Surface(
         modifier = modifier
             .width(104.dp)
             .height(100.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(rivoCornerDp(22, roundness)),
         color = containerColor
     ) {
         Box(

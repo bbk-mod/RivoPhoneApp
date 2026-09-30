@@ -1,10 +1,13 @@
 package com.grinch.rivo4.view.screen.settings
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -48,13 +51,9 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_title),
+                navigator = navigator
             )
         },
         containerColor = MaterialTheme.colorScheme.surface
@@ -101,7 +100,7 @@ fun SettingsScreen(
                         RivoListItem(
                             headline = stringResource(R.string.settings_sound_vibration_headline),
                             supporting = stringResource(R.string.settings_sound_vibration_supporting),
-                            leadingIcon = Icons.Outlined.VolumeUp,
+                            leadingIcon = Icons.AutoMirrored.Outlined.VolumeUp,
                             onClick = { navigator.navigate(SoundVibrationScreenDestination) }
                         )
                     }
@@ -192,7 +191,7 @@ fun SettingsScreen(
                         RivoListItem(
                             headline = stringResource(R.string.fake_call_title),
                             supporting = stringResource(R.string.fake_call_subtitle),
-                            leadingIcon = Icons.Outlined.PhoneCallback,
+                            leadingIcon = Icons.AutoMirrored.Outlined.PhoneCallback,
                             onClick = { navigator.navigate(FakeCallSchedulerScreenDestination) }
                         )
                     }

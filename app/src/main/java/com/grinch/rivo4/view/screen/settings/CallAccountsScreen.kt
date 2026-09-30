@@ -1,4 +1,9 @@
 package com.grinch.rivo4.view.screen.settings
+import androidx.compose.material.icons.automirrored.outlined.PhoneMissed
+import androidx.compose.material.icons.automirrored.outlined.PhoneCallback
+import androidx.compose.material.icons.automirrored.outlined.ContactSupport
+
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -23,7 +28,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material3.*
@@ -140,15 +144,12 @@ fun CallAccountsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_call_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                }
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_call_title),
+                navigator = navigator
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Box(
             modifier = Modifier
@@ -163,7 +164,7 @@ fun CallAccountsScreen(
             ) {
                 item {
                     val askEveryTimeLabel = stringResource(R.string.sim_ask_every_time)
-                    RivoExpressiveGroup(title = "SIM & Calling Preferences", icon = Icons.Outlined.SimCard) {
+                    RivoExpressiveGroup(title = stringResource(R.string.settings_group_sim_calling_prefs), icon = Icons.Outlined.SimCard) {
                         item {
                             RivoListItem(
                                 headline = stringResource(R.string.settings_call_speed_dial),
@@ -218,7 +219,7 @@ fun CallAccountsScreen(
                 }
 
                 item {
-                    RivoExpressiveGroup(title = "Dialer & Screen Experience", icon = Icons.Outlined.Dialpad) {
+                    RivoExpressiveGroup(title = stringResource(R.string.settings_group_dialer_screen_exp), icon = Icons.Outlined.Dialpad) {
                         item {
                             RivoSwitchListItem(
                                 headline = stringResource(R.string.settings_call_t9_dialing),
@@ -360,7 +361,7 @@ fun CallAccountsScreen(
                             RivoSwitchListItem(
                                 headline = stringResource(R.string.settings_missed_call_card_title),
                                 supporting = stringResource(R.string.settings_missed_call_card_supporting),
-                                leadingIcon = Icons.Outlined.PhoneMissed,
+                                leadingIcon = Icons.AutoMirrored.Outlined.PhoneMissed,
                                 checked = missedCallCard,
                                 onCheckedChange = {
                                     missedCallCard = it
@@ -372,7 +373,7 @@ fun CallAccountsScreen(
                 }
 
                 item {
-                    RivoExpressiveGroup(title = "Call Screening & Protection", icon = Icons.Outlined.Security) {
+                    RivoExpressiveGroup(title = stringResource(R.string.settings_group_call_screening_prot), icon = Icons.Outlined.Security) {
                         item {
                             RivoSwitchListItem(
                                 headline = stringResource(R.string.settings_auto_decline_unknown_title),
@@ -401,7 +402,7 @@ fun CallAccountsScreen(
                 }
 
                 item {
-                    RivoExpressiveGroup(title = "Auto Redial", icon = Icons.Outlined.Replay) {
+                    RivoExpressiveGroup(title = stringResource(R.string.settings_group_auto_redial), icon = Icons.Outlined.Replay) {
                         item {
                             RivoSwitchListItem(
                                 headline = stringResource(R.string.settings_call_auto_redial),
@@ -475,7 +476,7 @@ fun CallAccountsScreen(
                             RivoListItem(
                                 headline = stringResource(R.string.settings_call_waiting),
                                 supporting = stringResource(R.string.settings_call_waiting_supporting),
-                                leadingIcon = Icons.Outlined.PhoneCallback,
+                                leadingIcon = Icons.AutoMirrored.Outlined.PhoneCallback,
                                 onClick = { showCallWaitingDialog = true }
                             )
                         }
@@ -509,7 +510,7 @@ fun CallAccountsScreen(
                                     stringResource(R.string.settings_call_unknown_background_none)
                                 },
                                 backgroundModel = unknownCallBg,
-                                icon = Icons.Outlined.ContactSupport,
+                                icon = Icons.AutoMirrored.Outlined.ContactSupport,
                                 onClick = { showUnknownBgDialog = true }
                             )
                         }
@@ -555,7 +556,7 @@ fun CallAccountsScreen(
         if (showUnknownBgDialog) {
             CallBackgroundDialog(
                 title = stringResource(R.string.settings_call_unknown_background),
-                icon = Icons.Outlined.ContactSupport,
+                icon = Icons.AutoMirrored.Outlined.ContactSupport,
                 backgroundModel = unknownCallBg,
                 supportingText = stringResource(R.string.settings_call_unknown_background_supporting),
                 isUnknown = true,
@@ -798,7 +799,7 @@ private fun CallBackgroundDialog(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Icon(
-                            imageVector = if (isUnknown) Icons.Outlined.ContactSupport else Icons.Outlined.Wallpaper,
+                            imageVector = if (isUnknown) Icons.AutoMirrored.Outlined.ContactSupport else Icons.Outlined.Wallpaper,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(44.dp)

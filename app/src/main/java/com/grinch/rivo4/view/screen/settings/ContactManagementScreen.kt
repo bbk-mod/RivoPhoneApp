@@ -1,4 +1,9 @@
 package com.grinch.rivo4.view.screen.settings
+import com.grinch.rivo4.view.theme.LocalCardRoundness
+import com.grinch.rivo4.view.theme.rivoCornerDp
+
+import androidx.compose.material.icons.automirrored.outlined.CallMerge
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import android.accounts.Account
 import android.view.HapticFeedbackConstants
@@ -156,18 +161,9 @@ fun ContactManagementScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.contact_management_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navigator.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { contactsVM.fetchContacts() }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
-                    }
-                }
+            MenuTopAppBar(
+                text = stringResource(R.string.settings_manage_title),
+                navigator = navigator
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -188,13 +184,16 @@ fun ContactManagementScreen(
                     title = stringResource(R.string.contact_management_storage_overview),
                     icon = Icons.Outlined.PieChart
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(16.dp)
                     ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                         Column {
                             Text(
                                 text = "${allContacts.size}",
@@ -245,6 +244,7 @@ fun ContactManagementScreen(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
                     }
+                    }
                 }
             }
 
@@ -252,15 +252,18 @@ fun ContactManagementScreen(
             item {
                 RivoExpressiveCard(
                     title = stringResource(R.string.contact_management_duplicates_title),
-                    icon = Icons.Outlined.CallMerge
+                    icon = Icons.AutoMirrored.Outlined.CallMerge
                 ) {
-                    if (duplicateGroups.isEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        if (duplicateGroups.isEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                             Surface(
                                 modifier = Modifier.size(44.dp),
                                 shape = CircleShape,
@@ -321,7 +324,7 @@ fun ContactManagementScreen(
                                 if (isMerging) {
                                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                                 } else {
-                                    Icon(Icons.Outlined.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.AutoMirrored.Outlined.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
                                     Text(stringResource(R.string.contact_management_merge_all))
                                 }
@@ -350,6 +353,7 @@ fun ContactManagementScreen(
                             }
                         }
                     }
+                    }
                 }
             }
 
@@ -359,11 +363,16 @@ fun ContactManagementScreen(
                     title = stringResource(R.string.contact_management_move_title),
                     icon = Icons.AutoMirrored.Filled.DriveFileMove
                 ) {
-                    Text(
-                        text = stringResource(R.string.contact_management_move_supporting),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.contact_management_move_supporting),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
                     Spacer(Modifier.height(14.dp))
 
@@ -534,6 +543,7 @@ fun ContactManagementScreen(
                             Text(stringResource(R.string.contact_management_move_all, sourceContacts.size), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
+                    }
                 }
             }
 
@@ -637,7 +647,7 @@ fun ContactManagementScreen(
             message = stringResource(R.string.contact_management_merge_all_confirm_msg, duplicateGroups.size),
             confirmLabel = stringResource(R.string.contact_management_merge_all),
             dismissLabel = stringResource(R.string.action_cancel),
-            icon = Icons.Outlined.CallMerge
+            icon = Icons.AutoMirrored.Outlined.CallMerge
         )
     }
 
@@ -885,9 +895,10 @@ fun StorageTargetCard(
     val morph = rememberRivoMorphShape(RivoMaterialShapes.Cookie12Sided, RivoMaterialShapes.Circle) { 0.35f }
 
     Box(modifier = modifier.fillMaxWidth()) {
+        val roundness = LocalCardRoundness.current
         Surface(
             onClick = { expanded = true },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(rivoCornerDp(20, roundness)),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth()
         ) {

@@ -119,7 +119,7 @@ class ContactsViewModel(
     val groupedContacts = combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
         val mainGroups = contacts.groupBy { contact ->
             val nameToUse = contactSortKey(contact, sortOrder)
-            val firstChar = nameToUse.trim().firstOrNull()?.uppercaseChar() ?: '#'
+            val firstChar = ContactUtils.stripTitlePrefix(nameToUse).firstOrNull()?.uppercaseChar() ?: '#'
             if (firstChar.isLetter()) firstChar else '#'
         }.toMutableMap()
 

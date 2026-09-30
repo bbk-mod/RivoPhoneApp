@@ -1,4 +1,6 @@
 package com.grinch.rivo4.view.screen.settings
+import com.grinch.rivo4.view.components.RivoResetButton
+import com.grinch.rivo4.view.components.MenuTopAppBar
 
 import android.content.Context
 import android.content.Intent
@@ -419,27 +421,13 @@ fun CallRecordingsContent(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             if (showTopBar) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(R.string.call_recordings_title),
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                if (showingRecordingsList && !initialShowList) {
-                                    showingRecordingsList = false
-                                } else {
-                                    onNavigateBack()
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back)
-                            )
+                MenuTopAppBar(
+                    text = stringResource(R.string.call_recordings_title),
+                    onBackClick = {
+                        if (showingRecordingsList && !initialShowList) {
+                            showingRecordingsList = false
+                        } else {
+                            onNavigateBack()
                         }
                     },
                     actions = {
@@ -607,23 +595,18 @@ fun CallRecordingsContent(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                                 Spacer(Modifier.height(16.dp))
-                                FilledTonalButton(
+                                RivoResetButton(
                                     onClick = {
                                         searchQuery = ""
                                         datePreset = DateFilterPreset.ALL
                                         fromDateMillis = null
                                         toDateMillis = null
                                         selectedFilterNumber = null
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.FilterAltOff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Reset Filters")
-                                }
+                                    },
+                                    text = stringResource(R.string.filter_reset_filters),
+                                    icon = Icons.Default.FilterAltOff,
+                                    modifier = Modifier.widthIn(max = 240.dp)
+                                )
                             }
                         }
                     }

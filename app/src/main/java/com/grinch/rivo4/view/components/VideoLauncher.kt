@@ -38,15 +38,19 @@ fun rememberVideoLauncher(): VideoLauncher {
     var pendingNumber by remember { mutableStateOf("") }
 
     val launchApp = { pkg: String, number: String ->
-        val uri = Uri.parse("tel:$number")
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            setPackage(pkg)
-        }
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            val chooser = Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), videoCallChooserWith)
-            context.startActivity(chooser)
+        if (pkg == "org.thoughtcrime.securesms") {
+            SocialUtils.openSignal(context, number)
+        } else {
+            val uri = Uri.parse("tel:$number")
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                setPackage(pkg)
+            }
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                val chooser = Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), videoCallChooserWith)
+                context.startActivity(chooser)
+            }
         }
     }
 
