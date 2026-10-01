@@ -256,7 +256,10 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
 
                 FilledTonalIconButton(
                     onClick = {
-                        if (isEditing) prefs.setFavoritesOrder(items.map { it.id })
+                        if (isEditing) {
+                            prefs.setFavoritesOrder(items.map { it.id })
+                            contactsVM.syncFavoriteShortcuts()
+                        }
                         isEditing = !isEditing
                     },
                     modifier = Modifier.size(36.dp),
@@ -297,6 +300,7 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
                                 onDragEnd = {
                                     dragDropState.onDragInterrupted()
                                     prefs.setFavoritesOrder(items.map { it.id })
+                                    contactsVM.syncFavoriteShortcuts()
                                 },
                                 onDragCancel = { dragDropState.onDragInterrupted() }
                             )
