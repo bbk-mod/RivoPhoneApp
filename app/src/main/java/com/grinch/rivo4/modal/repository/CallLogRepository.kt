@@ -152,6 +152,7 @@ class CallLogRepository(
 
         val tempLogs = mutableListOf<CallLogEntry>()
         val simCache = mutableMapOf<String, String>()
+        val resolvedByName = mutableMapOf<String, Contact?>()
         val unknownLabel = context.getString(R.string.label_unknown)
         val hiddenNumbers = if (!preferenceManager.isHiddenContactsVisible()) {
             try { contactsRepo.getHiddenNumbers() } catch (e: Exception) { emptyList() }
@@ -202,9 +203,15 @@ class CallLogRepository(
 
             val normalizedNum = normalizePhoneNumber(number)
             val lookupKey = if (normalizedNum.length >= 10) normalizedNum.takeLast(10) else normalizedNum
-            val matchedContact = contactMap[lookupKey]
-            
-            val displayName = matchedContact?.displayName ?: cursor.getString(cachedNameIdx)
+            val cachedName = cursor.getString(cachedNameIdx)
+            val matchedContact = contactMap[lookupKey] ?: if (number != unknownLabel && !cachedName.isNullOrBlank()) {
+                if (!resolvedByName.containsKey(number)) {
+                    resolvedByName[number] = try { contactsRepo.getContactByNumber(number) } catch (e: Exception) { null }
+                }
+                resolvedByName[number]
+            } else null
+
+            val displayName = matchedContact?.displayName ?: cachedName
             val photoUri = matchedContact?.photoUri ?: cursor.getString(cachedPhotoIdx)
             val contactId = matchedContact?.id ?: cursor.getString(cachedLookupIdx)?.let {
                 contactIdFromLookupUri(it)

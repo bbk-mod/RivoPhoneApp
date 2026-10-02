@@ -144,9 +144,7 @@ fun CallLogFullScreen(
 
     val contactName = remember(matchedContact, filteredLogsByContact, displayOrder) {
         matchedContact?.let { ContactUtils.formatContactName(it, displayOrder) }
-            ?: filteredLogsByContact.firstOrNull { it.name != null && it.name != it.number }?.let {
-                ContactUtils.formatContactName(it.name!!, displayOrder)
-            }
+            ?: filteredLogsByContact.firstOrNull { it.name != null && it.name != it.number }?.name
             ?: (if (phoneNumber != null) formatPhoneNumber(phoneNumber) else null)
     }
 

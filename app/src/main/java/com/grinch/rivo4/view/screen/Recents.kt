@@ -356,6 +356,7 @@ fun AddFavoriteDialog(
             nonFavs
         } else {
             nonFavs.filter {
+                it.displayName.contains(searchQuery, ignoreCase = true) ||
                 it.name.contains(searchQuery, ignoreCase = true) ||
                 it.phoneNumbers.any { num -> num.contains(searchQuery) }
             }

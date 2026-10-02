@@ -101,9 +101,7 @@ fun CallLogTileSimple(
         if (contact != null) {
             ContactUtils.formatContactName(contact, displayOrder)
         } else {
-            log.name?.let {
-                if (it.isNotEmpty()) ContactUtils.formatContactName(it, displayOrder) else null
-            } ?: formatPhoneNumber(log.number)
+            log.name?.takeIf { it.isNotEmpty() } ?: formatPhoneNumber(log.number)
         }
     }
 
@@ -244,9 +242,7 @@ fun CallLogTile(
         if (contact != null) {
             ContactUtils.formatContactName(contact, displayOrder)
         } else {
-            log.name?.let {
-                if (it.isNotEmpty()) ContactUtils.formatContactName(it, displayOrder) else null
-            } ?: formatPhoneNumber(log.number)
+            log.name?.takeIf { it.isNotEmpty() } ?: formatPhoneNumber(log.number)
         }
     }
 
