@@ -419,7 +419,7 @@ class CallActivity : ComponentActivity() {
                 name = if (isConference) {
                     conferenceLabel
                 } else {
-                    contact?.name?.takeIf { it.isNotBlank() }
+                    contact?.displayName?.takeIf { it.isNotBlank() }
                         ?: identity.name.takeIf { contactFailed && it.isNotBlank() }
                         ?: number.ifEmpty { unknownLabel }
                 },

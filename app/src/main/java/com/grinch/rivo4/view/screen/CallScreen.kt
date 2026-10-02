@@ -366,7 +366,7 @@ fun ExpressiveCallScreen(
                     val number = oc.details.handle?.schemeSpecificPart ?: ""
                     if (number.isNotEmpty()) {
                         val contact = try { contactsRepo.getContactByNumber(number) } catch (_: Exception) { null }
-                        if (contact != null) ocName = (contact as? com.grinch.rivo4.modal.data.Contact)?.name ?: formatPhoneNumber(number)
+                        if (contact != null) ocName = contact.displayName.ifBlank { formatPhoneNumber(number) }
                     }
                 }
 
