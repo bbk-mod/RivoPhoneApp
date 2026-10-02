@@ -975,7 +975,7 @@ fun FakeCallSchedulerScreen(
             contacts = allContacts,
             onDismissRequest = { showContactPicker = false },
             onContactSelected = { contact ->
-                newCallerName = contact.name
+                newCallerName = contact.displayName
                 val num = contact.phoneNumbers.firstOrNull()
                 if (!num.isNullOrEmpty()) {
                     newPhoneNumber = num

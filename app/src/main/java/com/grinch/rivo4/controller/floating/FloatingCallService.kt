@@ -841,7 +841,7 @@ class FloatingCallService : Service(), KoinComponent {
                 }
             } else null
 
-            cachedDisplayName = contact?.name ?: if (number.isNotEmpty()) formatPhoneNumber(number) else "Active Call"
+            cachedDisplayName = contact?.displayName ?: if (number.isNotEmpty()) formatPhoneNumber(number) else "Active Call"
             cachedPhotoUri = contact?.photoUri
 
             cachedPhotoBitmap = try {

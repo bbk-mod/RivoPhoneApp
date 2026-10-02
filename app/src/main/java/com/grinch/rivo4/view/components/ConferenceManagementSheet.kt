@@ -169,7 +169,7 @@ private fun ConferenceParticipantItem(
                 null
             }
             if (contact != null) {
-                contactName = contact.name.ifBlank { number }
+                contactName = contact.displayName.ifBlank { number }
                 photoUri = contact.photoUri
             }
         }

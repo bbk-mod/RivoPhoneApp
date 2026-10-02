@@ -23,7 +23,7 @@ data class TrashedContactEntity(
         fun fromContact(contact: Contact): TrashedContactEntity {
             return TrashedContactEntity(
                 originalId = contact.id,
-                name = contact.formattedDisplayName.ifBlank { contact.name },
+                name = contact.displayName,
                 phoneNumbersJson = Json.encodeToString(contact.phoneNumbers),
                 contactJson = Json.encodeToString(contact),
                 trashedAt = System.currentTimeMillis()

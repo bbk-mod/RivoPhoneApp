@@ -413,7 +413,7 @@ private fun HeroFavoriteCard(
         ) {
             Box {
                 RivoAvatar(
-                    name = contact.name,
+                    name = contact.displayName,
                     photoUri = contact.photoUri,
                     textStyle = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.size(58.dp)
@@ -670,12 +670,12 @@ private fun AddFavoriteBottomSheet(
     var searchQuery by remember { mutableStateOf("") }
     val filteredContacts = remember(contacts, searchQuery) {
         if (searchQuery.isBlank()) {
-            contacts.sortedBy { it.name }
+            contacts.sortedBy { it.displayName }
         } else {
             contacts.filter { contact ->
-                contact.name.contains(searchQuery, ignoreCase = true) ||
+                contact.displayName.contains(searchQuery, ignoreCase = true) ||
                     contact.phoneNumbers.any { it.contains(searchQuery) }
-            }.sortedBy { it.name }
+            }.sortedBy { it.displayName }
         }
     }
 
@@ -788,7 +788,7 @@ private fun AddFavoriteBottomSheet(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 RivoAvatar(
-                                    name = contact.name,
+                                    name = contact.displayName,
                                     photoUri = contact.photoUri,
                                     textStyle = MaterialTheme.typography.titleSmall,
                                     modifier = Modifier.size(42.dp)

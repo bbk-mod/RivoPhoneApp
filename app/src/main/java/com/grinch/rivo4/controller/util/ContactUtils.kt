@@ -90,6 +90,7 @@ object ContactUtils {
     }
 
     fun formatContactName(contact: Contact, displayOrder: Int): String {
+        contact.nickname?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         val baseName = if (contact.name.isNotBlank() && contact.name != "Unnamed") {
             contact.name
         } else {
@@ -120,6 +121,7 @@ object ContactUtils {
     }
 
     fun getContactSortKey(contact: Contact, displayOrder: Int): String {
+        contact.nickname?.trim()?.takeIf { it.isNotEmpty() }?.let { return stripTitlePrefix(it) }
         if (displayOrder == 1) {
             if (!contact.familyName.isNullOrBlank()) {
                 return contact.familyName.trim()

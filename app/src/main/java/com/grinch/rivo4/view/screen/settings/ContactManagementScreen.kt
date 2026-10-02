@@ -342,7 +342,7 @@ fun ContactManagementScreen(
                                     val sources = group.drop(1).map { it.id }
                                     contactsVM.mergeDuplicateGroup(primary.id, sources)
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Merged contacts for ${primary.name}")
+                                        snackbarHostState.showSnackbar("Merged contacts for ${primary.displayName}")
                                     }
                                 },
                                 onDismiss = {
@@ -833,14 +833,14 @@ fun DuplicateGroupItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RivoAvatar(
-                    name = primary.name,
+                    name = primary.displayName,
                     photoUri = primary.photoUri,
                     modifier = Modifier.size(44.dp)
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = primary.name,
+                        text = primary.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -890,7 +890,7 @@ fun DuplicateGroupItem(
                                 modifier = Modifier.width(80.dp)
                             )
                             Column {
-                                Text(c.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text(c.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                 Text(
                                     text = c.phoneNumbers.joinToString(", ").ifEmpty { "No numbers" },
                                     style = MaterialTheme.typography.bodySmall,
@@ -1159,10 +1159,10 @@ fun MoveContactsSelectionDialog(
                                 }
                             )
                             Spacer(Modifier.width(8.dp))
-                            RivoAvatar(name = contact.name, photoUri = contact.photoUri, modifier = Modifier.size(36.dp))
+                            RivoAvatar(name = contact.displayName, photoUri = contact.photoUri, modifier = Modifier.size(36.dp))
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(contact.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(contact.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text(
                                     contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: "No number",
                                     style = MaterialTheme.typography.bodySmall,

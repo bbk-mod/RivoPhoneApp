@@ -33,7 +33,7 @@ object DynamicShortcutManager {
 
             top2Favorites.forEachIndexed { index, contact ->
                 val primaryPhone = contact.phoneNumbers.firstOrNull { it.isNotBlank() } ?: return@forEachIndexed
-                val displayName = contact.formattedDisplayName.ifBlank { contact.name.ifBlank { primaryPhone } }
+                val displayName = contact.displayName.ifBlank { primaryPhone }
                 val shortcutId = "dial_favorite_${contact.id}"
 
                 val dialIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:${Uri.encode(primaryPhone)}")).apply {
