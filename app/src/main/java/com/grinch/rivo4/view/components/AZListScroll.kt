@@ -181,7 +181,10 @@ fun AZListScroll(
                                 )
                         ) {
                         val displayName = contact.displayName.ifEmpty {
-                            contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: stringResource(R.string.label_unknown)
+                            contact.emails.firstOrNull()
+                                ?: contact.emailEntries.firstOrNull()?.address
+                                ?: contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) }
+                                ?: stringResource(R.string.label_unknown)
                         }
 
                         RivoSwipeToActionBox(

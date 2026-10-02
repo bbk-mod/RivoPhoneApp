@@ -9,6 +9,8 @@ import org.koin.core.context.startKoin
 class RivoApp : Application() {
 
     companion object {
+        lateinit var instance: RivoApp
+            private set
         var isAppInForeground: Boolean = false
             private set
     }
@@ -17,6 +19,7 @@ class RivoApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         startKoin {
             androidContext(this@RivoApp)
             modules(appModule)
