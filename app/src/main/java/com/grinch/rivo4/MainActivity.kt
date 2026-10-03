@@ -72,6 +72,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
     protected var intentState by mutableStateOf<Intent?>(null)
     private var isAppLocked by mutableStateOf(false)
     private var currentRequestedTab: MutableState<Int?>? = null
+    private var intentTrigger by mutableIntStateOf(0)
 
     fun isContactsIntent(intent: Intent?): Boolean {
         intent ?: return false
@@ -219,7 +220,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                         }
                     }
 
-                    LaunchedEffect(intentState) {
+                    LaunchedEffect(intentState, intentTrigger) {
                         handleIntent(intentState, navController, requestedTab)
                     }
                 }
@@ -245,6 +246,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intentState = intent
+        intentTrigger++
         if (isContactsIntent(intent)) {
             currentRequestedTab?.value = PreferenceManager.TAB_CONTACTS
         }
