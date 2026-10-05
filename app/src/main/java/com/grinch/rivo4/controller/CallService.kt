@@ -51,6 +51,7 @@ class CallService : InCallService() {
     private var redialCount = 0
     private val callStartTimes = mutableMapOf<Call, Long>()
     private val callRingStartTimes = mutableMapOf<Call, Long>()
+    private val callInitialLockedState = java.util.concurrent.ConcurrentHashMap<Call, Boolean>()
     private val cachedContactNames = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var flipToSilenceManager: FlipToSilenceManager? = null
     private var screenWakeLock: PowerManager.WakeLock? = null
@@ -144,8 +145,9 @@ class CallService : InCallService() {
     companion object {
         private const val CHANNEL_ID = "call_channel_v2"
         private const val LEGACY_CHANNEL_ID = "call_channel"
-        private const val SILENT_CHANNEL_ID = "call_silent_channel_v2"
-        private const val LEGACY_SILENT_CHANNEL_ID = "call_silent_channel"
+        private const val SILENT_CHANNEL_ID = "call_silent_channel_v3"
+        private const val LEGACY_SILENT_CHANNEL_ID = "call_silent_channel_v2"
+        private const val LEGACY_SILENT_CHANNEL_V1_ID = "call_silent_channel"
         private const val MISSED_CHANNEL_ID = "missed_call_channel"
         private const val NOTIFICATION_ID = 101
 
@@ -284,45 +286,45 @@ class CallService : InCallService() {
         fun mergeCalls() {
             val inst = instance ?: return
             val calls = inst.getCalls() ?: return
-            val activeCall = calls.find { it.state == Call.STATE_ACTIVE }
-            val heldCall = calls.find { it.state == Call.STATE_HOLDING }
+            val activeCall = calls.find { it.state == Call.STATE_ACTIVE } ?: calls.firstOrNull { it.state != Call.STATE_DISCONNECTED }
+            val otherCalls = calls.filter { it != activeCall && it.state != Call.STATE_DISCONNECTED }
 
+            if (activeCall == null || otherCalls.isEmpty()) return
+
+            var mergedNative = false
             // 1. Try native mergeConference capability if present on the active call
             try {
-                if (activeCall != null && activeCall.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE)) {
+                if (activeCall.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE)) {
                     activeCall.mergeConference()
-                    return
+                    mergedNative = true
                 }
             } catch (e: Exception) {
                 Log.w("CallService", "mergeConference failed: ${e.message}")
             }
 
-            // 2. Try conferenceableCalls list if reported by Telecom
-            try {
-                if (activeCall != null) {
-                    val confCandidate = activeCall.conferenceableCalls.firstOrNull { it.state != Call.STATE_DISCONNECTED }
-                    if (confCandidate != null) {
-                        activeCall.conference(confCandidate)
-                        return
+            if (!mergedNative) {
+                // 2. Loop through conferenceableCalls if available
+                try {
+                    val confCandidates = activeCall.conferenceableCalls.filter { it.state != Call.STATE_DISCONNECTED }
+                    for (candidate in confCandidates) {
+                        try {
+                            activeCall.conference(candidate)
+                        } catch (e: Exception) {
+                            Log.w("CallService", "conference candidate failed: ${e.message}")
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.w("CallService", "conferenceableCalls merge failed: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w("CallService", "conferenceableCalls merge failed: ${e.message}")
-            }
 
-            // 3. Fallback: conference active call with held call or any other active/held call
-            try {
-                if (activeCall != null && heldCall != null) {
-                    activeCall.conference(heldCall)
-                } else if (calls.size >= 2) {
-                    val primary = activeCall ?: calls[0]
-                    val secondary = calls.firstOrNull { it != primary && it.state != Call.STATE_DISCONNECTED }
-                    if (secondary != null) {
-                        primary.conference(secondary)
+                // 3. Fallback: conference remaining calls with activeCall
+                for (other in otherCalls) {
+                    try {
+                        activeCall.conference(other)
+                    } catch (e: Exception) {
+                        Log.e("CallService", "Error conferencing calls: ${e.message}", e)
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("CallService", "Error conferencing calls: ${e.message}", e)
             }
         }
 
@@ -773,6 +775,24 @@ class CallService : InCallService() {
                 null
             }
 
+        val hasActiveOrConnecting = calls.any {
+            it.state == Call.STATE_ACTIVE ||
+            it.state == Call.STATE_DIALING ||
+            it.state == Call.STATE_CONNECTING ||
+            it.state == Call.STATE_RINGING
+        }
+        if (!hasActiveOrConnecting) {
+            val heldCall = calls.find { it.state == Call.STATE_HOLDING }
+            if (heldCall != null) {
+                try {
+                    heldCall.unhold()
+                    _preferredCall.value = heldCall
+                } catch (e: Exception) {
+                    Log.e("CallService", "Failed to auto-resume held call in updateCallState: ${e.message}")
+                }
+            }
+        }
+
         val priorityCall =
             calls.find { it.state == Call.STATE_RINGING }
                 ?: activePreferred
@@ -849,6 +869,10 @@ class CallService : InCallService() {
 
         updateCallState()
 
+        // Capture whether device is locked or screen off (blacked / not being used) BEFORE wake lock or screen-on occurs
+        val wasDeviceLockedOrScreenOff = CallUiHelper.isDeviceLocked(this)
+        callInitialLockedState[call] = wasDeviceLockedOrScreenOff
+
         val isIncoming = call.state == Call.STATE_RINGING
         if (isIncoming) {
             acquireScreenWakeLock()
@@ -858,8 +882,6 @@ class CallService : InCallService() {
         }
 
         val showFullScreen = shouldShowFullscreen(call)
-
-        updateNotification(call, showFullScreen)
 
         if (showFullScreen) {
             launchCallActivity()
@@ -893,10 +915,13 @@ class CallService : InCallService() {
         } catch (e: Exception) {
             Log.e("CallService", "Failed to start CallActivity: ${e.message}", e)
         }
+
+        updateNotification(call, showFullScreen)
     }
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
+        callInitialLockedState.remove(call)
         com.grinch.rivo4.controller.util.PriorityRinger.stopRinging()
         call.unregisterCallback(callCallback)
         isCallRejectedByUser(call)
@@ -914,6 +939,23 @@ class CallService : InCallService() {
             removeForeground()
             cancelNotification()
         } else {
+            val hasActiveOrConnecting = calls.any {
+                it.state == Call.STATE_ACTIVE ||
+                it.state == Call.STATE_DIALING ||
+                it.state == Call.STATE_CONNECTING ||
+                it.state == Call.STATE_RINGING
+            }
+            if (!hasActiveOrConnecting) {
+                val heldCall = calls.find { it.state == Call.STATE_HOLDING }
+                if (heldCall != null) {
+                    try {
+                        heldCall.unhold()
+                        _preferredCall.value = heldCall
+                    } catch (e: Exception) {
+                        Log.e("CallService", "Failed to auto-resume held call on call removed: ${e.message}")
+                    }
+                }
+            }
             _currentCallSession.value?.call?.let { updateNotification(it) }
         }
     }
@@ -960,6 +1002,7 @@ class CallService : InCallService() {
         try {
             notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
             notificationManager.deleteNotificationChannel(LEGACY_SILENT_CHANNEL_ID)
+            notificationManager.deleteNotificationChannel(LEGACY_SILENT_CHANNEL_V1_ID)
         } catch (_: Exception) {}
 
         val channel =
@@ -982,11 +1025,12 @@ class CallService : InCallService() {
         val silentChannel = NotificationChannel(
             SILENT_CHANNEL_ID,
             getString(R.string.notif_channel_calls),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_MIN
         ).apply {
             description = getString(R.string.notif_channel_calls_desc)
             lockscreenVisibility = Notification.VISIBILITY_SECRET
             enableVibration(false)
+            vibrationPattern = null
             setSound(null, null)
             setShowBadge(false)
         }

@@ -9,6 +9,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -186,8 +188,12 @@ private fun InCallKeypadKey(
         label = "InCallKeyCorner"
     )
 
+    val isDark = isSystemInDarkTheme()
+
     val containerColor by animateColorAsState(
-        targetValue = if (isPressed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        targetValue = if (isPressed) MaterialTheme.colorScheme.primaryContainer
+                      else if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh
+                      else MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "InCallKeyBg"
     )

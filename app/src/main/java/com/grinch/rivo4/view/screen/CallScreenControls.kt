@@ -9,7 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -93,13 +93,15 @@ fun CallActionButton(
         label = "CallActionCornerRadius"
     )
 
+    val isDark = isSystemInDarkTheme()
+
     val containerColor by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
             isDanger -> MaterialTheme.callColors.decline
             isActive -> MaterialTheme.colorScheme.primary
             isPressed -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+            else -> if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest
         },
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "btnBg"
@@ -151,7 +153,7 @@ fun CallActionButton(
                 text = label,
                 style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = contentColor,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
@@ -169,6 +171,7 @@ fun AuxiliaryPillButton(
     onClick: () -> Unit
 ) {
     val view = LocalView.current
+    val isDark = isSystemInDarkTheme()
     val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
@@ -177,7 +180,7 @@ fun AuxiliaryPillButton(
             onClick()
         },
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest,
         interactionSource = interactionSource,
         modifier = modifier.height(if (compact) 32.dp else 36.dp)
     ) {
@@ -189,33 +192,31 @@ fun AuxiliaryPillButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(if (compact) 16.dp else 18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
 }
 
 private fun callAudioRouteIcon(route: Int): ImageVector = when (route) {
-    CallAudioState.ROUTE_SPEAKER -> Icons.AutoMirrored.Filled.VolumeUp
     CallAudioState.ROUTE_BLUETOOTH -> Icons.Default.Bluetooth
     CallAudioState.ROUTE_WIRED_HEADSET -> Icons.Default.Headset
-    else -> Icons.Default.Phone
+    else -> Icons.AutoMirrored.Filled.VolumeUp
 }
 
 @Composable
 private fun callAudioRouteLabel(route: Int): String = when (route) {
-    CallAudioState.ROUTE_SPEAKER -> stringResource(R.string.audio_route_speaker)
     CallAudioState.ROUTE_BLUETOOTH -> stringResource(R.string.audio_route_bluetooth)
     CallAudioState.ROUTE_WIRED_HEADSET -> stringResource(R.string.audio_route_headset)
-    else -> stringResource(R.string.audio_route_handset)
+    else -> stringResource(R.string.audio_route_speaker)
 }
 
 @Composable
@@ -234,14 +235,16 @@ fun EndCallButton(
         label = "endCallCorner"
     )
 
+    val isDark = isSystemInDarkTheme()
+
     Surface(
         onClick = {
             view.performHapticFeedback(HapticFeedbackConstants.REJECT)
             onEndCall()
         },
         shape = RoundedCornerShape(cornerRadius),
-        color = MaterialTheme.callColors.declineContainer,
-        contentColor = MaterialTheme.callColors.onDeclineContainer,
+        color = MaterialTheme.callColors.decline,
+        contentColor = MaterialTheme.callColors.onDecline,
         tonalElevation = 6.dp,
         interactionSource = interactionSource,
         modifier = modifier
@@ -256,7 +259,7 @@ fun EndCallButton(
                 imageVector = Icons.Default.CallEnd,
                 contentDescription = stringResource(R.string.action_end_call),
                 modifier = Modifier.size(if (compact) 28.dp else 32.dp),
-                tint = MaterialTheme.callColors.onDeclineContainer
+                tint = MaterialTheme.callColors.onDecline
             )
         }
     }
@@ -289,8 +292,12 @@ fun ActiveCallControls(
     modifier: Modifier = Modifier
 ) {
     val audioRoute = audioState?.route ?: CallAudioState.ROUTE_EARPIECE
-    val audioActive = audioRoute == CallAudioState.ROUTE_SPEAKER ||
-            audioRoute == CallAudioState.ROUTE_BLUETOOTH
+    val audioActive = when (audioRoute) {
+        CallAudioState.ROUTE_SPEAKER -> true
+        CallAudioState.ROUTE_BLUETOOTH -> true
+        CallAudioState.ROUTE_WIRED_HEADSET -> true
+        else -> false // Earpiece (handset) is the disabled state of the Speaker button
+    }
     val isHolding = callState == Call.STATE_HOLDING
 
     val cellSpacing = if (compact) 8.dp else 12.dp
@@ -318,12 +325,12 @@ fun ActiveCallControls(
                 compact = compact,
                 onClick = onMessage
             )
-            if (canSwap) {
+            if (canSwap && canMerge) {
                 AuxiliaryPillButton(
-                    icon = Icons.Default.SwapCalls,
-                    label = stringResource(R.string.action_swap),
+                    icon = Icons.AutoMirrored.Outlined.CallMerge,
+                    label = stringResource(R.string.action_merge_calls),
                     compact = compact,
-                    onClick = onSwapCalls
+                    onClick = onMergeCalls
                 )
             }
             if (hasConference) {
@@ -397,16 +404,7 @@ fun ActiveCallControls(
                 modifier = Modifier.weight(1f),
                 onClick = onToggleHold
             )
-            if (canMerge) {
-                CallActionButton(
-                    icon = Icons.AutoMirrored.Outlined.CallMerge,
-                    isActive = false,
-                    label = stringResource(R.string.action_merge_calls),
-                    compact = compact,
-                    modifier = Modifier.weight(1f),
-                    onClick = onMergeCalls
-                )
-            } else if (canSwap) {
+            if (canSwap) {
                 CallActionButton(
                     icon = Icons.Default.SwapCalls,
                     isActive = false,
@@ -414,6 +412,15 @@ fun ActiveCallControls(
                     compact = compact,
                     modifier = Modifier.weight(1f),
                     onClick = onSwapCalls
+                )
+            } else if (canMerge) {
+                CallActionButton(
+                    icon = Icons.AutoMirrored.Outlined.CallMerge,
+                    isActive = false,
+                    label = stringResource(R.string.action_merge_calls),
+                    compact = compact,
+                    modifier = Modifier.weight(1f),
+                    onClick = onMergeCalls
                 )
             } else {
                 CallActionButton(

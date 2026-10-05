@@ -66,6 +66,7 @@ fun AZListScroll(
     val swipeEnabled = remember(settingsState) { prefs.isSwipeActionsEnabled() } && selectedIds.isEmpty()
     val swipeRightAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeRightAction()) }
     val swipeLeftAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeLeftAction()) }
+    val showSectionHeaders = remember(settingsState) { prefs.isShowContactSectionHeaders() }
 
     if (hapticScrollEnabled) {
         LaunchedEffect(listState.firstVisibleItemIndex) {
@@ -93,13 +94,15 @@ fun AZListScroll(
         finalMap
     }
 
-    val alphabetIndices = remember(finalGrouped, header != null) {
+    val alphabetIndices = remember(finalGrouped, header != null, showSectionHeaders) {
         val map = mutableMapOf<Char, Int>()
         var currentIndex = if (header != null) 1 else 0
         finalGrouped.entries.forEachIndexed { groupIndex, (char, contactsForChar) ->
             map[char] = currentIndex
             // 1 for section header
-            currentIndex += 1
+            if (showSectionHeaders) {
+                currentIndex += 1
+            }
             // 1 for each contact
             currentIndex += contactsForChar.size
         }
@@ -133,8 +136,9 @@ fun AZListScroll(
             }
 
             finalGrouped.entries.forEachIndexed { groupIndex, (initial, contactsForChar) ->
-                item(key = "header_$initial", contentType = "header") {
-                    RivoSectionHeader(
+                if (showSectionHeaders) {
+                    item(key = "header_$initial", contentType = "header") {
+                        RivoSectionHeader(
                         title = initial.toString(),
                         modifier = Modifier.padding(
                             start = 16.dp,
@@ -143,6 +147,7 @@ fun AZListScroll(
                             bottom = 4.dp
                         )
                     )
+                }
                 }
 
                 itemsIndexed(

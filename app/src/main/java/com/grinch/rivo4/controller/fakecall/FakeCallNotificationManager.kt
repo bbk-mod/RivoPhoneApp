@@ -51,12 +51,14 @@ object FakeCallNotificationManager {
         val silentChannel = NotificationChannel(
             SILENT_CHANNEL_ID,
             context.getString(R.string.fake_call_incoming_channel_title),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_MIN
         ).apply {
             description = context.getString(R.string.fake_call_incoming_channel_desc)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            lockscreenVisibility = Notification.VISIBILITY_SECRET
             enableVibration(false)
+            vibrationPattern = null
             setSound(null, null)
+            setShowBadge(false)
         }
         notificationManager.createNotificationChannel(silentChannel)
     }
@@ -158,21 +160,25 @@ object FakeCallNotificationManager {
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setContentIntent(contentPendingIntent)
                 .setOngoing(true)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setVisibility(if (silentBackground) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(false)
                 .setTimeoutAfter(45_000L)
-                .setFullScreenIntent(contentPendingIntent, true)
                 .setColorized(true)
                 .setColor(notifColor)
                 .setLargeIcon(avatarBitmap)
-                .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declinePendingIntent, answerPendingIntent))
 
             if (silentBackground) {
-                // When full-screen call UI is displayed, keep notification silent in background
-                builder.setPriority(NotificationCompat.PRIORITY_LOW)
+                // When device is locked, blacked, or full-screen call UI is displayed, do NOT set fullScreenIntent or CallStyle on notification.
+                // Keep notification completely silent and MIN priority so ONLY the full-screen activity is shown.
+                builder.setPriority(NotificationCompat.PRIORITY_MIN)
                 builder.setSilent(true)
+                builder.setSound(null)
+                builder.setVibrate(null)
+                builder.setDefaults(0)
                 builder.setOnlyAlertOnce(true)
             } else {
+                builder.setFullScreenIntent(contentPendingIntent, true)
+                builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declinePendingIntent, answerPendingIntent))
                 // Heads-Up Mode: show prominent floating notification banner
                 builder.setPriority(NotificationCompat.PRIORITY_MAX)
                 builder.setSilent(false)
@@ -197,17 +203,20 @@ object FakeCallNotificationManager {
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setContentIntent(contentPendingIntent)
                 .setOngoing(true)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setVisibility(if (silentBackground) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(false)
                 .setTimeoutAfter(45_000L)
-                .addAction(declineAction)
-                .addAction(answerAction)
 
             if (silentBackground) {
-                fallbackBuilder.setPriority(NotificationCompat.PRIORITY_LOW)
+                fallbackBuilder.setPriority(NotificationCompat.PRIORITY_MIN)
                 fallbackBuilder.setSilent(true)
+                fallbackBuilder.setSound(null)
+                fallbackBuilder.setVibrate(null)
+                fallbackBuilder.setDefaults(0)
                 fallbackBuilder.setOnlyAlertOnce(true)
             } else {
+                fallbackBuilder.addAction(declineAction)
+                fallbackBuilder.addAction(answerAction)
                 fallbackBuilder.setPriority(NotificationCompat.PRIORITY_MAX)
                 fallbackBuilder.setSilent(false)
             }
@@ -331,6 +340,9 @@ object FakeCallNotificationManager {
                 .setOngoing(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setSilent(true)
+                .setSound(null)
+                .setVibrate(null)
+                .setDefaults(0)
                 .setOnlyAlertOnce(true)
                 .setWhen(effectiveTime)
                 .setUsesChronometer(true)
@@ -364,6 +376,9 @@ object FakeCallNotificationManager {
                 .setOngoing(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setSilent(true)
+                .setSound(null)
+                .setVibrate(null)
+                .setDefaults(0)
                 .setOnlyAlertOnce(true)
                 .setWhen(effectiveTime)
                 .setUsesChronometer(true)

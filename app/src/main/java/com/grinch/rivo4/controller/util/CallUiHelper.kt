@@ -16,14 +16,9 @@ object CallUiHelper {
     private const val TAG = "CallUiHelper"
 
     /**
-     * Determines whether an incoming call should immediately open full-screen.
+     * Checks whether the device is currently locked or the screen is off (blacked).
      */
-    fun shouldShowFullScreen(context: Context, preferenceManager: PreferenceManager): Boolean {
-        if (preferenceManager.getBoolean(PreferenceManager.KEY_ALWAYS_FULL_SCREEN_CALLS, false)) {
-            Log.d(TAG, "Full-screen enabled via preference")
-            return true
-        }
-
+    fun isDeviceLocked(context: Context): Boolean {
         val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         @Suppress("DEPRECATION")
@@ -31,13 +26,29 @@ object CallUiHelper {
                 keyguardManager?.inKeyguardRestrictedInputMode() == true ||
                 keyguardManager?.isDeviceLocked == true
         val isInteractive = powerManager?.isInteractive == true
+        return isLocked || !isInteractive
+    }
 
-        if (isLocked || !isInteractive) {
-            Log.d(TAG, "Full-screen: device is locked ($isLocked), screen off (${!isInteractive})")
+    /**
+     * Determines whether an incoming call should immediately open full-screen.
+     */
+    fun shouldShowFullScreen(context: Context, preferenceManager: PreferenceManager): Boolean {
+        if (isDeviceLocked(context)) {
+            Log.d(TAG, "Full-screen: device is locked or screen off")
             return true
         }
 
-        Log.d(TAG, "Heads-up notification only: user is actively using the phone")
+        if (preferenceManager.getBoolean(PreferenceManager.KEY_ALWAYS_FULL_SCREEN_CALLS, false)) {
+            Log.d(TAG, "Full-screen enabled via preference")
+            return true
+        }
+
+        if (isHomeScreenForeground(context)) {
+            Log.d(TAG, "Full-screen: launcher/home screen is in foreground (device not in active app use)")
+            return true
+        }
+
+        Log.d(TAG, "Heads-up notification only: user is actively using an app on the phone")
         return false
     }
 
