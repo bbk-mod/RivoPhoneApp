@@ -537,15 +537,27 @@ fun DialPadScreen(
                             shape = shape,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
+                            val entrySimNumber = entry.simNumber ?: resolveSimNumber(entry)
+                            val recentsLabel = stringResource(R.string.nav_recents)
                             RivoListItem(
                                 headline = formatPhoneNumber(entry.number),
-                                supporting = buildString {
-                                    append(stringResource(R.string.nav_recents))
-                                    if (!entry.simLabel.isNullOrBlank()) {
-                                        append(" • ")
-                                        append(entry.simLabel)
+                                supporting = if (entrySimNumber == null) recentsLabel else null,
+                                supportingContent = if (entrySimNumber != null) {
+                                    {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 1.dp)
+                                        ) {
+                                            SimBadge(simNumber = entrySimNumber)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = recentsLabel,
+                                                style = RivoListItemDefaults.supportingStyle(),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
-                                },
+                                } else null,
                                 leadingContent = {
                                     Surface(
                                         shape = CircleShape,
@@ -852,7 +864,7 @@ fun DialerActionExpressive(
 
     val actionCornerRadius by animateDpAsState(
         targetValue = if (isPressed) 16.dp else (if (isLarge) 32.dp else 24.dp),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "ActionCorner"
     )
 
@@ -893,7 +905,7 @@ fun DialerSimActionExpressive(
 
     val simCornerRadius by animateDpAsState(
         targetValue = if (isPressed) 14.dp else 24.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "SimCorner"
     )
 
@@ -960,20 +972,26 @@ fun DialPadKey(
 
     val modernCornerRadius by animateDpAsState(
         targetValue = if (isPressed) 16.dp else 28.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "ModernKeyCorner"
     )
 
     val outlinedCornerRadius by animateDpAsState(
         targetValue = if (isPressed) 14.dp else 22.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "OutlinedKeyCorner"
     )
 
     val circleCornerRadius by animateDpAsState(
         targetValue = if (isPressed) 16.dp else (dimensions.circleKeySize / 2),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "CircleKeyCorner"
+    )
+
+    val organicMorphProgress by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 0.2f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "OrganicKeyMorph"
     )
 
     val keyShape: androidx.compose.ui.graphics.Shape = when (dialpadStyle) {
@@ -981,7 +999,7 @@ fun DialPadKey(
             RoundedCornerShape(circleCornerRadius)
         }
         PreferenceManager.DIALPAD_STYLE_ORGANIC -> {
-            rememberRivoMorphShape(RivoMaterialShapes.Cookie9Sided, RivoMaterialShapes.Circle) { if (isPressed) 0.85f else 0.2f }
+            rememberRivoMorphShape(RivoMaterialShapes.Cookie9Sided, RivoMaterialShapes.Circle) { organicMorphProgress }
         }
         PreferenceManager.DIALPAD_STYLE_OUTLINED -> {
             RoundedCornerShape(outlinedCornerRadius)
