@@ -415,10 +415,21 @@ class CallService : InCallService() {
             }
         }
         serviceScope.launch {
-            isActivityVisible.collect {
+            isActivityVisible.collect { isVisible ->
                 _currentCallSession.value?.call
                     ?.takeIf { call -> call.state != Call.STATE_RINGING }
                     ?.let { call -> updateNotification(call) }
+                if (!isVisible && preferenceManager.isFloatingCallBubbleEnabled() && android.provider.Settings.canDrawOverlays(this@CallService)) {
+                    val hasOngoing = allCalls.value.any {
+                        it.state == Call.STATE_ACTIVE ||
+                        it.state == Call.STATE_HOLDING ||
+                        it.state == Call.STATE_DIALING ||
+                        it.state == Call.STATE_CONNECTING
+                    }
+                    if (hasOngoing) {
+                        com.grinch.rivo4.controller.floating.FloatingCallService.start(this@CallService)
+                    }
+                }
             }
         }
     }

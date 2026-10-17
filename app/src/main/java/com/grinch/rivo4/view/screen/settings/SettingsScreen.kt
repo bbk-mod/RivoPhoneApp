@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.PhoneCallback
+import androidx.compose.material.icons.automirrored.outlined.PhoneMissed
+
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -69,6 +71,7 @@ fun SettingsScreen(
     val settingsState by prefs.settingsChanged.collectAsState()
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val searchListState = rememberLazyListState()
     val logoMorph = rememberRivoMorphShape(RivoMaterialShapes.Cookie12Sided, RivoMaterialShapes.Circle) { 0.25f }
 
     var isSearchActive by remember { mutableStateOf(false) }
@@ -83,10 +86,15 @@ fun SettingsScreen(
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
             searchFocusRequester.requestFocus()
+            searchListState.scrollToItem(0)
         }
     }
 
-val searchItems = remember(settingsState) {
+    LaunchedEffect(searchQuery) {
+        searchListState.scrollToItem(0)
+    }
+
+    val searchItems = remember(settingsState) {
         listOf(
             // ==================== PERSONALIZATION & DISPLAY ====================
             SettingSearchItem(
@@ -468,11 +476,19 @@ val searchItems = remember(settingsState) {
                 onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
-                title = "Missed Call Screen Card",
-                supporting = "Show high priority card for unreturned missed calls on home tab",
+                title = context.getString(R.string.settings_missed_call_card_title),
+                supporting = context.getString(R.string.settings_missed_call_card_supporting),
                 category = "Calling & Behavior",
-                icon = Icons.Outlined.CallMissed,
-                keywords = listOf("missed call card", "return call", "recents missed card", "callback card"),
+                icon = Icons.AutoMirrored.Outlined.PhoneMissed,
+                keywords = listOf("missed call card", "missed call popup", "quick callback", "popup card", "instant card", "return call", "recents missed card"),
+                onClick = { navigator.navigate(CallAccountsScreenDestination) }
+            ),
+            SettingSearchItem(
+                title = context.getString(R.string.settings_floating_call_bubble),
+                supporting = context.getString(R.string.settings_floating_call_bubble_supporting),
+                category = "Calling & Behavior",
+                icon = Icons.Outlined.PictureInPicture,
+                keywords = listOf("floating call bubble", "floating bubble", "call bubble", "bubble", "overlay", "mini call", "picture in picture", "floating controls"),
                 onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
@@ -955,18 +971,40 @@ val searchItems = remember(settingsState) {
         )
     }
 
-        val filteredSearchItems = remember(searchQuery, searchItems) {
+    val filteredSearchItems = remember(searchQuery, searchItems) {
         val q = searchQuery.trim().lowercase()
         if (q.isBlank()) {
             emptyList()
         } else {
-            searchItems.filter { item ->
-                item.title.lowercase().contains(q) ||
-                item.supporting.lowercase().contains(q) ||
-                item.category.lowercase().contains(q) ||
-                item.keywords.any { it.lowercase().contains(q) }
-            }
+            searchItems
+                .distinctBy { it.title }
+                .filter { item ->
+                    item.title.lowercase().contains(q) ||
+                    item.keywords.any { it.lowercase().contains(q) } ||
+                    item.supporting.lowercase().contains(q) ||
+                    item.category.lowercase().contains(q)
+                }
+                .sortedWith(
+                    compareByDescending<SettingSearchItem> { item ->
+                        val titleLower = item.title.lowercase()
+                        when {
+                            titleLower == q -> 100
+                            titleLower.startsWith(q) -> 90
+                            titleLower.contains(q) -> 80
+                            item.keywords.any { it.lowercase() == q } -> 70
+                            item.keywords.any { it.lowercase().startsWith(q) } -> 60
+                            item.keywords.any { it.lowercase().contains(q) } -> 50
+                            item.supporting.lowercase().contains(q) -> 30
+                            else -> 15
+                        }
+                    }.thenBy { it.title }
+                )
         }
+    }
+
+    val settingsHistory = remember(settingsState) { prefs.getSettingsHistory() }
+    val recentItems = remember(settingsHistory, searchItems) {
+        settingsHistory.mapNotNull { title -> searchItems.firstOrNull { it.title == title } }
     }
 
     Scaffold(
@@ -1104,6 +1142,7 @@ val searchItems = remember(settingsState) {
     ) { padding ->
         if (isSearchActive) {
             LazyColumn(
+                state = searchListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -1152,6 +1191,62 @@ val searchItems = remember(settingsState) {
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    // Settings Search History / Recently Visited (Issue #264)
+                    if (recentItems.isNotEmpty()) {
+                        item {
+                            RivoExpressiveGroup(
+                                title = "Recently Visited",
+                                icon = Icons.Outlined.History
+                            ) {
+                                recentItems.forEach { item ->
+                                    item(key = "recent_${item.title}") {
+                                        RivoListItem(
+                                            headline = item.title,
+                                            supporting = item.supporting.ifBlank { null },
+                                            leadingIcon = item.icon,
+                                            trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            onClick = {
+                                                isSearchActive = false
+                                                searchQuery = ""
+                                                prefs.addSettingsHistory(item.title)
+                                                item.onClick()
+                                            }
+                                        )
+                                    }
+                                }
+                                item(key = "clear_history") {
+                                    Surface(
+                                        onClick = { prefs.clearSettingsHistory() },
+                                        color = Color.Transparent,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Delete,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = "Clear History",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1222,6 +1317,7 @@ val searchItems = remember(settingsState) {
                                     onClick = {
                                         isSearchActive = false
                                         searchQuery = ""
+                                        prefs.addSettingsHistory("Theme & Appearance")
                                         navigator.navigate(InterfaceScreenDestination)
                                     }
                                 )
@@ -1235,6 +1331,7 @@ val searchItems = remember(settingsState) {
                                     onClick = {
                                         isSearchActive = false
                                         searchQuery = ""
+                                        prefs.addSettingsHistory("Call Recordings")
                                         navigator.navigate(CallRecordingsScreenDestination())
                                     }
                                 )
@@ -1248,6 +1345,7 @@ val searchItems = remember(settingsState) {
                                     onClick = {
                                         isSearchActive = false
                                         searchQuery = ""
+                                        prefs.addSettingsHistory("App Lock")
                                         navigator.navigate(AppLockScreenDestination)
                                     }
                                 )
@@ -1261,6 +1359,7 @@ val searchItems = remember(settingsState) {
                                     onClick = {
                                         isSearchActive = false
                                         searchQuery = ""
+                                        prefs.addSettingsHistory("Speed Dial")
                                         navigator.navigate(SpeedDialScreenDestination)
                                     }
                                 )
@@ -1336,6 +1435,7 @@ val searchItems = remember(settingsState) {
                                             onClick = {
                                                 isSearchActive = false
                                                 searchQuery = ""
+                                                prefs.addSettingsHistory(item.title)
                                                 item.onClick()
                                             }
                                         )
@@ -1366,7 +1466,10 @@ val searchItems = remember(settingsState) {
                             headline = "Theme & Appearance",
                             supporting = "Material You, color palette, AMOLED dark mode & animations",
                             leadingIcon = Icons.Outlined.Palette,
-                            onClick = { navigator.navigate(InterfaceScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Theme & Appearance")
+                                navigator.navigate(InterfaceScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1374,7 +1477,10 @@ val searchItems = remember(settingsState) {
                             headline = "Navigation Bar",
                             supporting = "Floating bar style, blur effect, roundness & tab layout",
                             leadingIcon = Icons.Outlined.Dock,
-                            onClick = { navigator.navigate(BottomNavScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Navigation Bar")
+                                navigator.navigate(BottomNavScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1382,7 +1488,10 @@ val searchItems = remember(settingsState) {
                             headline = "Avatars & Contact Cards",
                             supporting = "11 avatar shapes, contact photos, initials & cards",
                             leadingIcon = Icons.Outlined.AccountCircle,
-                            onClick = { navigator.navigate(AvatarSettingsScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Avatars & Contact Cards")
+                                navigator.navigate(AvatarSettingsScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1390,7 +1499,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.settings_sound_vibration_headline),
                             supporting = stringResource(R.string.settings_sound_vibration_supporting),
                             leadingIcon = Icons.AutoMirrored.Outlined.VolumeUp,
-                            onClick = { navigator.navigate(SoundVibrationScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Sound & Vibration")
+                                navigator.navigate(SoundVibrationScreenDestination)
+                            }
                         )
                     }
                 }
@@ -1407,7 +1519,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.settings_call_settings_headline),
                             supporting = stringResource(R.string.settings_call_settings_supporting),
                             leadingIcon = Icons.Outlined.SimCard,
-                            onClick = { navigator.navigate(CallAccountsScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Calling & SIM Accounts")
+                                navigator.navigate(CallAccountsScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1415,7 +1530,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.settings_swipe_actions_title),
                             supporting = stringResource(R.string.settings_swipe_actions_supporting),
                             leadingIcon = Icons.Outlined.Swipe,
-                            onClick = { navigator.navigate(SwipeActionsScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Swipe Actions")
+                                navigator.navigate(SwipeActionsScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1423,7 +1541,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.call_recordings_title),
                             supporting = "Auto-recording, Shizuku internal audio & saved recordings",
                             leadingIcon = Icons.Outlined.FiberManualRecord,
-                            onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
+                            onClick = {
+                                prefs.addSettingsHistory("Call Recordings")
+                                navigator.navigate(CallRecordingsScreenDestination())
+                            }
                         )
                     }
                     item {
@@ -1431,7 +1552,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.settings_call_analytics_title),
                             supporting = stringResource(R.string.settings_call_analytics_supporting),
                             leadingIcon = Icons.Outlined.Analytics,
-                            onClick = { navigator.navigate(CallAnalyticsScreenDestination()) }
+                            onClick = {
+                                prefs.addSettingsHistory("Call Analytics")
+                                navigator.navigate(CallAnalyticsScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1439,7 +1563,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.priority_contacts_title),
                             supporting = stringResource(R.string.priority_contacts_supporting),
                             leadingIcon = Icons.Outlined.NotificationImportant,
-                            onClick = { navigator.navigate(PriorityContactsScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Priority Contacts")
+                                navigator.navigate(PriorityContactsScreenDestination)
+                            }
                         )
                     }
                 }
@@ -1457,7 +1584,10 @@ val searchItems = remember(settingsState) {
                             headline = "App Lock",
                             supporting = if (appLockEnabled) "Enabled (Face, Fingerprint, PIN)" else "Protect app with biometrics or PIN",
                             leadingIcon = Icons.Outlined.Lock,
-                            onClick = { navigator.navigate(AppLockScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("App Lock")
+                                navigator.navigate(AppLockScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1465,7 +1595,10 @@ val searchItems = remember(settingsState) {
                             headline = "Private Storage",
                             supporting = "Secret dialpad vault • Stored only in app memory",
                             leadingIcon = Icons.Outlined.FolderShared,
-                            onClick = { navigator.navigate(PrivateContactsScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Private Storage")
+                                navigator.navigate(PrivateContactsScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1473,7 +1606,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.settings_blocked_numbers_headline),
                             supporting = stringResource(R.string.settings_blocked_numbers_supporting),
                             leadingIcon = Icons.Outlined.Block,
-                            onClick = { navigator.navigate(BlockedNumbersScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Blocked Numbers")
+                                navigator.navigate(BlockedNumbersScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1481,7 +1617,10 @@ val searchItems = remember(settingsState) {
                             headline = stringResource(R.string.fake_call_title),
                             supporting = stringResource(R.string.fake_call_subtitle),
                             leadingIcon = Icons.AutoMirrored.Outlined.PhoneCallback,
-                            onClick = { navigator.navigate(FakeCallSchedulerScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Fake Call Scheduler")
+                                navigator.navigate(FakeCallSchedulerScreenDestination)
+                            }
                         )
                     }
                     item {
@@ -1489,7 +1628,10 @@ val searchItems = remember(settingsState) {
                             headline = "Permissions & App Setup",
                             supporting = "Review granted permissions and system capabilities",
                             leadingIcon = Icons.Outlined.VerifiedUser,
-                            onClick = { navigator.navigate(PermissionsChecklistScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory("Permissions & App Setup")
+                                navigator.navigate(PermissionsChecklistScreenDestination)
+                            }
                         )
                     }
                 }

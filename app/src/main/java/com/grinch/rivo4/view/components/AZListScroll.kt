@@ -157,7 +157,13 @@ fun AZListScroll(
                 ) { index, contact ->
                     val surfaceStyle = rivoSurfaceStyle()
                     val showCards = surfaceStyle.showCards
-                    val shape = rivoGroupedItemShape(index, contactsForChar.size)
+                    val shape = if (showSectionHeaders) {
+                        rivoGroupedItemShape(index, contactsForChar.size)
+                    } else {
+                        val flatList = remember(finalGrouped) { finalGrouped.values.flatten() }
+                        val overallIdx = flatList.indexOfFirst { it.id == contact.id }
+                        rivoGroupedItemShape(if (overallIdx >= 0) overallIdx else index, flatList.size)
+                    }
 
                     Column(
                         modifier = Modifier
@@ -250,7 +256,13 @@ fun AZListScroll(
                             )
                         }
                         }
-                        if (!showCards && index < contactsForChar.size - 1) {
+                        val showDivider = if (showSectionHeaders) {
+                            index < contactsForChar.size - 1
+                        } else {
+                            val flatList = finalGrouped.values.flatten()
+                            flatList.lastOrNull()?.id != contact.id
+                        }
+                        if (!showCards && showDivider) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
@@ -258,7 +270,6 @@ fun AZListScroll(
                         }
                     }
                 }
-
             }
         }
 

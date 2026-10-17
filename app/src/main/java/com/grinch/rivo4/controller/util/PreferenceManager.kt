@@ -518,6 +518,7 @@ class PreferenceManager(context: Context) {
         const val KEY_CALL_ANALYTICS_TRACKING = "call_analytics_tracking"
         const val KEY_SHOW_CONTACT_MANAGEMENT_CARD = "show_contact_management_card"
         const val KEY_SHOW_COUNTRY_CODE = "show_country_code"
+        const val KEY_SETTINGS_HISTORY = "settings_history"
     }
 
     fun getCallLogLimit(): Int = getInt(KEY_CALL_LOG_LIMIT, CALL_LOG_LIMIT_DEFAULT)
@@ -568,7 +569,7 @@ class PreferenceManager(context: Context) {
     fun getSwipeLeftAction(): Int = getInt(KEY_SWIPE_LEFT_ACTION, SWIPE_ACTION_MESSAGE)
     fun setSwipeLeftAction(action: Int) = setInt(KEY_SWIPE_LEFT_ACTION, action)
 
-    fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, false)
+    fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, true)
     fun setSupporter(isSupporter: Boolean) = setBoolean(KEY_IS_SUPPORTER, isSupporter)
 
     fun isPostCallScreenEnabled(): Boolean = getBoolean(KEY_POST_CALL_SCREEN, true)
@@ -618,5 +619,26 @@ class PreferenceManager(context: Context) {
     fun isShowContactSectionHeaders(): Boolean = getBoolean(KEY_SHOW_CONTACT_SECTION_HEADERS, true)
     fun setShowContactSectionHeaders(enabled: Boolean) {
         setBoolean(KEY_SHOW_CONTACT_SECTION_HEADERS, enabled)
+    }
+
+    fun getSettingsHistory(): List<String> {
+        val raw = getString(KEY_SETTINGS_HISTORY, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return raw.split("|::|").filter { it.isNotBlank() }
+    }
+
+    fun addSettingsHistory(title: String) {
+        if (title.isBlank()) return
+        val current = getSettingsHistory().toMutableList()
+        current.remove(title)
+        current.add(0, title)
+        if (current.size > 8) {
+            current.subList(8, current.size).clear()
+        }
+        setString(KEY_SETTINGS_HISTORY, current.joinToString("|::|"))
+    }
+
+    fun clearSettingsHistory() {
+        setString(KEY_SETTINGS_HISTORY, "")
     }
 }
