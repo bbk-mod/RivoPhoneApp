@@ -38,6 +38,7 @@ import com.grinch.rivo4.view.theme.*
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactSelectionScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.ramcosta.composedestinations.result.ResultBackNavigator
 import org.koin.compose.viewmodel.koinActivityViewModel
@@ -97,7 +98,7 @@ fun ContactSelectionScreen(
         }
     }
 
-    val totalSelectedCount = maxOf(selectedContactIds.size, selectedPhoneNumbers.size)
+    val totalSelectedCount = if (returnContactId) selectedContactIds.size else selectedPhoneNumbers.size
 
     CompositionLocalProvider(LocalRivoAvatarStyle provides avatarStyle) {
         Scaffold(
@@ -144,11 +145,13 @@ fun ContactSelectionScreen(
                                 onClick = {
                                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                     if (allSelected) {
-                                        selectedContactIds = emptySet()
-                                        selectedPhoneNumbers = emptySet()
+                                        val idsToRemove = filteredContacts.map { it.id }.toSet()
+                                        val numsToRemove = filteredContacts.flatMap { it.phoneNumbers }.toSet()
+                                        selectedContactIds = selectedContactIds - idsToRemove
+                                        selectedPhoneNumbers = selectedPhoneNumbers - numsToRemove
                                     } else {
-                                        selectedContactIds = filteredContacts.map { it.id }.toSet()
-                                        selectedPhoneNumbers = filteredContacts.flatMap { it.phoneNumbers }.toSet()
+                                        selectedContactIds = selectedContactIds + filteredContacts.map { it.id }.toSet()
+                                        selectedPhoneNumbers = selectedPhoneNumbers + filteredContacts.flatMap { it.phoneNumbers }.toSet()
                                     }
                                 }
                             ) {
@@ -642,7 +645,11 @@ fun ContactSelectionScreen(
                                                             contactId = contact.id,
                                                             initialPhone = initialPhoneToAssign
                                                         )
-                                                    )
+                                                    ) {
+                                                        popUpTo(ContactSelectionScreenDestination) {
+                                                            inclusive = true
+                                                        }
+                                                    }
                                                 } else if (returnContactId) {
                                                     resultNavigator.navigateBack(result = contact.id)
                                                 } else {

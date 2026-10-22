@@ -80,7 +80,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
-@Destination<RootGraph>(style = NoTransitions::class)
+@Destination<RootGraph>
 @Composable
 fun FavoritesScreen(navController: NavController, navigator: DestinationsNavigator) {
     FavoritesScreenContent(navController, navigator)
@@ -136,7 +136,9 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
     var showAddSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        contactsVM.fetchContacts()
+        if (allContacts.isEmpty()) {
+            contactsVM.fetchContacts()
+        }
     }
 
     val displayOrder = remember(settingsState) {
@@ -152,7 +154,7 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
         }.thenBy { it.displayName.lowercase() })
     }
 
-    val items = remember { mutableStateListOf<Contact>() }
+    val items = remember { mutableStateListOf<Contact>().apply { addAll(favorites) } }
     LaunchedEffect(favorites) {
         if (items.map { it.id }.toSet() != favorites.map { it.id }.toSet()) {
             items.clear()
@@ -334,7 +336,11 @@ private fun FavoritesGridContent(navigator: DestinationsNavigator) {
                 }
             }
 
-            itemsIndexed(items, key = { index, contact -> "fav_${contact.id}_$index" }) { index, contact ->
+            itemsIndexed(
+                items,
+                key = { _, contact -> "fav_${contact.id}" },
+                contentType = { _, _ -> "favorite" }
+            ) { index, contact ->
                 val dragging = index == dragDropState.draggingItemIndex
                 val itemModifier = if (dragging) {
                     Modifier
@@ -770,7 +776,11 @@ private fun AddFavoriteBottomSheet(
                         .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    itemsIndexed(filteredContacts, key = { index, contact -> "sheet_fav_${contact.id}_$index" }) { _, contact ->
+                    itemsIndexed(
+                        filteredContacts,
+                        key = { _, contact -> "sheet_fav_${contact.id}" },
+                        contentType = { _, _ -> "sheet_contact" }
+                    ) { _, contact ->
                         Surface(
                             onClick = {
                                 onAddFavorite(contact)

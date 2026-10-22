@@ -6,10 +6,10 @@ plugins {
     id 'com.google.devtools.ksp' version '2.1.0-1.0.29'
 }
 
-def baseVersionCode = 2026091507
+def baseVersionCode = 2026102200
 def buildNumber = (System.getenv("BUILD_NUMBER") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "0") as int
 def isPreviewBuild = System.getenv("PREVIEW_BUILD") == "true"
-def baseVersionName = "2.2.3"
+def baseVersionName = "2.3.1"
 
 android {
     namespace = 'com.grinch.rivo4'
@@ -44,12 +44,12 @@ android {
         release {
             minifyEnabled = true
             shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig = signingConfigs.release
             debuggable = false
         }
         debug {
-            applicationIdSuffix = ".debug"
-            resValue "string", "app_name", "Rivo (Debug)"
+            debuggable = true
         }
     }
 
@@ -95,6 +95,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             outputFileName = "RivoPhone-${variant.versionName}.apk"
@@ -103,19 +107,6 @@ android {
 }
 
 afterEvaluate {
-    tasks.matching { it.name == "bundlePlayRelease" }.configureEach { task ->
-        task.doLast {
-            def outDir = layout.buildDirectory.dir("outputs/bundle/playRelease").get().asFile
-            if (outDir.exists()) {
-                outDir.listFiles()?.each { file ->
-                    if (file.name.endsWith(".aab") && !file.name.contains("RivoPhone")) {
-                        file.renameTo(new File(outDir, "RivoPhone-${android.defaultConfig.versionName}.aab"))
-                    }
-                }
-            }
-        }
-    }
-
     // Prevent Windows java.nio.file.FileAlreadyExistsException during KSP compilation
     tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }.configureEach { task ->
         task.doFirst {

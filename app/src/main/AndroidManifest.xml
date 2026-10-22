@@ -5,12 +5,19 @@
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false" />
 
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
@@ -20,7 +27,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"  tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -31,7 +38,6 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:node="remove"/>
@@ -42,6 +48,7 @@
 
         <!-- Messaging & Social Apps -->
         <package android:name="org.thoughtcrime.securesms" />
+        <package android:name="us.zoom.videomeetings" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -52,37 +59,21 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="tg" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
             <data android:scheme="sgnl" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="viber" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="skype" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="line" />
         </intent>
     </queries>
 
     <application
         android:name=".RivoApp"
         android:allowBackup="true"
-        android:requestLegacyExternalStorage="true"
+        
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:directBootAware="true"
+        
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.RivoPhone">
 
@@ -92,7 +83,7 @@
             android:label="@string/app_name"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
-            android:directBootAware="true"
+            
             android:theme="@style/Theme.App.Starting">
             <meta-data
                 android:name="android.app.shortcuts"
@@ -195,7 +186,7 @@
             android:roundIcon="@mipmap/ic_launcher_contacts_round"
             android:label="@string/app_name_contacts"
             android:windowSoftInputMode="adjustResize"
-            android:directBootAware="true"
+            
             android:theme="@style/Theme.App.Starting.Contacts">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -215,7 +206,7 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:inheritShowWhenLocked="true"
-            android:directBootAware="true"
+            
             android:theme="@style/Theme.RivoPhone" />
 
         <activity
@@ -262,7 +253,6 @@
                 <action android:name="com.grinch.rivo4.ACTION_MUTE_FAKE_CALL" />
                 <action android:name="com.grinch.rivo4.ACTION_SPEAKER_FAKE_CALL" />
                 <action android:name="com.grinch.rivo4.ACTION_CANCEL_FAKE_CALL" />
-                <action android:name="com.grinch.rivo4.ACTION_TEST_RECORD" />
             </intent-filter>
         </receiver>
 
@@ -288,7 +278,7 @@
             android:name=".controller.CallService"
             android:permission="android.permission.BIND_INCALL_SERVICE"
             android:foregroundServiceType="phoneCall|microphone"
-            android:directBootAware="true"
+            
             android:exported="true">
             <meta-data
                 android:name="android.telecom.IN_CALL_SERVICE_UI"

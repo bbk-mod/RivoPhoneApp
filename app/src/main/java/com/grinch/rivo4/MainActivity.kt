@@ -2,8 +2,11 @@ package com.grinch.rivo4
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.util.Log
+
 import android.telecom.Call
 import com.grinch.rivo4.controller.CallActivity
 import com.grinch.rivo4.controller.CallService
@@ -32,6 +35,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavBackStackEntry
@@ -41,6 +45,8 @@ import com.grinch.rivo4.controller.util.isAlreadyDefaultDialer
 import com.grinch.rivo4.controller.util.makeCall
 import com.grinch.rivo4.view.screen.onboarding.MorphingOnboardingScreen
 import com.grinch.rivo4.view.screen.transitions.AppTransitions
+import com.grinch.rivo4.view.screen.transitions.LocalTransitionStyle
+import com.grinch.rivo4.view.screen.transitions.LocalTransitionTimeScale
 import com.grinch.rivo4.view.screen.transitions.getAppTransition
 import com.grinch.rivo4.view.theme.Rivo4Theme
 import com.ramcosta.composedestinations.DestinationsNavHost
@@ -118,15 +124,23 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                 }
                 currentRequestedTab = requestedTab
 
-                CompositionLocalProvider(
-                    LocalRequestedTab provides requestedTab
-                ) {
-
                 val prefs = koinInject<PreferenceManager>()
-                val defBar = prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, 0)
-                val transitionStyle = prefs.getInt(PreferenceManager.KEY_TRANSITION_STYLE, 0)
+                val settingsState by prefs.settingsChanged.collectAsState()
+                val defBar = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, 0) }
+                val transitionStyle = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_TRANSITION_STYLE, 0) }
+                val transitionTimeScale = remember(settingsState) { prefs.getTransitionTimeScale() }
+                val predictiveBackEnabled = remember(settingsState) { prefs.isPredictiveBackEnabled() }
                 val onboardingShown = remember { prefs.getBoolean(PreferenceManager.KEY_ONBOARDING_SHOWN, true) }
                 var showOnboarding by remember { mutableStateOf(!onboardingShown) }
+                val defaultTransitions = remember(transitionStyle, predictiveBackEnabled, transitionTimeScale) {
+                    getAppTransition(transitionStyle, predictiveBackEnabled, transitionTimeScale)
+                }
+
+                CompositionLocalProvider(
+                    LocalRequestedTab provides requestedTab,
+                    LocalTransitionStyle provides transitionStyle,
+                    LocalTransitionTimeScale provides transitionTimeScale
+                ) {
 
                 val currentCallSession by CallService.currentCallSession.collectAsState()
                 val isCallOngoing = currentCallSession != null &&
@@ -135,7 +149,11 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                                 currentCallSession?.state == Call.STATE_DIALING ||
                                 currentCallSession?.state == Call.STATE_CONNECTING)
 
-                val darkTheme = isSystemInDarkTheme()
+                val darkTheme = when (prefs.getInt(PreferenceManager.KEY_THEME_MODE, PreferenceManager.THEME_MODE_SYSTEM)) {
+                    PreferenceManager.THEME_MODE_LIGHT -> false
+                    PreferenceManager.THEME_MODE_DARK -> true
+                    else -> isSystemInDarkTheme()
+                }
                 DisposableEffect(isCallOngoing, darkTheme) {
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     if (isCallOngoing) {
@@ -196,7 +214,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                             DestinationsNavHost(
                                 navGraph = NavGraphs.root,
                                 navController = navController,
-                                defaultTransitions = getAppTransition(transitionStyle)
+                                defaultTransitions = defaultTransitions
                             )
                         }
                     }
@@ -277,7 +295,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                             launchSingleTop = true
                         }
                     } catch (e2: Exception) {
-                        e2.printStackTrace()
+                        Log.e("MainActivity", "Error navigating to main screen: ${e2.message}", e2)
                     }
                 }
             }
@@ -298,7 +316,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                 val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
                 telecomManager?.cancelMissedCallsNotification()
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MainActivity", "Error canceling missed calls: ${e.message}", e)
             }
             navController.navigate(MainScreenDestination(initialTab = 0).route) {
                 popUpTo(navController.graph.startDestinationId)
@@ -394,3 +412,6 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
         return super.dispatchKeyEvent(event)
     }
 }
+
+
+// TODO: Convert to M3 DynamicColor - use MaterialTheme.dynamicColorScheme

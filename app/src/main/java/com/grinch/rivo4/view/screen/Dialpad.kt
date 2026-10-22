@@ -88,6 +88,7 @@ import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScr
 import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.ContactSelectionScreenDestination
 import com.grinch.rivo4.view.components.AddToContactBottomSheet
+import com.grinch.rivo4.view.components.ImeiDialog
 import com.grinch.rivo4.modal.data.Contact
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.Dispatchers
@@ -214,9 +215,13 @@ fun DialPadScreen(
 
     var showSocialDialog by remember { mutableStateOf(false) }
     var showAddToContactSheet by remember { mutableStateOf(false) }
+    var showImeiDialog by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = number.isNotEmpty()) {
-        textFieldValue = TextFieldValue("")
+    LaunchedEffect(number) {
+        if (number.replace(" ", "") == "*#06#") {
+            showImeiDialog = true
+            textFieldValue = TextFieldValue("")
+        }
     }
 
     val onDigitClick = { digit: String ->
@@ -227,11 +232,13 @@ fun DialPadScreen(
         textFieldValue = TextFieldValue(newText, newSelection)
     }
 
-    val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_DTMF, 80) }
+    val toneGenerator = remember {
+        runCatching { ToneGenerator(AudioManager.STREAM_DTMF, 80) }.getOrNull()
+    }
 
     DisposableEffect(Unit) {
         onDispose {
-            toneGenerator.release()
+            toneGenerator?.release()
         }
     }
 
@@ -292,7 +299,14 @@ fun DialPadScreen(
     var searchResults by remember { mutableStateOf<List<Contact>>(emptyList()) }
     var searchRecentNumbers by remember { mutableStateOf<List<CallLogEntry>>(emptyList()) }
 
-    LaunchedEffect(number, allContacts, allCallLogs, t9Enabled) {
+    val savedNumbersSet = remember(allContacts) {
+        allContacts.flatMap { it.phoneNumbers }
+            .map { normalizePhoneNumber(it) }
+            .filter { it.isNotEmpty() }
+            .toSet()
+    }
+
+    LaunchedEffect(number, allContacts, allCallLogs, t9Enabled, savedNumbersSet) {
         if (number.isEmpty()) {
             searchResults = emptyList()
             searchRecentNumbers = emptyList()
@@ -300,21 +314,19 @@ fun DialPadScreen(
             val (contacts, recents) = withContext(Dispatchers.Default) {
                 val cleanQuery = number.replace(" ", "")
                 val cleanDigits = cleanQuery.filter { it.isDigit() }
+                val cleanQueryChars = cleanQuery.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
 
                 val matchedContacts = allContacts.asSequence()
                     .filter { contact ->
-                        val matchesNumber = contact.phoneNumbers.any { it.replace(" ", "").contains(cleanQuery) }
+                        val matchesNumber = contact.phoneNumbers.any { num ->
+                            num.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }.contains(cleanQueryChars)
+                        }
                         val matchesName = t9Enabled && T9Matcher.isMatch(contact.displayName, cleanQuery)
                         val matchesNickname = t9Enabled && contact.nickname?.let { T9Matcher.isMatch(it, cleanQuery) } ?: false
                         matchesNumber || matchesName || matchesNickname
                     }
                     .take(50)
                     .toList()
-
-                val savedNumbersSet = allContacts.flatMap { it.phoneNumbers }
-                    .map { normalizePhoneNumber(it) }
-                    .filter { it.isNotEmpty() }
-                    .toSet()
 
                 val matchedRecents = if (cleanDigits.isNotEmpty()) {
                     allCallLogs.asSequence()
@@ -347,8 +359,10 @@ fun DialPadScreen(
 
     val performCall = { targetNumber: String, contactId: String? ->
         val cleanNumber = targetNumber.replace(" ", "")
-        if (cleanNumber == "*#06#" ||
-            (cleanNumber.startsWith("*#*#") && cleanNumber.endsWith("#*#*") && cleanNumber.length >= 9) ||
+        if (cleanNumber == "*#06#") {
+            showImeiDialog = true
+            textFieldValue = TextFieldValue("")
+        } else if ((cleanNumber.startsWith("*#*#") && cleanNumber.endsWith("#*#*") && cleanNumber.length >= 9) ||
             (cleanNumber.startsWith("##") && cleanNumber.endsWith("#") && cleanNumber.length >= 4)) {
             val handled = com.grinch.rivo4.controller.util.processSecretCode(context, cleanNumber)
             if (handled) {
@@ -392,8 +406,10 @@ fun DialPadScreen(
     val performCallWithSim = { targetNumber: String, handle: PhoneAccountHandle? ->
         val cleanNumber = targetNumber.replace(" ", "")
         if (cleanNumber.isNotEmpty()) {
-            if (cleanNumber == "*#06#" ||
-                (cleanNumber.startsWith("*#*#") && cleanNumber.endsWith("#*#*") && cleanNumber.length >= 9) ||
+            if (cleanNumber == "*#06#") {
+                showImeiDialog = true
+                textFieldValue = TextFieldValue("")
+            } else if ((cleanNumber.startsWith("*#*#") && cleanNumber.endsWith("#*#*") && cleanNumber.length >= 9) ||
                 (cleanNumber.startsWith("##") && cleanNumber.endsWith("#") && cleanNumber.length >= 4)
             ) {
                 val handled = com.grinch.rivo4.controller.util.processSecretCode(context, cleanNumber)
@@ -499,7 +515,11 @@ fun DialPadScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = dialpadHeightDp + 16.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    itemsIndexed(searchResults, key = { _, contact -> "dialpad_contact_${contact.id}" }) { index, contact ->
+                    itemsIndexed(
+                        searchResults,
+                        key = { _, contact -> "dialpad_contact_${contact.id}" },
+                        contentType = { _, _ -> "contact" }
+                    ) { index, contact ->
                         val contactNumber = contact.phoneNumbers.firstOrNull()
                         val shape = rivoGroupedItemShape(index, totalResults)
 
@@ -522,6 +542,22 @@ fun DialPadScreen(
                                             if (phone.isNotBlank()) {
                                                 clipboardManager.setText(AnnotatedString(phone))
                                                 Toast.makeText(context, context.getString(R.string.number_copied_toast), Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        SwipeActionType.VIEW_CONTACT -> {
+                                            navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                        }
+                                        SwipeActionType.SHARE -> {
+                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(android.content.Intent.EXTRA_TEXT, "${contact.name}: $phone")
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                                        }
+                                        SwipeActionType.BLOCK -> {
+                                            if (phone.isNotBlank()) {
+                                                com.grinch.rivo4.controller.util.BlockedNumbersManager.block(context, phone)
+                                                Toast.makeText(context, context.getString(R.string.toast_blocked_number, phone), Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                         SwipeActionType.DELETE -> {}
@@ -562,7 +598,11 @@ fun DialPadScreen(
                         }
                     }
 
-                    itemsIndexed(searchRecentNumbers, key = { _, entry -> "dialpad_recent_${entry.id}_${entry.number}" }) { index, entry ->
+                    itemsIndexed(
+                        searchRecentNumbers,
+                        key = { _, entry -> "dialpad_recent_${entry.id}_${entry.number}" },
+                        contentType = { _, _ -> "recent" }
+                    ) { index, entry ->
                         val itemIndex = searchResults.size + index
                         val shape = rivoGroupedItemShape(itemIndex, totalResults)
 
@@ -589,6 +629,27 @@ fun DialPadScreen(
                                                 Toast.makeText(context, context.getString(R.string.number_copied_toast), Toast.LENGTH_SHORT).show()
                                             }
                                         }
+                                        SwipeActionType.VIEW_CONTACT -> {
+                                            navigator.navigate(
+                                                ContactDetailsScreenDestination(
+                                                    contactId = entry.contactId ?: "null",
+                                                    phoneNumber = entry.number
+                                                )
+                                            )
+                                        }
+                                        SwipeActionType.SHARE -> {
+                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(android.content.Intent.EXTRA_TEXT, "${entry.name ?: entry.number}: $phone")
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                                        }
+                                        SwipeActionType.BLOCK -> {
+                                            if (phone.isNotBlank()) {
+                                                com.grinch.rivo4.controller.util.BlockedNumbersManager.block(context, phone)
+                                                Toast.makeText(context, context.getString(R.string.toast_blocked_number, phone), Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                         SwipeActionType.DELETE -> {}
                                         SwipeActionType.NONE -> {}
                                     }
@@ -596,15 +657,21 @@ fun DialPadScreen(
                             ) {
                                 RivoListItem(
                                     headline = formatPhoneNumber(entry.number),
-                                    supporting = if (entrySimNumber == null) recentsLabel else null,
-                                    supportingContent = if (entrySimNumber != null) {
+                                    supporting = if (entrySimNumber == null && !entry.isHd) recentsLabel else null,
+                                    supportingContent = if (entrySimNumber != null || entry.isHd) {
                                         {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.padding(top = 1.dp)
                                             ) {
-                                                SimBadge(simNumber = entrySimNumber)
-                                                Spacer(modifier = Modifier.width(6.dp))
+                                                if (entrySimNumber != null) {
+                                                    SimBadge(simNumber = entrySimNumber)
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                }
+                                                if (entry.isHd) {
+                                                    HdBadge()
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                }
                                                 Text(
                                                     text = recentsLabel,
                                                     style = RivoListItemDefaults.supportingStyle(),
@@ -748,7 +815,7 @@ fun DialPadScreen(
                                                 }
                                             } else if (speedDialEnabled && number.isEmpty()) {
                                                 val mapping = prefs.getString("speed_dial_$digit", null)
-                                                val speedNumber = mapping?.split("|")?.getOrNull(1)
+                                                val speedNumber = mapping?.substringAfterLast("|", "")?.takeIf { it.isNotBlank() }
                                                 if (speedNumber != null) {
                                                     callLauncher.dial(speedNumber, null)
                                                 }
@@ -782,7 +849,7 @@ fun DialPadScreen(
                                 )
                             }
 
-                            if (dualSimButtonsEnabled) {
+                            if (dualSimButtonsEnabled && phoneAccounts.size >= 2) {
                                 val sim1Handle = phoneAccounts.getOrNull(0)
                                 val sim2Handle = phoneAccounts.getOrNull(1)
 
@@ -900,6 +967,12 @@ fun DialPadScreen(
             }
         )
     }
+
+    if (showImeiDialog) {
+        ImeiDialog(
+            onDismissRequest = { showImeiDialog = false }
+        )
+    }
     }
 }
 
@@ -1014,7 +1087,7 @@ fun DialerSimActionExpressive(
 fun DialPadKey(
     number: String,
     letters: String,
-    toneGenerator: ToneGenerator,
+    toneGenerator: ToneGenerator?,
     context: Context,
     dialpadStyle: Int = PreferenceManager.DIALPAD_STYLE_MODERN,
     dimensions: DialpadDimensions = DialpadDimensions.forSize(PreferenceManager.DIALPAD_SIZE_MEDIUM),
@@ -1242,7 +1315,8 @@ object T9Matcher {
     }
 }
 
-private fun playDtmf(key: String, toneGenerator: ToneGenerator) {
+private fun playDtmf(key: String, toneGenerator: ToneGenerator?) {
+    if (toneGenerator == null) return
     val toneType = when (key) {
         "1" -> ToneGenerator.TONE_DTMF_1
         "2" -> ToneGenerator.TONE_DTMF_2

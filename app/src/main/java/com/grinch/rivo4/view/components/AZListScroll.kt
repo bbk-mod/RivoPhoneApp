@@ -33,6 +33,7 @@ import androidx.compose.ui.text.AnnotatedString
 import com.grinch.rivo4.controller.util.SocialUtils
 import com.grinch.rivo4.modal.data.Contact
 import com.grinch.rivo4.modal.data.SwipeActionType
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.formatPhoneNumber
@@ -69,8 +70,12 @@ fun AZListScroll(
     val showSectionHeaders = remember(settingsState) { prefs.isShowContactSectionHeaders() }
 
     if (hapticScrollEnabled) {
-        LaunchedEffect(listState.firstVisibleItemIndex) {
-            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.firstVisibleItemIndex }
+                .distinctUntilChanged()
+                .collect {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                }
         }
     }
 
@@ -92,6 +97,20 @@ fun AZListScroll(
         if (hashGroup != null) finalMap['#'] = hashGroup
 
         finalMap
+    }
+
+    val (flatContactIndices, totalFlatCount, lastContactId) = remember(finalGrouped) {
+        val map = mutableMapOf<String, Int>()
+        var idx = 0
+        var lastId: String? = null
+        finalGrouped.values.forEach { group ->
+            group.forEach { contact ->
+                map[contact.id] = idx
+                idx++
+                lastId = contact.id
+            }
+        }
+        Triple(map, idx, lastId)
     }
 
     val alphabetIndices = remember(finalGrouped, header != null, showSectionHeaders) {
@@ -121,6 +140,9 @@ fun AZListScroll(
                 ?.key ?: alphabetIndices.keys.firstOrNull()
         }
     }
+
+    val surfaceStyle = rivoSurfaceStyle()
+    val showCards = surfaceStyle.showCards
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -155,14 +177,11 @@ fun AZListScroll(
                     key = { _, contact -> contact.id },
                     contentType = { _, _ -> "contact" }
                 ) { index, contact ->
-                    val surfaceStyle = rivoSurfaceStyle()
-                    val showCards = surfaceStyle.showCards
                     val shape = if (showSectionHeaders) {
                         rivoGroupedItemShape(index, contactsForChar.size)
                     } else {
-                        val flatList = remember(finalGrouped) { finalGrouped.values.flatten() }
-                        val overallIdx = flatList.indexOfFirst { it.id == contact.id }
-                        rivoGroupedItemShape(if (overallIdx >= 0) overallIdx else index, flatList.size)
+                        val overallIdx = flatContactIndices[contact.id] ?: index
+                        rivoGroupedItemShape(overallIdx, totalFlatCount)
                     }
 
                     Column(
@@ -214,6 +233,22 @@ fun AZListScroll(
                                             Toast.makeText(context, context.getString(R.string.number_copied_toast), Toast.LENGTH_SHORT).show()
                                         }
                                     }
+                                    SwipeActionType.VIEW_CONTACT -> {
+                                        navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                    }
+                                    SwipeActionType.SHARE -> {
+                                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "${contact.name}: $phone")
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(shareIntent, null))
+                                    }
+                                    SwipeActionType.BLOCK -> {
+                                        if (phone.isNotBlank()) {
+                                            com.grinch.rivo4.controller.util.BlockedNumbersManager.block(context, phone)
+                                            Toast.makeText(context, context.getString(R.string.toast_blocked_number, phone), Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                     SwipeActionType.DELETE -> {}
                                     SwipeActionType.NONE -> {}
                                 }
@@ -259,8 +294,7 @@ fun AZListScroll(
                         val showDivider = if (showSectionHeaders) {
                             index < contactsForChar.size - 1
                         } else {
-                            val flatList = finalGrouped.values.flatten()
-                            flatList.lastOrNull()?.id != contact.id
+                            lastContactId != contact.id
                         }
                         if (!showCards && showDivider) {
                             HorizontalDivider(
@@ -280,9 +314,11 @@ fun AZListScroll(
                 .align(Alignment.CenterEnd)
                 .padding(end = 4.dp),
             onLetterSelected = { char ->
-                draggingChar = char
-                val index = alphabetIndices[char] ?: return@AlphabetSideBar
-                scope.launch { listState.scrollToItem(index) }
+                if (draggingChar != char) {
+                    draggingChar = char
+                    val index = alphabetIndices[char] ?: return@AlphabetSideBar
+                    scope.launch { listState.scrollToItem(index) }
+                }
             },
             onDragEnd = { draggingChar = null }
         )

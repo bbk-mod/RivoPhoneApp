@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
@@ -121,7 +123,7 @@ class ContactsViewModel(
     private val _displayOrder = MutableStateFlow(preferenceManager.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0))
     val displayOrder = _displayOrder.asStateFlow()
 
-    val filteredContacts = combine(
+    val filteredContacts =  combine(
         _allContacts,
         _selectedAccount,
         _showPrivateOnly,
@@ -172,9 +174,9 @@ class ContactsViewModel(
         }
         
         baseFiltered.sortedBy { contact -> contactSortKey(contact, sortOrder).lowercase() }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val groupedContacts = combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
+    val groupedContacts =  combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
         val mainGroups = contacts.groupBy { contact ->
             val nameToUse = contactSortKey(contact, sortOrder)
             val firstChar = ContactUtils.stripTitlePrefix(nameToUse).firstOrNull()?.uppercaseChar() ?: '#'
@@ -191,7 +193,7 @@ class ContactsViewModel(
         if (hashGroup != null) finalMap['#'] = hashGroup
 
         finalMap
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     private fun contactSortKey(contact: Contact, sortOrder: Int): String {
         if (!contact.nickname.isNullOrBlank()) return contact.displayName.trim()
@@ -209,10 +211,28 @@ class ContactsViewModel(
         }
     }
 
+    val contactsByNumber: StateFlow<Map<String, Contact>> = _allContacts.map { contacts ->
+        val map = mutableMapOf<String, Contact>()
+        for (c in contacts) {
+            for (p in c.phoneNumbers) {
+                ContactUtils.getLookupKeys(p).forEach { key ->
+                    map.putIfAbsent(key, c)
+                }
+            }
+        }
+        map
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    val contactsById: StateFlow<Map<String, Contact>> = _allContacts.map { contacts ->
+        contacts.associateBy { it.id }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+
     init {
-        fetchAccounts()
-        registerObserver()
-    }
+fetchAccounts()
+registerObserver()
+fetchContacts()
+}
 
     fun syncFavoriteShortcuts() {
         val favContacts = _allContacts.value.filter { it.isFavorite }
@@ -354,8 +374,10 @@ class ContactsViewModel(
             val isNew = contact.id.isEmpty() || contact.id == "0" || contact.id == "null"
             val (success, savedId) = contactsRepo.saveContactWithResult(contact)
             if (success) {
-                preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_NAME, contact.accountName)
-                preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_TYPE, contact.accountType)
+                if (!contact.isPrivate) {
+                    preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_NAME, contact.accountName)
+                    preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_TYPE, contact.accountType)
+                }
 
                 val finalId = savedId ?: contact.id
                 val updatedContact = contact.copy(id = finalId)
@@ -433,7 +455,12 @@ class ContactsViewModel(
                 if (preferenceManager.isContactsTrashEnabled()) {
                     val fullContact = contactsRepo.getContactById(contactId)
                     if (fullContact != null) {
-                        trashedContactDao.insert(TrashedContactEntity.fromContact(fullContact))
+                        val safePhoto = if (contactsRepo is com.grinch.rivo4.modal.repository.ContactsRepository) {
+                            contactsRepo.persistPhotoLocally(fullContact.photoUri)
+                        } else {
+                            fullContact.photoUri
+                        }
+                        trashedContactDao.insert(TrashedContactEntity.fromContact(fullContact.copy(photoUri = safePhoto)))
                     }
                 }
                 val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
@@ -466,7 +493,14 @@ class ContactsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (preferenceManager.isContactsTrashEnabled()) {
-                    val toTrash = contactIds.mapNotNull { contactsRepo.getContactById(it) }
+                    val toTrash = contactIds.mapNotNull { contactsRepo.getContactById(it) }.map { fullContact ->
+                        val safePhoto = if (contactsRepo is com.grinch.rivo4.modal.repository.ContactsRepository) {
+                            contactsRepo.persistPhotoLocally(fullContact.photoUri)
+                        } else {
+                            fullContact.photoUri
+                        }
+                        fullContact.copy(photoUri = safePhoto)
+                    }
                     if (toTrash.isNotEmpty()) {
                         trashedContactDao.insertAll(toTrash.map { TrashedContactEntity.fromContact(it) })
                     }
