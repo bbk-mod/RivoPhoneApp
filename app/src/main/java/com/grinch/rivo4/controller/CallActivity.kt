@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.grinch.rivo4.controller
 
 import android.app.KeyguardManager
@@ -121,6 +123,7 @@ class CallActivity : ComponentActivity() {
         CallService.isActivityVisible.value = true
         turnScreenOnAndShowWhileLocked()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         CallBackgroundStore.attach(preferenceManager)
         CallRecorder.prepare(this)
@@ -170,9 +173,8 @@ class CallActivity : ComponentActivity() {
                                 moveTaskToBack(true)
                             }
                         })
-                    } else {
-                        moveTaskToBack(true)
                     }
+                    moveTaskToBack(true)
                 } else {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
@@ -190,6 +192,26 @@ class CallActivity : ComponentActivity() {
                         acquireProximityLock()
                     } else {
                         releaseProximityLock()
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            CallService.allCalls.collect { calls ->
+                if (calls.none { it.state != Call.STATE_DISCONNECTED && it.state != Call.STATE_DISCONNECTING }) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        setTurnScreenOn(false)
+                    }
+                    @Suppress("DEPRECATION")
+                    window.clearFlags(
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    )
+                    releaseProximityLock()
+                    stopProximitySensorRouting()
+                    delay(400)
+                    if (CallService.allCalls.value.none { it.state != Call.STATE_DISCONNECTED }) {
+                        dismissCallScreen()
                     }
                 }
             }
@@ -243,7 +265,10 @@ class CallActivity : ComponentActivity() {
                 LaunchedEffect(callState, settingsState) {
                     val keepScreenOn =
                         preferenceManager.getBoolean(PreferenceManager.KEY_KEEP_SCREEN_ON, true)
-                    if (keepScreenOn) {
+                    val isCallAlive = callState != null &&
+                        callState != Call.STATE_DISCONNECTED &&
+                        callState != Call.STATE_DISCONNECTING
+                    if (keepScreenOn && isCallAlive) {
                         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -583,16 +608,40 @@ class CallActivity : ComponentActivity() {
     }
 
     private fun turnScreenOnAndShowWhileLocked() {
+        val hasActiveCall = CallService.allCalls.value.any {
+            it.state != Call.STATE_DISCONNECTED && it.state != Call.STATE_DISCONNECTING
+        }
+        if (!hasActiveCall && CallService.currentCallSession.value == null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(false)
+                setTurnScreenOn(false)
+            }
+            @Suppress("DEPRECATION")
+            window.clearFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+            return
+        }
+        val keepScreenOn = preferenceManager.getBoolean(PreferenceManager.KEY_KEEP_SCREEN_ON, true)
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        val isLocked = km?.isKeyguardLocked == true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
+            setShowWhenLocked(isLocked)
             setTurnScreenOn(true)
         }
         @Suppress("DEPRECATION")
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        )
+        val baseFlags = WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            (if (keepScreenOn) WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON else 0)
+        if (isLocked) {
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or baseFlags
+            )
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            window.addFlags(baseFlags)
+        }
     }
 
     override fun onStart() {
@@ -605,9 +654,6 @@ class CallActivity : ComponentActivity() {
         turnScreenOnAndShowWhileLocked()
         com.grinch.rivo4.controller.floating.FloatingCallService.stop(this)
 
-        // Automatically Resume the Previous Call:
-        // When returning to CallActivity (e.g. after attempting to add a call or returning from dialpad/reminders),
-        // if no active, dialing, or connecting call exists and a call is on hold, automatically resume the held call.
         val calls = CallService.allCalls.value
         val hasActiveOrConnecting = calls.any {
             it.state == Call.STATE_ACTIVE ||

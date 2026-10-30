@@ -30,12 +30,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -56,6 +58,7 @@ import com.grinch.rivo4.view.components.RivoListItem
 import com.grinch.rivo4.view.components.RivoSwitchListItem
 import com.grinch.rivo4.view.theme.RivoMaterialShapes
 import com.grinch.rivo4.view.theme.rememberRivoMorphShape
+import com.grinch.rivo4.view.theme.rivoPolygonShape
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.*
@@ -73,7 +76,7 @@ fun SettingsScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val searchListState = rememberLazyListState()
-    val logoMorph = rememberRivoMorphShape(RivoMaterialShapes.Cookie12Sided, RivoMaterialShapes.Circle) { 0.2f }
+    val cookie7Shape = rivoPolygonShape(RivoMaterialShapes.Cookie7Sided)
 
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -147,8 +150,8 @@ fun SettingsScreen(
                 supporting = context.getString(R.string.loc_adjust_transition_animation_time_scale_across_pages_tabs_and_menus),
                 category = context.getString(R.string.loc_personalization_display),
                 icon = Icons.Outlined.Speed,
-                keywords = listOf("transition speed", "animation speed", "time scale", "duration", "fast animations", "slow animations"),
-                targetHeadline = "Transition Animation Speed",
+                keywords = listOf("transition time", "transition speed", "animation time", "animation speed", "time scale", "duration", "fast animations", "slow animations"),
+                targetHeadline = context.getString(R.string.settings_transition_speed),
                 onClick = { navigator.navigate(InterfaceScreenDestination) }
             ),
             SettingSearchItem(
@@ -158,21 +161,12 @@ fun SettingsScreen(
                 icon = Icons.AutoMirrored.Outlined.ArrowBack,
                 keywords = listOf("predictive back", "predictive back gestures", "disable predictive back", "back gesture", "back animation", "gesture navigation", "swipe back"),
                 targetHeadline = context.getString(R.string.settings_predictive_back_title),
-                onClick = { navigator.navigate(InterfaceScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_carrier_names_in_recents),
-                supporting = context.getString(R.string.loc_show_or_hide_carrier_and_sim_card_names_in_call_history_and_recents),
-                category = context.getString(R.string.loc_calling_sim_accounts),
-                icon = Icons.Outlined.SimCard,
-                keywords = listOf("carrier", "carrier name", "recents carrier", "sim", "hide carrier", "show carrier", "call log carrier", "recents sim"),
-                targetHeadline = context.getString(R.string.settings_show_carrier_in_recents),
-                onClick = { navigator.navigate(CallAccountsScreenDestination) }
+                onClick = { navigator.navigate(BottomNavScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_group_call_logs),
                 supporting = context.getString(R.string.loc_merge_repeated_calls_from_the_same_contact_into_a_single_entry),
-                category = context.getString(R.string.loc_calling_sim_accounts),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.AutoMirrored.Outlined.CallMerge,
                 keywords = listOf("group call logs", "call log grouping", "merge calls", "call history", "recents grouping"),
                 targetHeadline = context.getString(R.string.settings_group_call_logs),
@@ -181,11 +175,11 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_dialpad_dual_sim_buttons),
                 supporting = context.getString(R.string.loc_show_separate_sim_1_and_sim_2_call_buttons_directly_on_dialpad),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.SimCard,
                 keywords = listOf("dual sim", "sim 1", "sim 2", "dialpad sim", "two call buttons", "carrier buttons"),
                 targetHeadline = context.getString(R.string.settings_interface_dual_sim_buttons_title),
-                onClick = { navigator.navigate(InterfaceScreenDestination) }
+                onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_navigation_bar),
@@ -247,7 +241,7 @@ fun SettingsScreen(
                 icon = Icons.Outlined.Star,
                 keywords = listOf("merge favorites", "starred contacts", "favorites tab", "combine contacts"),
                 targetHeadline = context.getString(R.string.settings_interface_merge_favorites),
-                onClick = { navigator.navigate(BottomNavScreenDestination) }
+                onClick = { navigator.navigate(InterfaceScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_avatars_contact_cards),
@@ -298,13 +292,13 @@ fun SettingsScreen(
                 supporting = context.getString(R.string.loc_font_text_size_and_system_font),
                 category = context.getString(R.string.loc_personalization_display),
                 icon = Icons.Outlined.TextFields,
-                keywords = listOf("font", "typeface", "text size", "typography", "system font", "serif", "monospace", "text scale"),
+                keywords = listOf("font", "typeface", "text size", "typography", "system font", "serif", "monospace", "cursive", "casual", "condensed", "font family", "text scale"),
                 onClick = { navigator.navigate(TypographyScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_call_screen_buttons),
                 supporting = context.getString(R.string.loc_choose_the_position_of_each_in_call_button),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.loc_theme_appearance),
                 icon = Icons.Outlined.Dialpad,
                 keywords = listOf("call buttons", "rearrange", "button position", "call screen", "mute", "keypad", "hold"),
                 onClick = { navigator.navigate(CallScreenCustomizationScreenDestination) }
@@ -318,10 +312,11 @@ fun SettingsScreen(
                 targetHeadline = context.getString(R.string.settings_interface_hide_avatar_with_bg),
                 onClick = { navigator.navigate(AvatarSettingsScreenDestination) }
             ),
+            // ==================== SOUND & VIBRATION ====================
             SettingSearchItem(
                 title = context.getString(R.string.settings_sound_vibration_headline),
                 supporting = context.getString(R.string.settings_sound_vibration_supporting),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.AutoMirrored.Outlined.VolumeUp,
                 keywords = listOf("sound", "vibration", "volume"),
                 onClick = { navigator.navigate(SoundVibrationScreenDestination) }
@@ -329,61 +324,25 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_dialpad_dtmf_tones),
                 supporting = context.getString(R.string.loc_play_audible_audio_tones_when_tapping_keys_on_the_dialpad),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.Dialpad,
                 keywords = listOf("dtmf", "dialpad sound", "keypad tones", "audio beep", "dial tones"),
                 targetHeadline = context.getString(R.string.settings_sound_dtmf_tone),
                 onClick = { navigator.navigate(SoundVibrationScreenDestination) }
             ),
             SettingSearchItem(
-                title = context.getString(R.string.loc_dialpad_vibration),
-                supporting = context.getString(R.string.loc_haptic_vibration_feedback_on_every_dialpad_key_press),
-                category = context.getString(R.string.loc_personalization_display),
+                title = context.getString(R.string.settings_appwide_vibration_title),
+                supporting = context.getString(R.string.settings_appwide_vibration_supporting),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.Vibration,
-                keywords = listOf("dialpad vibration", "keypad haptics", "haptic feedback", "vibrate dialpad"),
-                targetHeadline = context.getString(R.string.settings_sound_dialpad_vibration),
-                onClick = { navigator.navigate(SoundVibrationScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_hold_0_for),
-                supporting = context.getString(R.string.loc_long_press_key_0_on_dialpad_to_insert_international_prefix),
-                category = context.getString(R.string.loc_personalization_display),
-                icon = Icons.Outlined.Add,
-                keywords = listOf("hold 0", "plus prefix", "international code", "long press zero"),
-                targetHeadline = context.getString(R.string.settings_sound_hold_zero_for_plus),
-                onClick = { navigator.navigate(SoundVibrationScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_vibrate_on_call_answer),
-                supporting = context.getString(R.string.loc_short_haptic_pulse_when_outgoing_call_is_answered_by_recipient),
-                category = context.getString(R.string.loc_personalization_display),
-                icon = Icons.Outlined.PhoneInTalk,
-                keywords = listOf("vibrate on answer", "vibrate connect", "call connect haptic", "answered call vibration"),
-                targetHeadline = context.getString(R.string.settings_sound_vibrate_on_answer),
-                onClick = { navigator.navigate(SoundVibrationScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_vibrate_on_call_hangup),
-                supporting = context.getString(R.string.loc_haptic_feedback_when_call_ends_or_remote_party_hangs_up),
-                category = context.getString(R.string.loc_personalization_display),
-                icon = Icons.Outlined.CallEnd,
-                keywords = listOf("vibrate on hangup", "vibrate call end", "disconnect vibration", "end call haptic"),
-                targetHeadline = context.getString(R.string.settings_sound_vibrate_on_hangup),
-                onClick = { navigator.navigate(SoundVibrationScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_haptic_feedback_on_scrolling),
-                supporting = context.getString(R.string.loc_subtle_tactile_tick_when_scrolling_past_contact_section_headers),
-                category = context.getString(R.string.loc_personalization_display),
-                icon = Icons.Outlined.TouchApp,
-                keywords = listOf("haptic scroll", "scroll haptics", "tactile tick", "section scroll vibration"),
-                targetHeadline = context.getString(R.string.settings_sound_haptic_scroll),
+                keywords = listOf("vibration", "haptic", "dialpad vibration", "vibrate on answer", "vibrate on hangup", "haptic scroll"),
+                targetHeadline = context.getString(R.string.settings_appwide_vibration_title),
                 onClick = { navigator.navigate(SoundVibrationScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_flip_to_silence),
                 supporting = context.getString(R.string.loc_turn_phone_face_down_to_immediately_silence_incoming_ringtone),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.ScreenRotation,
                 keywords = listOf("flip to silence", "flip phone", "face down mute", "flip gesture"),
                 targetHeadline = context.getString(R.string.settings_sound_flip_to_silence),
@@ -392,7 +351,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_do_not_disturb_during_calls),
                 supporting = context.getString(R.string.loc_automatically_suppress_notification_chimes_while_actively_in_a_call),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.DoNotDisturb,
                 keywords = listOf("dnd during call", "silence notifications in call", "mute chimes in call"),
                 targetHeadline = context.getString(R.string.settings_sound_dnd_during_calls),
@@ -401,7 +360,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_volume_squeeze_for_dnd),
                 supporting = context.getString(R.string.loc_press_both_volume_keys_to_activate_do_not_disturb_mode),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.AutoMirrored.Outlined.VolumeDown,
                 keywords = listOf("volume squeeze", "volume dnd", "squeeze gesture", "quick dnd"),
                 targetHeadline = "Volume Squeeze for DND",
@@ -410,7 +369,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_missed_call_notifications),
                 supporting = context.getString(R.string.loc_show_status_bar_alerts_and_notification_cards_for_missed_calls),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.Notifications,
                 keywords = listOf("missed call alerts", "missed call notification", "lock screen missed call"),
                 targetHeadline = context.getString(R.string.settings_sound_missed_call_notifications),
@@ -419,7 +378,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_phone_ringtone_sound_settings),
                 supporting = context.getString(R.string.loc_open_system_sound_settings_to_choose_phone_call_ringtone),
-                category = context.getString(R.string.loc_personalization_display),
+                category = context.getString(R.string.settings_sound_vibration_headline),
                 icon = Icons.Outlined.MusicNote,
                 keywords = listOf("ringtone", "call ringtone", "change ringtone", "phone sound", "system sounds"),
                 targetHeadline = context.getString(R.string.settings_sound_ringtone_settings),
@@ -454,30 +413,12 @@ fun SettingsScreen(
                 onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
-                title = context.getString(R.string.loc_show_country_code),
-                supporting = context.getString(R.string.loc_display_country_code_prefix_in_phone_numbers_throughout_the_app_and_ca),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.Public,
-                keywords = listOf("country code", "phone format", "international number", "hide country code", "show country code", "prefix", "number formatting"),
-                targetHeadline = context.getString(R.string.settings_show_country_code),
-                onClick = { navigator.navigate(CallAccountsScreenDestination) }
-            ),
-            SettingSearchItem(
                 title = context.getString(R.string.loc_t9_dialing_search),
                 supporting = context.getString(R.string.loc_search_contacts_by_spelling_names_with_dialpad_number_keys),
                 category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Dialpad,
                 keywords = listOf("t9", "t9 search", "dialpad search", "smart dial", "spell contact on dialpad"),
                 targetHeadline = context.getString(R.string.settings_call_t9_dialing),
-                onClick = { navigator.navigate(CallAccountsScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_auto_paste_from_clipboard),
-                supporting = context.getString(R.string.loc_automatically_suggest_pasting_phone_numbers_copied_to_clipboard),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.ContentPaste,
-                keywords = listOf("clipboard", "auto paste", "copied number", "paste dialpad", "clipboard banner"),
-                targetHeadline = context.getString(R.string.settings_auto_paste_clipboard),
                 onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
@@ -533,15 +474,6 @@ fun SettingsScreen(
                 keywords = listOf("pocket mode", "accidental touch", "pocket dial"),
                 targetHeadline = "Pocket Mode",
                 onClick = { navigator.navigate(CallScreenCustomizationScreenDestination) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_call_log_history_limit),
-                supporting = context.getString(R.string.loc_configure_maximum_retained_call_logs_500_1000_or_unlimited),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.History,
-                keywords = listOf("call log limit", "call history retention", "max call logs", "delete old logs"),
-                targetHeadline = context.getString(R.string.settings_call_log_limit),
-                onClick = { navigator.navigate(CallAccountsScreenDestination) }
             ),
             SettingSearchItem(
                 title = context.getString(R.string.loc_post_call_summary),
@@ -625,7 +557,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.settings_swipe_actions_title),
                 supporting = context.getString(R.string.settings_swipe_actions_supporting),
-                category = context.getString(R.string.loc_calling_behavior),
+                category = context.getString(R.string.loc_personalization_display),
                 icon = Icons.Outlined.Swipe,
                 keywords = listOf("swipe", "gesture", "swipe to call", "swipe to message", "left", "right"),
                 onClick = { navigator.navigate(SwipeActionsScreenDestination) }
@@ -633,7 +565,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_swipe_right_action),
                 supporting = context.getString(R.string.loc_set_action_when_swiping_contact_or_call_log_right_call_sms_etc),
-                category = context.getString(R.string.loc_calling_behavior),
+                category = context.getString(R.string.loc_personalization_display),
                 icon = Icons.Outlined.SwipeRight,
                 keywords = listOf("swipe right", "swipe to call", "right gesture", "quick call swipe"),
                 onClick = { navigator.navigate(SwipeActionsScreenDestination) }
@@ -641,7 +573,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_swipe_left_action),
                 supporting = context.getString(R.string.loc_set_action_when_swiping_contact_or_call_log_left_message_details),
-                category = context.getString(R.string.loc_calling_behavior),
+                category = context.getString(R.string.loc_personalization_display),
                 icon = Icons.Outlined.SwipeLeft,
                 keywords = listOf("swipe left", "swipe to message", "left gesture", "quick sms swipe"),
                 onClick = { navigator.navigate(SwipeActionsScreenDestination) }
@@ -671,35 +603,11 @@ fun SettingsScreen(
                 onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
             ),
             SettingSearchItem(
-                title = context.getString(R.string.loc_audio_recording_quality_bitrate),
-                supporting = context.getString(R.string.loc_configure_audio_bitrate_64k_128k_192k_256k_and_format),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.Tune,
-                keywords = listOf("audio bitrate", "audio quality", "recording format", "m4a", "audio sample rate"),
-                onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_minimum_duration_filter_for_recordings),
-                supporting = context.getString(R.string.loc_automatically_discard_recordings_shorter_than_a_specified_duration),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.Timer,
-                keywords = listOf("minimum duration", "discard short recordings", "short calls", "skip brief calls"),
-                onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
-            ),
-            SettingSearchItem(
                 title = context.getString(R.string.loc_recording_storage_folder),
                 supporting = context.getString(R.string.loc_select_custom_directory_on_device_storage_to_save_call_audio_files),
                 category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Folder,
                 keywords = listOf("recording folder", "save directory", "saf tree uri", "recording path", "change folder"),
-                onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
-            ),
-            SettingSearchItem(
-                title = context.getString(R.string.loc_shizuku_internal_audio_recording),
-                supporting = context.getString(R.string.loc_capture_pristine_two_way_system_call_audio_via_shizuku_service),
-                category = context.getString(R.string.loc_calling_behavior),
-                icon = Icons.Outlined.Terminal,
-                keywords = listOf("shizuku", "internal audio", "system audio", "rootless adb", "two way audio", "clean recording"),
                 onClick = { navigator.navigate(CallRecordingsScreenDestination()) }
             ),
             SettingSearchItem(
@@ -713,7 +621,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.priority_contacts_title),
                 supporting = context.getString(R.string.priority_contacts_supporting),
-                category = context.getString(R.string.loc_calling_behavior),
+                category = context.getString(R.string.settings_contact_management_headline),
                 icon = Icons.Outlined.NotificationImportant,
                 keywords = listOf("priority", "favorite", "vip", "dnd", "star", "important contacts"),
                 onClick = { navigator.navigate(PriorityContactsScreenDestination) }
@@ -746,7 +654,7 @@ fun SettingsScreen(
             // ==================== CALL PROTECTION & SECURITY ====================
             SettingSearchItem(
                 title = context.getString(R.string.loc_app_lock),
-                supporting = if (prefs.isAppLockEnabled()) "Enabled (Face, Fingerprint, PIN)" else "Protect app with biometrics or PIN",
+                supporting = if (prefs.isAppLockEnabled()) context.getString(R.string.app_lock_enabled_summary) else context.getString(R.string.loc_protect_app_with_biometrics_or_pin),
                 category = context.getString(R.string.loc_call_protection_security),
                 icon = Icons.Outlined.Lock,
                 keywords = listOf("app lock", "lock", "biometric", "fingerprint", "face", "pin", "password", "security", "protect"),
@@ -803,7 +711,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.settings_blocked_numbers_headline),
                 supporting = context.getString(R.string.settings_blocked_numbers_supporting),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Block,
                 keywords = listOf("block", "blocked", "blacklist", "spam", "reject", "filter calls"),
                 onClick = { navigator.navigate(BlockedNumbersScreenDestination) }
@@ -811,7 +719,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_auto_decline_unknown_numbers),
                 supporting = context.getString(R.string.loc_automatically_reject_callers_with_private_or_hidden_caller_id),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.PersonOff,
                 keywords = listOf("auto decline unknown", "block private numbers", "block hidden caller id", "reject unknown"),
                 targetHeadline = context.getString(R.string.settings_auto_decline_unknown_title),
@@ -820,7 +728,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_auto_decline_non_contacts),
                 supporting = context.getString(R.string.loc_block_all_incoming_calls_from_numbers_not_saved_in_your_contacts),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.GroupRemove,
                 keywords = listOf("block non contacts", "stranger calls", "only allow contacts", "reject unknown callers"),
                 targetHeadline = context.getString(R.string.settings_auto_decline_non_contacts_title),
@@ -829,7 +737,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_call_blocking_behavior),
                 supporting = context.getString(R.string.loc_configure_how_blocked_calls_are_handled_hang_up_or_silence),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Tune,
                 keywords = listOf("blocking method", "hang up blocked", "silence blocked", "drop call"),
                 onClick = { navigator.navigate(BlockedNumbersScreenDestination) }
@@ -837,7 +745,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_blocked_call_notifications),
                 supporting = context.getString(R.string.loc_toggle_notifications_when_a_call_from_a_blocked_number_is_rejected),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.NotificationsOff,
                 keywords = listOf("blocked notifications", "silent block", "hide blocked alerts"),
                 targetHeadline = context.getString(R.string.settings_blocked_notifications),
@@ -846,7 +754,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_system_blocked_numbers_manager),
                 supporting = context.getString(R.string.loc_open_android_system_dialer_blocked_list_to_sync_blocked_numbers),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Settings,
                 keywords = listOf("system blocked numbers", "android blocklist", "carrier blocked numbers"),
                 targetHeadline = context.getString(R.string.settings_blocked_system_button),
@@ -855,7 +763,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.fake_call_title),
                 supporting = context.getString(R.string.fake_call_subtitle),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.AutoMirrored.Outlined.PhoneCallback,
                 keywords = listOf("fake call", "prank", "schedule call", "timer", "simulate call"),
                 onClick = { navigator.navigate(FakeCallSchedulerScreenDestination) }
@@ -863,7 +771,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_schedule_fake_call_timer),
                 supporting = context.getString(R.string.loc_set_delay_timer_or_exact_time_to_trigger_an_incoming_fake_call),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Timer,
                 keywords = listOf("fake call timer", "schedule prank call", "fake incoming call timer"),
                 onClick = { navigator.navigate(FakeCallSchedulerScreenDestination) }
@@ -871,7 +779,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_fake_caller_details),
                 supporting = context.getString(R.string.loc_customize_caller_name_phone_number_and_photo_for_fake_call),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.loc_calling_behavior),
                 icon = Icons.Outlined.Person,
                 keywords = listOf("fake caller name", "fake caller number", "custom caller id prank"),
                 onClick = { navigator.navigate(FakeCallSchedulerScreenDestination) }
@@ -879,7 +787,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_permissions_app_setup),
                 supporting = context.getString(R.string.loc_review_granted_permissions_and_system_capabilities),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.settings_permissions_overview_title),
                 icon = Icons.Outlined.VerifiedUser,
                 keywords = listOf("permission", "setup", "default phone app", "default dialer", "checklist"),
                 onClick = { navigator.navigate(PermissionsChecklistScreenDestination) }
@@ -887,7 +795,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_default_phone_app_dialer_role),
                 supporting = context.getString(R.string.loc_set_rivo_phone_as_the_primary_default_dialer_for_call_handling),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.settings_permissions_overview_title),
                 icon = Icons.Outlined.Phone,
                 keywords = listOf("default phone app", "default dialer", "phone role", "set default dialer"),
                 onClick = { navigator.navigate(PermissionsChecklistScreenDestination) }
@@ -895,7 +803,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_shizuku_service_permission),
                 supporting = context.getString(R.string.loc_verify_shizuku_service_status_for_internal_audio_call_recording),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.settings_permissions_overview_title),
                 icon = Icons.Outlined.Terminal,
                 keywords = listOf("shizuku permission", "adb permissions", "shizuku status", "internal recording perm"),
                 onClick = { navigator.navigate(PermissionsChecklistScreenDestination) }
@@ -903,7 +811,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_open_app_system_settings),
                 supporting = context.getString(R.string.loc_jump_directly_to_android_system_app_info_for_rivo_phone),
-                category = context.getString(R.string.loc_call_protection_security),
+                category = context.getString(R.string.settings_permissions_overview_title),
                 icon = Icons.Outlined.Settings,
                 keywords = listOf("app info", "system settings", "android permissions", "storage permission"),
                 onClick = { navigator.navigate(PermissionsChecklistScreenDestination) }
@@ -1026,7 +934,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.settings_backup_restore_headline),
                 supporting = context.getString(R.string.settings_backup_restore_supporting),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.Backup,
                 keywords = listOf("backup", "restore", "export vcf", "import vcard", "vcf", "contacts backup"),
                 onClick = { navigator.navigate(BackupRestoreScreenDestination) }
@@ -1034,7 +942,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_export_contacts_to_vcf_vcard),
                 supporting = context.getString(R.string.loc_export_entire_address_book_to_standard_vcf_backup_file),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.FileDownload,
                 keywords = listOf("export contacts", "vcf", "vcard", "backup file", "save contacts file"),
                 targetHeadline = context.getString(R.string.settings_backup_export_contacts),
@@ -1043,7 +951,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_import_contacts_from_vcf),
                 supporting = context.getString(R.string.loc_restore_contacts_from_a_saved_vcf_vcard_file_into_your_account),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.FileUpload,
                 keywords = listOf("import contacts", "import vcf", "restore vcf", "load vcard"),
                 targetHeadline = context.getString(R.string.settings_backup_import_contacts),
@@ -1052,7 +960,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_export_call_logs),
                 supporting = context.getString(R.string.loc_back_up_entire_call_history_and_call_records_to_storage),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.HistoryEdu,
                 keywords = listOf("export call logs", "backup call logs", "save call history", "export call records"),
                 targetHeadline = context.getString(R.string.settings_backup_export_logs),
@@ -1061,7 +969,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_import_call_logs),
                 supporting = context.getString(R.string.loc_restore_call_history_from_a_previously_saved_backup_file),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.RestorePage,
                 keywords = listOf("import call logs", "restore call logs", "load call history"),
                 targetHeadline = context.getString(R.string.settings_backup_import_logs),
@@ -1070,7 +978,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_export_app_settings),
                 supporting = context.getString(R.string.loc_back_up_entire_app_preferences_themes_dialpad_style_and_configurations),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.FileUpload,
                 keywords = listOf("backup settings", "export settings", "save settings", "app settings backup", "export preferences"),
                 targetHeadline = context.getString(R.string.settings_backup_export_settings),
@@ -1079,7 +987,7 @@ fun SettingsScreen(
             SettingSearchItem(
                 title = context.getString(R.string.loc_restore_app_settings),
                 supporting = context.getString(R.string.loc_restore_all_app_preferences_and_configurations_from_a_saved_backup_jso),
-                category = context.getString(R.string.loc_contacts_data),
+                category = context.getString(R.string.loc_support_about),
                 icon = Icons.Outlined.Restore,
                 keywords = listOf("restore settings", "import settings", "load settings", "restore preferences"),
                 targetHeadline = context.getString(R.string.settings_backup_import_settings),
@@ -1265,7 +1173,7 @@ fun SettingsScreen(
                             ) {
                                 Surface(
                                     modifier = Modifier.size(54.dp),
-                                    shape = logoMorph,
+                                    shape = cookie7Shape,
                                     color = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary,
                                     shadowElevation = 2.dp
@@ -1365,10 +1273,12 @@ fun SettingsScreen(
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                             )
                             val categories = listOf(
-                                Triple("Personalization", Icons.Outlined.Palette, "Personalization & Display"),
-                                Triple("Calling", Icons.Outlined.Phone, "Calling & Behavior"),
-                                Triple("Security", Icons.Outlined.Security, "Call Protection & Security"),
-                                Triple("Contacts", Icons.Outlined.ManageAccounts, "Contacts & Data")
+                                Triple(context.getString(R.string.settings_category_personalization), Icons.Outlined.Palette, context.getString(R.string.loc_personalization_display)),
+                                Triple(context.getString(R.string.settings_category_calling), Icons.Outlined.Phone, context.getString(R.string.loc_calling_behavior)),
+                                Triple(context.getString(R.string.settings_category_sound), Icons.AutoMirrored.Outlined.VolumeUp, context.getString(R.string.settings_sound_vibration_headline)),
+                                Triple(context.getString(R.string.settings_category_contacts), Icons.Outlined.ManageAccounts, context.getString(R.string.loc_contacts_data)),
+                                Triple(context.getString(R.string.settings_category_security), Icons.Outlined.Security, context.getString(R.string.loc_call_protection_security)),
+                                Triple(context.getString(R.string.settings_category_about), Icons.Outlined.Info, context.getString(R.string.loc_support_about))
                             )
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1404,70 +1314,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Popular Settings Group
-                    item {
-                        RivoExpressiveGroup(
-                            title = context.getString(R.string.loc_popular_settings),
-                            icon = Icons.Default.Star
-                        ) {
-                            item {
-                                RivoListItem(
-                                    headline = context.getString(R.string.loc_theme_appearance),
-                                    supporting = context.getString(R.string.loc_theme_mode_interface_appearance_and_visual_style),
-                                    leadingIcon = Icons.Outlined.Palette,
-                                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    onClick = {
-                                        isSearchActive = false
-                                        searchQuery = ""
-                                        prefs.addSettingsHistory("Theme & Appearance")
-                                        navigator.navigate(InterfaceScreenDestination)
-                                    }
-                                )
-                            }
-                            item {
-                                RivoListItem(
-                                    headline = context.getString(R.string.call_recordings_title),
-                                    supporting = context.getString(R.string.loc_auto_recording_shizuku_internal_audio_saved_recordings),
-                                    leadingIcon = Icons.Outlined.FiberManualRecord,
-                                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    onClick = {
-                                        isSearchActive = false
-                                        searchQuery = ""
-                                        prefs.addSettingsHistory("Call Recordings")
-                                        navigator.navigate(CallRecordingsScreenDestination())
-                                    }
-                                )
-                            }
-                            item {
-                                RivoListItem(
-                                    headline = context.getString(R.string.loc_app_lock),
-                                    supporting = context.getString(R.string.loc_protect_app_with_biometrics_or_pin),
-                                    leadingIcon = Icons.Outlined.Lock,
-                                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    onClick = {
-                                        isSearchActive = false
-                                        searchQuery = ""
-                                        prefs.addSettingsHistory("App Lock")
-                                        navigator.navigate(AppLockScreenDestination)
-                                    }
-                                )
-                            }
-                            item {
-                                RivoListItem(
-                                    headline = context.getString(R.string.loc_speed_dial),
-                                    supporting = context.getString(R.string.loc_assign_contacts_to_dialpad_keys_1_9),
-                                    leadingIcon = Icons.Outlined.Speed,
-                                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    onClick = {
-                                        isSearchActive = false
-                                        searchQuery = ""
-                                        prefs.addSettingsHistory("Speed Dial")
-                                        navigator.navigate(SpeedDialScreenDestination)
-                                    }
-                                )
-                            }
-                        }
-                    }
                 } else if (filteredSearchItems.isEmpty()) {
                     // MD3 Expressive Empty State
                     item {
@@ -1512,24 +1358,26 @@ fun SettingsScreen(
                         }
                     }
                 } else {
-                    // Direct results without category headings or container boxes
-                    items(
-                        items = filteredSearchItems,
-                        key = { it.title }
-                    ) { item ->
-                        RivoListItem(
-                            headline = item.title,
-                            supporting = item.supporting.ifBlank { null },
-                            leadingIcon = item.icon,
-                            trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            onClick = {
-                                isSearchActive = false
-                                searchQuery = ""
-                                prefs.addSettingsHistory(item.title)
-                                SettingsHighlightManager.setHighlight(item.title, item.targetHeadline)
-                                item.onClick()
+                    item {
+                        RivoExpressiveGroup {
+                            filteredSearchItems.forEach { item ->
+                                item(key = "search_${item.title}") {
+                                    RivoListItem(
+                                        headline = item.title,
+                                        supporting = item.supporting.ifBlank { null },
+                                        leadingIcon = item.icon,
+                                        trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        onClick = {
+                                            isSearchActive = false
+                                            searchQuery = ""
+                                            prefs.addSettingsHistory(item.title)
+                                            SettingsHighlightManager.setHighlight(item.title, item.targetHeadline)
+                                            item.onClick()
+                                        }
+                                    )
+                                }
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -1545,223 +1393,134 @@ fun SettingsScreen(
             // 1. Personalization & Display
             item {
                 RivoExpressiveGroup(
-                    title = context.getString(R.string.loc_personalization_display),
-                    icon = Icons.Outlined.Palette
-                ) {
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.loc_theme_appearance),
-                            supporting = context.getString(R.string.loc_theme_mode_interface_appearance_and_visual_style),
-                            leadingIcon = Icons.Outlined.Palette,
-                            onClick = {
-                                prefs.addSettingsHistory("Theme & Appearance")
-                                navigator.navigate(InterfaceScreenDestination)
-                            }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.loc_navigation_bar),
-                            supporting = context.getString(R.string.loc_floating_bar_style_navigation_dock_and_tab_layout),
-                            leadingIcon = Icons.Outlined.Dock,
-                            onClick = {
-                                prefs.addSettingsHistory("Navigation Bar")
-                                navigator.navigate(BottomNavScreenDestination)
-                            }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.loc_avatars_contact_cards),
-                            supporting = context.getString(R.string.loc_11_avatar_shapes_contact_photos_initials_cards),
-                            leadingIcon = Icons.Outlined.AccountCircle,
-                            onClick = {
-                                prefs.addSettingsHistory("Avatars & Contact Cards")
-                                navigator.navigate(AvatarSettingsScreenDestination)
-                            }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.settings_sound_vibration_headline),
-                            supporting = context.getString(R.string.settings_sound_vibration_supporting),
-                            leadingIcon = Icons.AutoMirrored.Outlined.VolumeUp,
-                            onClick = {
-                                prefs.addSettingsHistory("Sound & Vibration")
-                                navigator.navigate(SoundVibrationScreenDestination)
-                            }
-                        )
-                    }
-                }
-            }
-
-            // 2. Calling & Behavior
-            item {
-                RivoExpressiveGroup(
-                    title = context.getString(R.string.loc_calling_behavior),
+                    title = context.getString(R.string.settings_group_calls_contacts),
                     icon = Icons.Outlined.Phone
                 ) {
                     item {
+                        val headline = context.getString(R.string.settings_call_settings_headline)
                         RivoListItem(
-                            headline = context.getString(R.string.settings_call_settings_headline),
+                            headline = headline,
                             supporting = context.getString(R.string.settings_call_settings_supporting),
                             leadingIcon = Icons.Outlined.SimCard,
                             onClick = {
-                                prefs.addSettingsHistory("Calling & SIM Accounts")
+                                prefs.addSettingsHistory(headline)
                                 navigator.navigate(CallAccountsScreenDestination)
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.call_recordings_title)
                         RivoListItem(
-                            headline = context.getString(R.string.settings_swipe_actions_title),
-                            supporting = context.getString(R.string.settings_swipe_actions_supporting),
-                            leadingIcon = Icons.Outlined.Swipe,
-                            onClick = {
-                                prefs.addSettingsHistory("Swipe Actions")
-                                navigator.navigate(SwipeActionsScreenDestination)
-                            }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.call_recordings_title),
+                            headline = headline,
                             supporting = context.getString(R.string.loc_auto_recording_shizuku_internal_audio_saved_recordings),
                             leadingIcon = Icons.Outlined.FiberManualRecord,
                             onClick = {
-                                prefs.addSettingsHistory("Call Recordings")
+                                prefs.addSettingsHistory(headline)
                                 navigator.navigate(CallRecordingsScreenDestination())
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.settings_call_analytics_title)
                         RivoListItem(
-                            headline = context.getString(R.string.settings_call_analytics_title),
+                            headline = headline,
                             supporting = context.getString(R.string.settings_call_analytics_supporting),
                             leadingIcon = Icons.Outlined.Analytics,
                             onClick = {
-                                prefs.addSettingsHistory("Call Analytics")
+                                prefs.addSettingsHistory(headline)
                                 navigator.navigate(CallAnalyticsScreenDestination)
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.settings_contact_management_headline)
                         RivoListItem(
-                            headline = context.getString(R.string.priority_contacts_title),
-                            supporting = context.getString(R.string.priority_contacts_supporting),
-                            leadingIcon = Icons.Outlined.NotificationImportant,
+                            headline = headline,
+                            supporting = context.getString(R.string.settings_contact_management_supporting),
+                            leadingIcon = Icons.Outlined.ManageAccounts,
                             onClick = {
-                                prefs.addSettingsHistory("Priority Contacts")
-                                navigator.navigate(PriorityContactsScreenDestination)
-                            }
-                        )
-                    }
-                }
-            }
-
-            // 3. Call Protection & Security
-            item {
-                val appLockEnabled = remember(settingsState) { prefs.isAppLockEnabled() }
-                RivoExpressiveGroup(
-                    title = context.getString(R.string.loc_call_protection_security),
-                    icon = Icons.Outlined.Security
-                ) {
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.loc_app_lock),
-                            supporting = if (appLockEnabled) "Enabled (Face, Fingerprint, PIN)" else "Protect app with biometrics or PIN",
-                            leadingIcon = Icons.Outlined.Lock,
-                            onClick = {
-                                prefs.addSettingsHistory("App Lock")
-                                navigator.navigate(AppLockScreenDestination)
+                                prefs.addSettingsHistory(headline)
+                                navigator.navigate(ContactManagementScreenDestination)
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.loc_private_storage)
                         RivoListItem(
-                            headline = context.getString(R.string.loc_private_storage),
+                            headline = headline,
                             supporting = context.getString(R.string.loc_secret_dialpad_vault_stored_only_in_app_memory),
                             leadingIcon = Icons.Outlined.FolderShared,
                             onClick = {
-                                prefs.addSettingsHistory("Private Storage")
+                                prefs.addSettingsHistory(headline)
                                 navigator.navigate(PrivateContactsScreenDestination)
                             }
                         )
                     }
+                }
+            }
+
+            // 2. Appearance & Preferences
+            item {
+                val appLockEnabled = remember(settingsState) { prefs.isAppLockEnabled() }
+                RivoExpressiveGroup(
+                    title = context.getString(R.string.settings_group_appearance_preferences),
+                    icon = Icons.Outlined.Palette
+                ) {
                     item {
+                        val headline = context.getString(R.string.loc_theme_appearance)
                         RivoListItem(
-                            headline = context.getString(R.string.settings_blocked_numbers_headline),
-                            supporting = context.getString(R.string.settings_blocked_numbers_supporting),
-                            leadingIcon = Icons.Outlined.Block,
+                            headline = headline,
+                            supporting = context.getString(R.string.loc_theme_mode_interface_appearance_and_visual_style),
+                            leadingIcon = Icons.Outlined.Palette,
                             onClick = {
-                                prefs.addSettingsHistory("Blocked Numbers")
-                                navigator.navigate(BlockedNumbersScreenDestination)
+                                prefs.addSettingsHistory(headline)
+                                navigator.navigate(InterfaceScreenDestination)
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.settings_sound_vibration_headline)
                         RivoListItem(
-                            headline = context.getString(R.string.fake_call_title),
-                            supporting = context.getString(R.string.fake_call_subtitle),
-                            leadingIcon = Icons.AutoMirrored.Outlined.PhoneCallback,
+                            headline = headline,
+                            supporting = context.getString(R.string.settings_sound_vibration_supporting),
+                            leadingIcon = Icons.AutoMirrored.Outlined.VolumeUp,
                             onClick = {
-                                prefs.addSettingsHistory("Fake Call Scheduler")
-                                navigator.navigate(FakeCallSchedulerScreenDestination)
+                                prefs.addSettingsHistory(headline)
+                                navigator.navigate(SoundVibrationScreenDestination)
                             }
                         )
                     }
                     item {
+                        val headline = context.getString(R.string.loc_app_lock)
                         RivoListItem(
-                            headline = context.getString(R.string.loc_permissions_app_setup),
-                            supporting = context.getString(R.string.loc_review_granted_permissions_and_system_capabilities),
-                            leadingIcon = Icons.Outlined.VerifiedUser,
+                            headline = headline,
+                            supporting = if (appLockEnabled) context.getString(R.string.app_lock_enabled_summary) else context.getString(R.string.loc_protect_app_with_biometrics_or_pin),
+                            leadingIcon = Icons.Outlined.Lock,
                             onClick = {
-                                prefs.addSettingsHistory("Permissions & App Setup")
-                                navigator.navigate(PermissionsChecklistScreenDestination)
+                                prefs.addSettingsHistory(headline)
+                                navigator.navigate(AppLockScreenDestination)
                             }
                         )
                     }
                 }
             }
 
-            // 4. Contacts & Data
+            // 3. System & About
             item {
-                val isContactManagementCardEnabled = remember(settingsState) { prefs.isContactManagementCardEnabled() }
                 RivoExpressiveGroup(
-                    title = context.getString(R.string.settings_contacts_management_title),
-                    icon = Icons.Outlined.ManageAccounts
+                    title = context.getString(R.string.settings_group_system_about),
+                    icon = Icons.Outlined.Info
                 ) {
                     item {
+                        val headline = context.getString(R.string.settings_backup_restore_headline)
                         RivoListItem(
-                            headline = context.getString(R.string.settings_contact_management_headline),
-                            supporting = context.getString(R.string.settings_contact_management_supporting),
-                            leadingIcon = Icons.Outlined.ManageAccounts,
-                            onClick = { navigator.navigate(ContactManagementScreenDestination) }
-                        )
-                    }
-                    item {
-                        RivoSwitchListItem(
-                            headline = context.getString(R.string.settings_contact_management_card),
-                            supporting = context.getString(R.string.settings_contact_management_card_supporting),
-                            leadingIcon = Icons.Outlined.Info,
-                            checked = isContactManagementCardEnabled,
-                            onCheckedChange = { prefs.setContactManagementCardEnabled(it) }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.settings_manage_visibility),
-                            supporting = context.getString(R.string.settings_manage_visibility_supporting),
-                            leadingIcon = Icons.Outlined.Visibility,
-                            onClick = { navigator.navigate(ContactVisibilityScreenDestination) }
-                        )
-                    }
-                    item {
-                        RivoListItem(
-                            headline = context.getString(R.string.settings_backup_restore_headline),
+                            headline = headline,
                             supporting = context.getString(R.string.settings_backup_restore_supporting),
                             leadingIcon = Icons.Outlined.Backup,
-                            onClick = { navigator.navigate(BackupRestoreScreenDestination) }
+                            onClick = {
+                                prefs.addSettingsHistory(headline)
+                                navigator.navigate(BackupRestoreScreenDestination)
+                            }
                         )
                     }
                 }
@@ -1802,12 +1561,18 @@ private fun itemMatchesExplicitQuery(item: SettingSearchItem, query: String): Bo
     if (tokens.isEmpty()) return false
 
     val titleLower = item.title.lowercase()
-    // 1. Direct phrase match in main title/heading
     if (titleLower.contains(q)) return true
 
-    // 2. All tokens explicitly match words in main title/heading (e.g. "call log" matches "Call Logs")
-    val titleWords = extractWords(titleLower)
-    return tokens.all { token -> titleWords.any { wordMatchesToken(it, token, allowPrefix = true) } }
+    val categoryLower = item.category.lowercase()
+    if (categoryLower.contains(q)) return true
+
+    if (item.keywords.any { it.contains(q, ignoreCase = true) }) return true
+
+    val supportingLower = item.supporting.lowercase()
+    if (supportingLower.contains(q)) return true
+
+    val allWords = extractWords(titleLower) + extractWords(categoryLower) + item.keywords.flatMap { extractWords(it) } + extractWords(supportingLower)
+    return tokens.all { token -> allWords.any { wordMatchesToken(it, token, allowPrefix = true) } }
 }
 
 private fun scoreSearchItem(item: SettingSearchItem, query: String): Int {
@@ -1820,8 +1585,12 @@ private fun scoreSearchItem(item: SettingSearchItem, query: String): Int {
         titleLower == q -> 1000
         titleLower.startsWith(q) -> 900
         titleLower.contains(q) -> 850
-        tokens.isNotEmpty() && tokens.all { token -> titleWords.any { it == token } } -> 800
+        item.keywords.any { it.equals(q, ignoreCase = true) } -> 820
+        item.keywords.any { it.contains(q, ignoreCase = true) } -> 800
+        tokens.isNotEmpty() && tokens.all { token -> titleWords.any { it == token } } -> 780
         tokens.isNotEmpty() && tokens.all { token -> titleWords.any { wordMatchesToken(it, token, allowPrefix = true) } } -> 750
+        item.supporting.contains(q, ignoreCase = true) -> 600
+        item.category.contains(q, ignoreCase = true) -> 500
         else -> 100
     }
 }

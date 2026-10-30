@@ -53,7 +53,7 @@ fun SpeedDialScreen(
     Scaffold(
         topBar = {
             MenuTopAppBar(
-                text = stringResource(R.string.settings_speed_dial_title),
+                text = stringResource(R.string.loc_speed_dial),
                 navigator = navigator
             )
         },
@@ -181,11 +181,9 @@ fun ContactPickerDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val filteredContacts = remember(searchQuery, contacts) {
-        if (searchQuery.isEmpty()) contacts
-        else contacts.filter { 
-            it.displayName.contains(searchQuery, ignoreCase = true) || 
-            it.name.contains(searchQuery, ignoreCase = true) || 
-            it.phoneNumbers.any { num -> num.contains(searchQuery) }
+        if (searchQuery.isBlank()) contacts
+        else contacts.filter {
+            com.grinch.rivo4.controller.util.ContactUtils.matchesContact(it, searchQuery)
         }
     }
 

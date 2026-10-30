@@ -105,4 +105,117 @@ class ContactUtilsTest {
         assertEquals(null, contact.accountName)
         assertEquals(null, contact.accountType)
     }
+
+    @Test
+    fun testSplitDisplayName() {
+        val single = com.grinch.rivo4.controller.util.ContactUtils.splitDisplayName("Alice")
+        assertEquals("Alice", single.first)
+        assertEquals("", single.second)
+        assertEquals("", single.third)
+
+        val two = com.grinch.rivo4.controller.util.ContactUtils.splitDisplayName("Alice Smith")
+        assertEquals("Alice", two.first)
+        assertEquals("", two.second)
+        assertEquals("Smith", two.third)
+
+        val three = com.grinch.rivo4.controller.util.ContactUtils.splitDisplayName("Alice Marie Smith")
+        assertEquals("Alice", three.first)
+        assertEquals("Marie", three.second)
+        assertEquals("Smith", three.third)
+
+        val four = com.grinch.rivo4.controller.util.ContactUtils.splitDisplayName("Alice Anne Marie Smith")
+        assertEquals("Alice", four.first)
+        assertEquals("Anne Marie", four.second)
+        assertEquals("Smith", four.third)
+    }
+
+    @Test
+    fun testMatchesContactSearch() {
+        val contact = Contact(
+            id = "1",
+            name = "John Doe",
+            givenName = "John",
+            middleName = "Michael",
+            familyName = "Doe",
+            nickname = "Johnny",
+            phoneNumbers = listOf("+1 555-0199")
+        )
+
+        // Middle name search
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Michael"))
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "mich"))
+
+        // Last name search
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Doe"))
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "doe"))
+
+        // First name search
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "John"))
+
+        // Multi-token out-of-order query
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Doe John"))
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Michael Doe"))
+
+        // Nickname
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Johnny"))
+
+        // Phone number
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "5550199"))
+
+        // Non-matching
+        assertFalse(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(contact, "Williams"))
+    }
+
+    @Test
+    fun testSanitizeStructuredNameDeduplicatesMiddleName() {
+        // Case 1: givenName already ends with middleName ("Ahmed Hr" + "Hr" + "Ram")
+        val s1 = com.grinch.rivo4.controller.util.ContactUtils.sanitizeStructuredName(
+            givenName = "Ahmed Hr",
+            middleName = "Hr",
+            familyName = "Ram",
+            fallbackFullName = "Ahmed Hr Ram"
+        )
+        assertEquals("Ahmed", s1.givenName)
+        assertEquals("Hr", s1.middleName)
+        assertEquals("Ram", s1.familyName)
+        assertEquals("Ahmed Hr Ram", s1.fullName)
+
+        // Case 2: familyName starts with middleName ("Anas" + "QM" + "QM Ram")
+        val s2 = com.grinch.rivo4.controller.util.ContactUtils.sanitizeStructuredName(
+            givenName = "Anas",
+            middleName = "QM",
+            familyName = "QM Ram",
+            fallbackFullName = "Anas QM QM Ram"
+        )
+        assertEquals("Anas", s2.givenName)
+        assertEquals("QM", s2.middleName)
+        assertEquals("Ram", s2.familyName)
+        assertEquals("Anas QM Ram", s2.fullName)
+
+        // Case 3: StructuredName row omitted middleName, but DISPLAY_NAME_PRIMARY has it
+        val s3 = com.grinch.rivo4.controller.util.ContactUtils.sanitizeStructuredName(
+            givenName = "Ahmed",
+            middleName = null,
+            familyName = "Ram",
+            fallbackFullName = "Ahmed Hr Ram"
+        )
+        assertEquals("Ahmed", s3.givenName)
+        assertEquals("Hr", s3.middleName)
+        assertEquals("Ram", s3.familyName)
+        assertEquals("Ahmed Hr Ram", s3.fullName)
+
+        // Case 4: Contact.formattedDisplayName and formatContactName never duplicate middleName
+        val c = Contact(
+            id = "2",
+            name = "Ahmed Hr Hr Ram",
+            givenName = "Ahmed Hr",
+            middleName = "Hr",
+            familyName = "Ram"
+        )
+        assertEquals("Ahmed Hr Ram", c.formattedDisplayName)
+        assertEquals("Ahmed Hr Ram", com.grinch.rivo4.controller.util.ContactUtils.formatContactName(c, 0))
+        assertEquals("Ram, Ahmed Hr", com.grinch.rivo4.controller.util.ContactUtils.formatContactName(c, 1))
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(c, "Hr"))
+        assertTrue(com.grinch.rivo4.controller.util.ContactUtils.matchesContact(c, "Ahmed Ram"))
+    }
 }

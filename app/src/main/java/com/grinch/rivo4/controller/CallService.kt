@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package com.grinch.rivo4.controller
 
 import android.app.Notification
@@ -135,8 +137,22 @@ class CallService : InCallService() {
         if (photoUri == null) return null
         return try {
             val uri = Uri.parse(photoUri)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             contentResolver.openInputStream(uri)?.use { inputStream ->
-                BitmapFactory.decodeStream(inputStream)
+                BitmapFactory.decodeStream(inputStream, null, bounds)
+            }
+            val reqSize = 256
+            var sampleSize = 1
+            if (bounds.outHeight > reqSize || bounds.outWidth > reqSize) {
+                val halfHeight = bounds.outHeight / 2
+                val halfWidth = bounds.outWidth / 2
+                while (halfHeight / sampleSize >= reqSize && halfWidth / sampleSize >= reqSize) {
+                    sampleSize *= 2
+                }
+            }
+            val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
             }
         } catch (e: Exception) {
             null
@@ -196,6 +212,22 @@ class CallService : InCallService() {
 
         fun setAudioRoute(route: Int) {
             instance?.setAudioRoute(route)
+        }
+
+        fun toggleSpeaker() {
+            val state = _audioState.value
+            val current = state?.route ?: CallAudioState.ROUTE_EARPIECE
+            if (current == CallAudioState.ROUTE_SPEAKER) {
+                val supported = state?.supportedRouteMask ?: CallAudioState.ROUTE_EARPIECE
+                val targetRoute = when {
+                    (supported and CallAudioState.ROUTE_WIRED_HEADSET) != 0 -> CallAudioState.ROUTE_WIRED_HEADSET
+                    (supported and CallAudioState.ROUTE_BLUETOOTH) != 0 -> CallAudioState.ROUTE_BLUETOOTH
+                    else -> CallAudioState.ROUTE_EARPIECE
+                }
+                setAudioRoute(targetRoute)
+            } else {
+                setAudioRoute(CallAudioState.ROUTE_SPEAKER)
+            }
         }
 
         fun cycleAudioRoute() {
@@ -465,9 +497,9 @@ class CallService : InCallService() {
             updateCallState()
 
             if (state != Call.STATE_RINGING) {
-                com.grinch.rivo4.controller.util.PriorityRinger.stopRinging()
                 val hasRinging = getCalls()?.any { it.state == Call.STATE_RINGING } == true
                 if (!hasRinging) {
+                    com.grinch.rivo4.controller.util.PriorityRinger.stopRinging()
                     flipToSilenceManager?.stopListening()
                     releaseScreenWakeLock()
                 }
@@ -479,6 +511,7 @@ class CallService : InCallService() {
 
             if (state == Call.STATE_ACTIVE) {
                 redialCount = 0
+                applyDndIfEnabled()
                 startAutoRecordingIfEnabled(call)
             }
 
@@ -919,9 +952,13 @@ class CallService : InCallService() {
         if (call.state == Call.STATE_RINGING) {
             callRingStartTimes[call] = System.currentTimeMillis()
             checkAndStartPriorityRinger(call)
+        } else if (
+            call.state == Call.STATE_ACTIVE ||
+            call.state == Call.STATE_DIALING ||
+            call.state == Call.STATE_CONNECTING
+        ) {
+            applyDndIfEnabled()
         }
-
-        applyDndIfEnabled()
 
         // Prime CallRecorder asynchronously so recording starts with zero delay when call answers
         CallRecorder.prepare(this)
@@ -1054,7 +1091,7 @@ class CallService : InCallService() {
             }
 
             "TOGGLE_SPEAKER", CallActionReceiver.ACTION_TOGGLE_SPEAKER -> {
-                cycleAudioRoute()
+                toggleSpeaker()
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -1240,9 +1277,6 @@ class CallService : InCallService() {
                 builder.setFullScreenIntent(fullScreenPendingIntent, false)
                 builder.setDefaults(NotificationCompat.DEFAULT_VIBRATE or NotificationCompat.DEFAULT_LIGHTS)
             } else {
-                // When device is locked, screen is blacked/off, or full screen is displayed:
-                // Keep notification completely silent, MIN priority, secret on lockscreen,
-                // and do not attach incoming CallStyle or fullScreenIntent to prevent duplicate popups.
                 builder.setPriority(NotificationCompat.PRIORITY_MIN)
                 builder.setSilent(true)
                 builder.setSound(null)
@@ -1313,11 +1347,14 @@ class CallService : InCallService() {
             } else null
 
             val isPriority = preferenceManager.isPriorityContact(contact?.id, number)
-            if (isPriority) {
+            if (isPriority && call.state == Call.STATE_RINGING) {
                 val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 val ringVolume = audioManager?.getStreamVolume(AudioManager.STREAM_RING) ?: 1
-                val isSilentOrVibrate = audioManager?.ringerMode != AudioManager.RINGER_MODE_NORMAL || ringVolume == 0
+                val isRingMuted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    audioManager?.isStreamMute(AudioManager.STREAM_RING) == true
+                } else false
+                val isSilentOrVibrate = audioManager?.ringerMode != AudioManager.RINGER_MODE_NORMAL || ringVolume == 0 || isRingMuted
                 val isDnd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     val filter = notificationManager?.currentInterruptionFilter ?: NotificationManager.INTERRUPTION_FILTER_ALL
                     filter != NotificationManager.INTERRUPTION_FILTER_ALL

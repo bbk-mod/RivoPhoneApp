@@ -1,13 +1,4 @@
 package com.grinch.rivo4.view.screen
-
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -60,25 +51,28 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.grinch.rivo4.view.components.LocalScrollToTopBottomPadding
 import com.grinch.rivo4.view.components.LocalShowFloatingNavBar
-import com.grinch.rivo4.view.screen.transitions.LocalTransitionStyle
-import com.grinch.rivo4.view.screen.transitions.LocalTransitionTimeScale
-import com.grinch.rivo4.view.screen.transitions.SmoothDecelerateEasing
 import com.grinch.rivo4.view.theme.RivoEasing
-import kotlin.math.roundToInt
 import androidx.navigation.NavController
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.view.components.BottomBar
 import com.grinch.rivo4.view.components.TopBar
-import com.grinch.rivo4.view.screen.transitions.NoTransitions
 import com.grinch.rivo4.view.theme.LocalNavBarStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.grinch.rivo4.LocalRequestedTab
+import androidx.compose.animation.*
+import com.grinch.rivo4.view.screen.transitions.LocalTransitionStyle
+import com.grinch.rivo4.view.screen.transitions.LocalTransitionTimeScale
+import com.grinch.rivo4.view.screen.transitions.SmoothDecelerateEasing
+import kotlin.math.roundToInt
+import com.grinch.rivo4.view.screen.transitions.SmoothAccelerateEasing
+import com.grinch.rivo4.view.screen.transitions.SmoothStandardEasing
+import com.grinch.rivo4.view.screen.transitions.scaledDuration
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-@Destination<RootGraph>(start = true, style = NoTransitions::class)
+@Destination<RootGraph>(start = true)
 @Composable
 fun MainScreen(
     navController: NavController,
@@ -101,19 +95,31 @@ fun MainScreen(
         }
         tabs.toList()
     }
-    val defaultTab = remember(settingsState) {
+    val defaultTab = remember(settingsState, visibleTabs) {
         val startLoc = prefs.getInt(PreferenceManager.KEY_START_LOCATION, PreferenceManager.START_LOCATION_NORMAL)
-        when (startLoc) {
+        val tab = when (startLoc) {
             PreferenceManager.START_LOCATION_DIALPAD_RECENTS -> PreferenceManager.TAB_RECENTS
             PreferenceManager.START_LOCATION_DIALPAD_CONTACTS -> PreferenceManager.TAB_CONTACTS
             else -> prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, PreferenceManager.TAB_RECENTS)
         }
+        if (visibleTabs.contains(tab)) tab else (visibleTabs.firstOrNull() ?: PreferenceManager.TAB_RECENTS)
     }
 
-    val lastActiveTab = savedTab ?: prefs.getLastSelectedTab()
-    val requestedTab = externalRequestedTab ?: initialTab ?: lastActiveTab ?: defaultTab
+    val requestedTab = externalRequestedTab ?: initialTab ?: defaultTab
 
     var currentTabId by rememberSaveable { mutableIntStateOf(requestedTab) }
+    var lastKnownDefaultTab by remember { mutableIntStateOf(defaultTab) }
+
+    LaunchedEffect(defaultTab) {
+        if (defaultTab != lastKnownDefaultTab) {
+            lastKnownDefaultTab = defaultTab
+            if (visibleTabs.contains(defaultTab)) {
+                currentTabId = defaultTab
+                savedTab = defaultTab
+                prefs.setLastSelectedTab(defaultTab)
+            }
+        }
+    }
     val saveableStateHolder = rememberSaveableStateHolder()
     val scope = rememberCoroutineScope()
 
@@ -282,22 +288,8 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        val warmTabs = remember { mutableStateListOf(currentTabId) }
-        if (!warmTabs.contains(currentTabId)) {
-            warmTabs.add(currentTabId)
-        }
-
-        // Pre-warm remaining tabs shortly after initial render so clicking any navigation button
-        // switches immediately with zero cold-composition delay.
-        LaunchedEffect(visibleTabs) {
-            kotlinx.coroutines.delay(250L)
-            for (tab in visibleTabs) {
-                if (!warmTabs.contains(tab)) {
-                    warmTabs.add(tab)
-                    kotlinx.coroutines.delay(100L)
-                }
-            }
-        }
+        val transitionStyle = LocalTransitionStyle.current
+        val transitionTimeScale = LocalTransitionTimeScale.current
 
         Box(
             modifier = Modifier
@@ -312,54 +304,63 @@ fun MainScreen(
                 LocalScrollToTopBottomPadding provides animatedScrollToTopPadding,
                 LocalShowFloatingNavBar provides { isToolbarVisible = true }
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    warmTabs.forEach { tab ->
-                        key(tab) {
-                            val isActive = tab == currentTabId
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .layout { measurable, constraints ->
-                                        val placeable = measurable.measure(constraints)
-                                        if (isActive) {
-                                            layout(placeable.width, placeable.height) {
-                                                placeable.placeRelative(0, 0)
-                                            }
-                                        } else {
-                                            layout(0, 0) {}
-                                        }
-                                    }
-                            ) {
-                                saveableStateHolder.SaveableStateProvider(tab) {
-                                    when (tab) {
-                                        PreferenceManager.TAB_RECENTS -> RecentScreenContent(
-                                            navController = navController,
-                                            navigator = navigator,
-                                            onSelectionStateChange = { selecting, actionBar ->
-                                                isSelectingRecents = selecting
-                                                recentsActionBar = actionBar
-                                            }
-                                        )
-                                        PreferenceManager.TAB_FAVORITES -> FavoritesScreenContent(
-                                            navController = navController,
-                                            navigator = navigator,
-                                            showTopBar = false
-                                        )
-                                        PreferenceManager.TAB_CONTACTS -> ContactScreenContent(
-                                            navController = navController,
-                                            navigator = navigator,
-                                            onSelectionStateChange = { selecting, actionBar ->
-                                                isSelectingContacts = selecting
-                                                contactsActionBar = actionBar
-                                            }
-                                        )
-                                        PreferenceManager.TAB_RECORDINGS -> com.grinch.rivo4.view.screen.settings.CallRecordingsContent(
-                                            showTopBar = false,
-                                            initialShowList = true
-                                        )
-                                    }
+                AnimatedContent(
+                    targetState = currentTabId,
+                    transitionSpec = {
+                        val targetIdx = visibleTabs.indexOf(targetState)
+                        val initialIdx = visibleTabs.indexOf(initialState)
+                        val movingForward = targetIdx >= initialIdx
+                        if (transitionStyle == 5 || transitionTimeScale <= 0.05f) {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        } else {
+                            val dur = scaledDuration(240, transitionTimeScale)
+                            val fadeDur = scaledDuration(180, transitionTimeScale)
+                            val slideRatio = 0.20f
+                            (slideInHorizontally(
+                                initialOffsetX = { (it * if (movingForward) slideRatio else -slideRatio).roundToInt() },
+                                animationSpec = tween(dur, easing = SmoothDecelerateEasing)
+                            ) + fadeIn(
+                                animationSpec = tween(fadeDur, easing = SmoothStandardEasing)
+                            )).togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { (-it * if (movingForward) slideRatio else -slideRatio).roundToInt() },
+                                    animationSpec = tween(dur, easing = SmoothStandardEasing)
+                                ) + fadeOut(
+                                    animationSpec = tween(fadeDur, easing = SmoothAccelerateEasing)
+                                )
+                            )
+                        }
+                    },
+                    label = "MainTabsContentTransition",
+                    modifier = Modifier.fillMaxSize()
+                ) { tab ->
+                    saveableStateHolder.SaveableStateProvider(tab) {
+                        when (tab) {
+                            PreferenceManager.TAB_RECENTS -> RecentScreenContent(
+                                navController = navController,
+                                navigator = navigator,
+                                onSelectionStateChange = { selecting, actionBar ->
+                                    isSelectingRecents = selecting
+                                    recentsActionBar = actionBar
                                 }
-                            }
+                            )
+                            PreferenceManager.TAB_FAVORITES -> FavoritesScreenContent(
+                                navController = navController,
+                                navigator = navigator,
+                                showTopBar = false
+                            )
+                            PreferenceManager.TAB_CONTACTS -> ContactScreenContent(
+                                navController = navController,
+                                navigator = navigator,
+                                onSelectionStateChange = { selecting, actionBar ->
+                                    isSelectingContacts = selecting
+                                    contactsActionBar = actionBar
+                                }
+                            )
+                            PreferenceManager.TAB_RECORDINGS -> com.grinch.rivo4.view.screen.settings.CallRecordingsContent(
+                                showTopBar = false,
+                                initialShowList = true
+                            )
                         }
                     }
                 }

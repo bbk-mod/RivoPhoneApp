@@ -81,12 +81,11 @@ import com.grinch.rivo4.modal.data.CallLogEntry
 import com.grinch.rivo4.modal.data.Contact
 import com.grinch.rivo4.modal.data.SwipeActionType
 import com.grinch.rivo4.modal.data.displayLabel
-import com.grinch.rivo4.view.screen.transitions.NoTransitions
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinActivityViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
-@Destination<RootGraph>(style = NoTransitions::class)
+@Destination<RootGraph>
 @Composable
 fun RecentScreen(navController: NavController, navigator: DestinationsNavigator) {
     RecentScreenContent(navController, navigator)
@@ -138,6 +137,7 @@ fun RecentScreenContent(
     }
 
     val isSelecting = selectedEntries.isNotEmpty()
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val allSelected = allFilteredEntries.isNotEmpty() && selectedEntries.size >= allFilteredEntries.size
 
@@ -356,15 +356,13 @@ fun AddFavoriteDialog(
     onContactSelected: (Contact) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val availableContacts = remember(allContacts, searchQuery) {
+    val availableContacts = remember(allContacts, searchQuery, displayOrder) {
         val nonFavs = allContacts.filter { !it.isFavorite }
         if (searchQuery.isBlank()) {
             nonFavs
         } else {
             nonFavs.filter {
-                it.displayName.contains(searchQuery, ignoreCase = true) ||
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                it.phoneNumbers.any { num -> num.contains(searchQuery) }
+                ContactUtils.matchesContact(it, searchQuery, displayOrder = displayOrder)
             }
         }
     }
@@ -432,13 +430,6 @@ fun CallLogFullContent(
         val prefs = org.koin.compose.koinInject<com.grinch.rivo4.controller.util.PreferenceManager>()
         val settingsState by prefs.settingsChanged.collectAsState()
         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-        val hapticScrollEnabled = prefs.getBoolean(com.grinch.rivo4.controller.util.PreferenceManager.KEY_HAPTIC_LIST_SCROLL, false)
-        if (hapticScrollEnabled) {
-            LaunchedEffect(listState.firstVisibleItemIndex) {
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-            }
-        }
-
         val hiddenContactsVisible by contactsVM.hiddenContactsVisible.collectAsState()
         LaunchedEffect(hiddenContactsVisible) {
             viewModel.fetchLogs()
@@ -514,7 +505,8 @@ fun CallLogFullContent(
             isEditingFavorites = false
         }
         val context = LocalContext.current
-        val clipboardManager = LocalClipboardManager.current
+        @Suppress("DEPRECATION")
+    val clipboardManager = LocalClipboardManager.current
         val callLauncher = rememberCallLauncher()
         val messageLauncher = rememberMessageLauncher()
         val videoLauncher = rememberVideoLauncher()
@@ -605,7 +597,7 @@ fun CallLogFullContent(
             isRefreshing = isLoading && logs.isNotEmpty(),
             onRefresh = {
                 viewModel.fetchLogs()
-                contactsVM.fetchContacts()
+                contactsVM.fetchContacts(forceRefresh = true)
             },
             modifier = Modifier.fillMaxSize(),
             state = pullToRefreshState,
@@ -766,7 +758,7 @@ fun CallLogFullContent(
                                                 },
                                                 onLongClick = { isEditingFavorites = true },
                                                 onClick = {
-                                                    callLauncher.dial(contact.phoneNumbers.firstOrNull() ?: "", contact)
+                                                    callLauncher.dial("", contact)
                                                 }
                                             )
                                         }
@@ -1115,7 +1107,7 @@ fun RecentsDailyStatusHeader(
         item(key = "today_total") {
             DailyStatCard(
                 value = "$totalCalls",
-                label = "Today",
+                label = stringResource(R.string.date_today),
                 icon = Icons.AutoMirrored.Filled.CallReceived,
                 containerColor = if (isDark) Color(0xFF253138) else Color(0xFFE2EFF6),
                 badgeColor = if (isDark) Color(0xFF3F596C) else Color(0xFFBEDEEF),
@@ -1130,7 +1122,7 @@ fun RecentsDailyStatusHeader(
         item(key = "today_call_time") {
             DailyStatCard(
                 value = formatShortDuration(totalDurationSeconds),
-                label = "Call Time",
+                label = stringResource(R.string.recents_call_time),
                 icon = Icons.Outlined.Schedule,
                 containerColor = if (isDark) Color(0xFF3B2E1E) else Color(0xFFFFF4E5),
                 badgeColor = if (isDark) Color(0xFF614A2E) else Color(0xFFFFE0B8),
@@ -1146,7 +1138,7 @@ fun RecentsDailyStatusHeader(
             item(key = "today_incoming") {
                 DailyStatCard(
                     value = "$incomingCalls",
-                    label = "Incoming",
+                    label = stringResource(R.string.call_type_incoming),
                     icon = Icons.AutoMirrored.Filled.CallReceived,
                     containerColor = if (isDark) Color(0xFF1E2F38) else Color(0xFFE0F4FF),
                     badgeColor = if (isDark) Color(0xFF335566) else Color(0xFFB8E4FF),
@@ -1162,7 +1154,7 @@ fun RecentsDailyStatusHeader(
         item(key = "today_missed") {
             DailyStatCard(
                 value = "$missedCalls",
-                label = "Missed",
+                label = stringResource(R.string.call_type_missed),
                 icon = Icons.AutoMirrored.Filled.CallMissed,
                 containerColor = if (isDark) Color(0xFF3B252B) else Color(0xFFFFECEF),
                 badgeColor = if (isDark) Color(0xFF6B3B48) else Color(0xFFFFCDD6),
@@ -1177,7 +1169,7 @@ fun RecentsDailyStatusHeader(
         item(key = "today_outgoing") {
             DailyStatCard(
                 value = "$outgoingCalls",
-                label = "Outgoing",
+                label = stringResource(R.string.call_type_outgoing),
                 icon = Icons.AutoMirrored.Filled.CallMade,
                 containerColor = if (isDark) Color(0xFF253422) else Color(0xFFEBF7EA),
                 badgeColor = if (isDark) Color(0xFF3D5936) else Color(0xFFC7ECC4),

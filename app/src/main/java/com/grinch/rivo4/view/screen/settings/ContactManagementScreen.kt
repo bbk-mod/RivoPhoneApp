@@ -1,4 +1,5 @@
 package com.grinch.rivo4.view.screen.settings
+import android.content.Context
 import androidx.compose.ui.res.stringResource
 import com.grinch.rivo4.R
 import com.grinch.rivo4.view.theme.LocalCardRoundness
@@ -6,6 +7,7 @@ import com.grinch.rivo4.view.theme.rivoCornerDp
 
 import androidx.compose.material.icons.automirrored.outlined.CallMerge
 import com.grinch.rivo4.view.components.MenuTopAppBar
+import com.grinch.rivo4.view.components.RivoTopBarIconButton
 
 import android.accounts.Account
 import android.view.HapticFeedbackConstants
@@ -49,7 +51,7 @@ import com.grinch.rivo4.view.components.*
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.ContactVisibilityScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.PrivateContactsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.PriorityContactsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.TrashContactsScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.grinch.rivo4.view.theme.RivoMaterialShapes
@@ -60,6 +62,13 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 
 sealed class StorageTarget(val id: String, val displayName: String) {
+    fun getLocalizedName(context: Context): String = when (this) {
+        is LocalMemory -> context.getString(R.string.storage_device)
+        is PrivateStorage -> context.getString(R.string.storage_private_vault)
+        is SimCard -> context.getString(R.string.storage_sim_card_format, account.name)
+        is CloudAccount -> account.name
+    }
+
     object LocalMemory : StorageTarget("local", "Device")
     object PrivateStorage : StorageTarget("private", "Private Storage (App Vault)")
     data class SimCard(val account: Account) : StorageTarget("sim_${account.name}", "SIM Card (${account.name})")
@@ -196,8 +205,15 @@ fun ContactManagementScreen(
     Scaffold(
         topBar = {
             MenuTopAppBar(
-                text = stringResource(R.string.settings_manage_title),
-                navigator = navigator
+                text = stringResource(R.string.settings_contact_management_headline),
+                navigator = navigator,
+                actions = {
+                    RivoTopBarIconButton(
+                        onClick = { navigator.navigate(TrashContactsScreenDestination) },
+                        icon = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.loc_trash_contacts)
+                    )
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -236,7 +252,7 @@ fun ContactManagementScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Total Contacts",
+                                text = stringResource(R.string.contact_mgmt_total_contacts),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -252,28 +268,28 @@ fun ContactManagementScreen(
                         StorageCountChip(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.PhoneAndroid,
-                            label = "Local",
+                            label = stringResource(R.string.storage_local),
                             count = localCount,
                             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                         )
                         StorageCountChip(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.Cloud,
-                            label = "Cloud",
+                            label = stringResource(R.string.storage_cloud),
                             count = cloudCount,
                             containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
                         )
                         StorageCountChip(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.SimCard,
-                            label = "SIM",
+                            label = stringResource(R.string.storage_sim),
                             count = simCount,
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
                         )
                         StorageCountChip(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Outlined.Lock,
-                            label = "Private",
+                            label = stringResource(R.string.storage_private),
                             count = privateCount,
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
@@ -294,10 +310,10 @@ fun ContactManagementScreen(
                             .padding(16.dp)
                     ) {
                         if (duplicateGroups.isEmpty()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Surface(
                                 modifier = Modifier.size(44.dp),
                                 shape = CircleShape,
@@ -313,14 +329,14 @@ fun ContactManagementScreen(
                                 }
                             }
                             Spacer(Modifier.width(14.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = stringResource(R.string.contact_management_no_duplicates),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "All contact names, phone numbers, and emails are unique.",
+                                    text = stringResource(R.string.contact_mgmt_duplicates_empty_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -330,28 +346,28 @@ fun ContactManagementScreen(
                         val totalDups = duplicateGroups.sumOf { it.size }
                         val totalSets = duplicateGroups.size
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.contact_management_duplicates_found, totalDups, totalSets),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                                Text(
-                                    text = "Combine redundant details and keep clean contacts.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.contact_management_duplicates_found, totalDups, totalSets),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.contact_mgmt_merge_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(12.dp))
                             Button(
                                 onClick = { showMergeAllDialog = true },
                                 enabled = !isMerging,
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
@@ -375,7 +391,7 @@ fun ContactManagementScreen(
                                     val sources = group.drop(1).map { it.id }
                                     contactsVM.mergeDuplicateGroup(primary.id, sources)
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Merged contacts for ${primary.displayName}")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.contact_mgmt_merged_for, primary.displayName))
                                     }
                                 },
                                 onDismiss = {
@@ -456,7 +472,7 @@ fun ContactManagementScreen(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
-                                        text = "Swap",
+                                        text = stringResource(R.string.action_swap),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -524,7 +540,11 @@ fun ContactManagementScreen(
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    text = "${sourceContacts.size} contacts ready to move to ${selectedDestStorage.displayName}",
+                                    text = stringResource(
+                                        R.string.contact_mgmt_ready_to_move,
+                                        sourceContacts.size,
+                                        selectedDestStorage.getLocalizedName(context)
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -618,37 +638,10 @@ fun ContactManagementScreen(
 
                     item {
                         RivoListItem(
-                            headline = "Private Storage Vault",
-                            supporting = "Manage secret local contacts stored strictly in app database",
-                            leadingIcon = Icons.Outlined.Lock,
-                            onClick = { navigator.navigate(PrivateContactsScreenDestination) }
-                        )
-                    }
-
-                    item {
-                        var trashEnabled by remember(settingsState) { mutableStateOf(prefs.isContactsTrashEnabled()) }
-                        RivoSwitchListItem(
-                            headline = stringResource(R.string.settings_contacts_trash_title),
-                            supporting = stringResource(R.string.settings_contacts_trash_supporting),
-                            leadingIcon = Icons.Outlined.Delete,
-                            checked = trashEnabled,
-                            onCheckedChange = { enabled ->
-                                trashEnabled = enabled
-                                prefs.setContactsTrashEnabled(enabled)
-                            }
-                        )
-                    }
-
-                    item {
-                        val trashedContacts by contactsVM.trashedContacts.collectAsState()
-                        LaunchedEffect(Unit) {
-                            contactsVM.fetchTrashedContacts()
-                        }
-                        RivoListItem(
-                            headline = stringResource(R.string.settings_contacts_trash_view),
-                            supporting = stringResource(R.string.settings_contacts_trash_view_supporting, trashedContacts.size),
-                            leadingIcon = Icons.Outlined.RestoreFromTrash,
-                            onClick = { navigator.navigate(TrashContactsScreenDestination) }
+                            headline = stringResource(R.string.priority_contacts_title),
+                            supporting = stringResource(R.string.priority_contacts_supporting),
+                            leadingIcon = Icons.Outlined.NotificationImportant,
+                            onClick = { navigator.navigate(PriorityContactsScreenDestination) }
                         )
                     }
 
@@ -746,10 +739,10 @@ fun ContactManagementScreen(
             message = stringResource(
                 R.string.contact_management_move_confirm_msg,
                 sourceContacts.size,
-                selectedSourceStorage.displayName,
-                selectedDestStorage.displayName
+                selectedSourceStorage.getLocalizedName(context),
+                selectedDestStorage.getLocalizedName(context)
             ),
-            confirmLabel = "Move All",
+            confirmLabel = stringResource(R.string.action_move_all),
             dismissLabel = stringResource(R.string.action_cancel),
             icon = Icons.AutoMirrored.Filled.DriveFileMove
         )
@@ -777,8 +770,8 @@ fun ContactManagementScreen(
     if (showMoveSelectionDialog) {
         MoveContactsSelectionDialog(
             contacts = sourceContacts,
-            sourceStorageName = selectedSourceStorage.displayName,
-            destStorageName = selectedDestStorage.displayName,
+            sourceStorageName = selectedSourceStorage.getLocalizedName(context),
+            destStorageName = selectedDestStorage.getLocalizedName(context),
             onDismiss = { showMoveSelectionDialog = false },
             onConfirmMove = { selectedIds ->
                 showMoveSelectionDialog = false
@@ -860,7 +853,11 @@ fun DuplicateGroupItem(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -875,61 +872,79 @@ fun DuplicateGroupItem(
                     Text(
                         text = primary.displayName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        text = "${group.size} matching contacts • ${primary.phoneNumbers.firstOrNull() ?: ""}",
+                        text = stringResource(
+                            R.string.contact_mgmt_matching_contacts,
+                            group.size,
+                            primary.phoneNumbers.firstOrNull() ?: ""
+                        ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_dismiss), modifier = Modifier.size(18.dp))
-                    }
-                    FilledTonalButton(
-                        onClick = onMerge,
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text(stringResource(R.string.contact_management_merge_group_btn), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_dismiss), modifier = Modifier.size(18.dp))
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+
+            FilledTonalButton(
+                onClick = onMerge,
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.contact_management_merge_group_btn), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp, start = 8.dp, end = 8.dp)
+                ) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     Text(
-                        text = "Contacts to be combined:",
+                        text = stringResource(R.string.contact_mgmt_contacts_to_combine),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(6.dp))
                     group.forEachIndexed { idx, c ->
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 4.dp)
                         ) {
                             Text(
-                                text = if (idx == 0) "Primary" else "Duplicate #$idx",
+                                text = if (idx == 0) stringResource(R.string.contact_mgmt_primary) else stringResource(R.string.contact_mgmt_duplicate_number, idx),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (idx == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.width(80.dp)
+                                color = if (idx == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Column {
-                                Text(c.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text(
-                                    text = c.phoneNumbers.joinToString(", ").ifEmpty { "No numbers" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                text = c.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = c.phoneNumbers.joinToString(", ").ifEmpty { stringResource(R.string.contact_mgmt_no_numbers) },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -957,6 +972,7 @@ fun StorageTargetCard(
     }
 
     val morph = rememberRivoMorphShape(RivoMaterialShapes.Cookie12Sided, RivoMaterialShapes.Circle) { 0.35f }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Box(modifier = modifier.fillMaxWidth()) {
         val roundness = LocalCardRoundness.current
@@ -1017,7 +1033,7 @@ fun StorageTargetCard(
                             )
                         }
                         Text(
-                            text = "$badgeCount contacts",
+                            text = stringResource(R.string.contact_mgmt_contacts_count, badgeCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1026,7 +1042,7 @@ fun StorageTargetCard(
                     Spacer(Modifier.height(3.dp))
 
                     Text(
-                        text = target.displayName,
+                        text = target.getLocalizedName(context),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -1061,7 +1077,7 @@ fun StorageTargetCard(
             options.forEach { option ->
                 DropdownMenuItem(
                     text = {
-                        Text(option.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Text(option.getLocalizedName(context), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     },
                     onClick = {
                         onSelect(option)
@@ -1097,8 +1113,7 @@ fun MoveContactsSelectionDialog(
     val filtered = remember(contacts, searchQuery) {
         if (searchQuery.isBlank()) contacts
         else contacts.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-            it.phoneNumbers.any { num -> num.contains(searchQuery) }
+            ContactUtils.matchesContact(it, searchQuery)
         }
     }
 
@@ -1118,12 +1133,12 @@ fun MoveContactsSelectionDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Select Contacts to Move",
+                            text = stringResource(R.string.contact_mgmt_select_contacts_to_move),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "From $sourceStorageName to $destStorageName",
+                            text = stringResource(R.string.contact_mgmt_move_from_to, sourceStorageName, destStorageName),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1154,14 +1169,14 @@ fun MoveContactsSelectionDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${selectedIds.size} of ${contacts.size} selected",
+                        text = stringResource(R.string.contact_mgmt_selected_of_total, selectedIds.size, contacts.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     TextButton(onClick = {
                         selectedIds = if (selectedIds.size == contacts.size) emptySet() else contacts.map { it.id }.toSet()
                     }) {
-                        Text(if (selectedIds.size == contacts.size) "Deselect All" else "Select All")
+                        Text(stringResource(if (selectedIds.size == contacts.size) R.string.action_deselect_all else R.string.action_select_all))
                     }
                 }
 
@@ -1197,7 +1212,7 @@ fun MoveContactsSelectionDialog(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(contact.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: "No number",
+                                    contact.phoneNumbers.firstOrNull()?.let { formatPhoneNumber(it) } ?: stringResource(R.string.contact_mgmt_no_number),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

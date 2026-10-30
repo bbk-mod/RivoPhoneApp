@@ -82,8 +82,9 @@
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTask"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
-            
+            android:enableOnBackInvokedCallback="true"
             android:theme="@style/Theme.App.Starting">
             <meta-data
                 android:name="android.app.shortcuts"
@@ -97,6 +98,17 @@
                 <action android:name="com.grinch.rivo4.ACTION_VIEW_CONTACTS" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.APP_CONTACTS" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="com.grinch.rivo4.ACTION_OPEN_SETTINGS" />
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="com.grinch.rivo4.ACTION_VIEW_RECENTS" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
             <intent-filter>
@@ -182,6 +194,7 @@
             android:exported="true"
             android:enabled="false"
             android:launchMode="singleTask"
+            android:screenOrientation="portrait"
             android:icon="@mipmap/ic_launcher_contacts"
             android:roundIcon="@mipmap/ic_launcher_contacts_round"
             android:label="@string/app_name_contacts"
@@ -194,6 +207,9 @@
                 <category android:name="android.intent.category.APP_CONTACTS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -230,7 +246,6 @@
             android:noHistory="true"
             android:showForAllUsers="true"
             android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:theme="@style/Theme.Rivo.TranslucentPostCall" />
 
         <activity

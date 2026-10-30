@@ -74,7 +74,7 @@ import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.AvatarSettingsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.BottomNavScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.CallScreenCustomizationScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.CallLogCustomizationScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SwipeActionsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.TypographyScreenDestination
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -114,8 +114,8 @@ fun InterfaceScreen(
     var transitionTimeScale by remember(settingsState) {
         mutableFloatStateOf(prefs.getTransitionTimeScale())
     }
-    var predictiveBackEnabled by remember(settingsState) {
-        mutableStateOf(prefs.isPredictiveBackEnabled())
+    var mergeFavorites by remember(settingsState) {
+        mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_MERGE_FAVORITES_RECENTS, true))
     }
     var customPrimaryColor by remember(settingsState) {
         mutableIntStateOf(prefs.getInt("custom_primary_color", Color(0xFF6750A4).toArgb()))
@@ -123,9 +123,7 @@ fun InterfaceScreen(
     var cardRoundness by remember(settingsState) {
         mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_CARD_ROUNDNESS, 28).coerceAtLeast(5))
     }
-    var dualSimButtons by remember(settingsState) {
-        mutableStateOf(prefs.isDualSimDialpadButtonsEnabled())
-    }
+
     var themeMode by remember(settingsState) {
         mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_THEME_MODE, PreferenceManager.THEME_MODE_SYSTEM))
     }
@@ -177,14 +175,14 @@ fun InterfaceScreen(
 
             SettingsHighlightManager.matches(context.getString(R.string.settings_interface_card_roundness)) ||
             SettingsHighlightManager.matches(context.getString(R.string.settings_interface_transition_animation)) ||
-            SettingsHighlightManager.matches(context.getString(R.string.settings_predictive_back_title)) ||
+            SettingsHighlightManager.matches(context.getString(R.string.settings_transition_speed)) ||
             target.contains("Card", ignoreCase = true) ||
             target.contains("Roundness", ignoreCase = true) ||
-            target.contains("Transition", ignoreCase = true) ||
-            target.contains("Predictive", ignoreCase = true) -> 1
+            target.contains("Transition", ignoreCase = true) -> 1
 
-            SettingsHighlightManager.matches(context.getString(R.string.settings_interface_dual_sim_buttons_title)) ||
-            target.contains("Dual SIM", ignoreCase = true) -> 2
+            SettingsHighlightManager.matches(context.getString(R.string.settings_interface_merge_favorites)) ||
+            target.contains("Favorites", ignoreCase = true) ||
+            target.contains("Recents", ignoreCase = true) -> 2
 
             target.contains("Navigation Bar", ignoreCase = true) ||
             target.contains("Avatar", ignoreCase = true) -> 3
@@ -200,7 +198,7 @@ fun InterfaceScreen(
     Scaffold(
         topBar = {
             MenuTopAppBar(
-                text = stringResource(R.string.settings_interface_title),
+                text = stringResource(R.string.loc_theme_appearance),
                 navigator = navigator
             )
         },
@@ -454,7 +452,9 @@ fun InterfaceScreen(
                                         stringResource(R.string.option_standard) to 0,
                                         stringResource(R.string.settings_interface_transition_slide) to 1,
                                         stringResource(R.string.settings_interface_transition_fade) to 2,
-                                        stringResource(R.string.settings_interface_transition_none) to 3
+                                        stringResource(R.string.settings_interface_transition_zoom) to 3,
+                                        stringResource(R.string.settings_interface_transition_stack) to 4,
+                                        stringResource(R.string.settings_interface_transition_none) to 5
                                     ),
                                     selectedValue = transitionStyle,
                                     onValueChange = {
@@ -466,6 +466,8 @@ fun InterfaceScreen(
                                         0 -> Icons.Outlined.Animation
                                         1 -> Icons.AutoMirrored.Outlined.CompareArrows
                                         2 -> Icons.Outlined.AutoAwesome
+                                        3 -> Icons.Outlined.ZoomIn
+                                        4 -> Icons.Outlined.Layers
                                         else -> Icons.Outlined.Block
                                     }
                                     Icon(
@@ -477,7 +479,7 @@ fun InterfaceScreen(
                                 }
                             }
                         }
-                        if (transitionStyle != 3) {
+                        if (transitionStyle != 5) {
                             item {
                                 val snappedScale = ((transitionTimeScale * 20f).roundToInt() / 20f).coerceIn(0.25f, 5.0f)
                                 val scaleText = if (snappedScale * 100 % 10 == 0f) {
@@ -502,89 +504,74 @@ fun InterfaceScreen(
                                 )
                             }
                         }
-                        item {
-                            RivoSwitchListItem(
-                                headline = stringResource(R.string.settings_predictive_back_title),
-                                supporting = stringResource(R.string.settings_predictive_back_supporting),
-                                leadingIcon = Icons.AutoMirrored.Outlined.ArrowBack,
-                                checked = predictiveBackEnabled,
-                                onCheckedChange = {
-                                    predictiveBackEnabled = it
-                                    prefs.setPredictiveBackEnabled(it)
-                                }
-                            )
-                        }
                     }
                 }
 
-                // 3. Dialpad Interface
+                // 3. Navigation & Appearance Customizations
                 item {
-                    RivoExpressiveGroup(title = stringResource(R.string.settings_group_dialpad_calling), icon = Icons.Outlined.SimCard) {
-                        item {
-                            RivoSwitchListItem(
-                                headline = stringResource(R.string.settings_interface_dual_sim_buttons_title),
-                                supporting = stringResource(R.string.settings_interface_dual_sim_buttons_supporting),
-                                leadingIcon = Icons.Outlined.SimCard,
-                                checked = dualSimButtons,
-                                onCheckedChange = {
-                                    dualSimButtons = it
-                                    prefs.setDualSimDialpadButtonsEnabled(it)
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // 5. Related Styling Links
-                item {
-                    RivoExpressiveGroup(
-                        title = stringResource(R.string.settings_more_display),
-                        icon = Icons.Outlined.DisplaySettings
-                    ) {
+                    RivoExpressiveGroup(title = stringResource(R.string.loc_personalization_display), icon = Icons.Outlined.Palette) {
                         item {
                             RivoListItem(
-                                headline = stringResource(R.string.typography_title),
-                                supporting = stringResource(R.string.typography_entry_supporting),
-                                leadingIcon = Icons.Outlined.TextFields,
-                                onClick = { navigator.navigate(TypographyScreenDestination) }
-                            )
-                        }
-                        item {
-                            RivoListItem(
-                                headline = stringResource(R.string.settings_navigation_bar),
-                                supporting = stringResource(R.string.settings_navigation_bar_supporting),
-                                leadingIcon = Icons.Outlined.Dock,
-                                onClick = { navigator.navigate(BottomNavScreenDestination) }
-                            )
-                        }
-                        item {
-                            RivoListItem(
-                                headline = stringResource(R.string.settings_avatars_cards),
-                                supporting = stringResource(R.string.settings_avatars_cards_supporting),
+                                headline = stringResource(R.string.loc_avatars_contact_cards),
+                                supporting = stringResource(R.string.loc_11_avatar_shapes_contact_photos_initials_cards),
                                 leadingIcon = Icons.Outlined.AccountCircle,
                                 onClick = { navigator.navigate(AvatarSettingsScreenDestination) }
                             )
                         }
                         item {
                             RivoListItem(
-                                headline = stringResource(R.string.call_screen_customization_title),
-                                supporting = stringResource(R.string.call_screen_customization_supporting),
-                                leadingIcon = Icons.Outlined.Dialpad,
-                                onClick = { navigator.navigate(CallScreenCustomizationScreenDestination) }
+                                headline = stringResource(R.string.loc_typography),
+                                supporting = stringResource(R.string.loc_font_text_size_and_system_font),
+                                leadingIcon = Icons.Outlined.FormatSize,
+                                onClick = { navigator.navigate(TypographyScreenDestination) }
                             )
                         }
                         item {
                             RivoListItem(
-                                headline = stringResource(R.string.settings_call_log_customization_title),
-                                supporting = stringResource(R.string.settings_call_log_customization_supporting),
-                                leadingIcon = Icons.Outlined.History,
-                                onClick = { navigator.navigate(CallLogCustomizationScreenDestination) }
+                                headline = stringResource(R.string.loc_navigation_bar),
+                                supporting = stringResource(R.string.loc_floating_bar_style_navigation_dock_and_tab_layout),
+                                leadingIcon = Icons.Outlined.Dock,
+                                onClick = { navigator.navigate(BottomNavScreenDestination) }
+                            )
+                        }
+                        item {
+                            RivoListItem(
+                                headline = stringResource(R.string.settings_swipe_actions_title),
+                                supporting = stringResource(R.string.settings_swipe_actions_supporting),
+                                leadingIcon = Icons.Outlined.Swipe,
+                                onClick = { navigator.navigate(SwipeActionsScreenDestination) }
+                            )
+                        }
+                        item {
+                            RivoListItem(
+                                headline = stringResource(R.string.loc_call_screen_buttons),
+                                supporting = stringResource(R.string.loc_choose_the_position_of_each_in_call_button),
+                                leadingIcon = Icons.Outlined.Dialpad,
+                                onClick = { navigator.navigate(CallScreenCustomizationScreenDestination) }
                             )
                         }
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(100.dp)) }
+                // 4. Recents
+                item {
+                    RivoExpressiveGroup(title = stringResource(R.string.nav_recents), icon = Icons.Outlined.History) {
+                        item {
+                            RivoSwitchListItem(
+                                headline = stringResource(R.string.settings_interface_merge_favorites),
+                                supporting = stringResource(R.string.settings_interface_merge_favorites_supporting),
+                                leadingIcon = Icons.Outlined.Star,
+                                checked = mergeFavorites,
+                                onCheckedChange = {
+                                    mergeFavorites = it
+                                    prefs.setBoolean(PreferenceManager.KEY_MERGE_FAVORITES_RECENTS, it)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(32.dp)) }
             }
 
             ScrollToTopButton(

@@ -28,13 +28,7 @@ import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -53,7 +47,6 @@ import androidx.compose.ui.unit.sp
 import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.CallLogViewModel
 import com.grinch.rivo4.controller.ContactsViewModel
-import com.grinch.rivo4.controller.util.BlockedNumbersManager
 import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.areNumbersEqual
@@ -93,14 +86,11 @@ fun CallLogFullScreen(
     val viewModel: CallLogViewModel = koinActivityViewModel()
     val prefs: PreferenceManager = koinInject()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchLogs()
-    }
-
     val allLogs by viewModel.allCallLogs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val context = LocalContext.current
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -314,81 +304,12 @@ fun CallLogFullScreen(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                    Box {
-                                        var showMenu by remember { mutableStateOf(false) }
+                                    if (filteredLogsByContact.isNotEmpty()) {
                                         RivoTopBarIconButton(
-                                            onClick = { showMenu = true },
-                                            icon = Icons.Default.MoreVert,
-                                            contentDescription = stringResource(R.string.content_desc_options)
+                                            onClick = { showDeleteAllDialog = true },
+                                            icon = Icons.Outlined.DeleteSweep,
+                                            contentDescription = stringResource(R.string.content_desc_clear_history)
                                         )
-                                        DropdownMenu(
-                                            expanded = showMenu,
-                                            onDismissRequest = { showMenu = false }
-                                        ) {
-                                            if (matchedContact != null) {
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(R.string.swipe_action_view_contact)) },
-                                                    leadingIcon = { Icon(Icons.Outlined.Person, null) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        navigator.navigate(ContactDetailsScreenDestination(contactId = matchedContact.id))
-                                                    }
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(R.string.action_edit)) },
-                                                    leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        navigator.navigate(ContactEditScreenDestination(contactId = matchedContact.id))
-                                                    }
-                                                )
-                                            } else {
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(R.string.contact_add_to_contacts)) },
-                                                    leadingIcon = { Icon(Icons.Outlined.PersonAdd, null) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        showAddContactSheet = true
-                                                    }
-                                                )
-                                            }
-                                            if (filteredLogsByContact.isNotEmpty()) {
-                                                DropdownMenuItem(
-                                                    text = { Text(stringResource(R.string.content_desc_clear_history)) },
-                                                    leadingIcon = { Icon(Icons.Outlined.DeleteSweep, null) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        showDeleteAllDialog = true
-                                                    }
-                                                )
-                                            }
-                                            val isNumberBlocked = remember(targetPhoneNumber) {
-                                                BlockedNumbersManager.isBlocked(context, targetPhoneNumber)
-                                            }
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(if (isNumberBlocked) R.string.action_unblock_number else R.string.action_block_number)) },
-                                                leadingIcon = { Icon(Icons.Outlined.Block, null) },
-                                                onClick = {
-                                                    showMenu = false
-                                                    if (isNumberBlocked) {
-                                                        BlockedNumbersManager.unblock(context, targetPhoneNumber)
-                                                        android.widget.Toast.makeText(context, context.getString(R.string.toast_unblocked_number, targetPhoneNumber), android.widget.Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        BlockedNumbersManager.block(context, targetPhoneNumber)
-                                                        android.widget.Toast.makeText(context, context.getString(R.string.toast_blocked_number, targetPhoneNumber), android.widget.Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.action_copy_number)) },
-                                                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                                                onClick = {
-                                                    showMenu = false
-                                                    clipboardManager.setText(AnnotatedString(targetPhoneNumber))
-                                                    android.widget.Toast.makeText(context, context.getString(R.string.number_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -398,13 +319,11 @@ fun CallLogFullScreen(
                                 navigator = navigator,
                                 actions = {
                                     if (filteredLogsByContact.isNotEmpty()) {
-                                        IconButton(onClick = { showDeleteAllDialog = true }) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.DeleteSweep,
-                                                contentDescription = stringResource(R.string.content_desc_clear_history),
-                                                tint = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
+                                        RivoTopBarIconButton(
+                                            onClick = { showDeleteAllDialog = true },
+                                            icon = Icons.Outlined.DeleteSweep,
+                                            contentDescription = stringResource(R.string.content_desc_clear_history)
+                                        )
                                     }
                                 }
                             )
@@ -685,77 +604,56 @@ fun CallLogFullScreen(
                                                             } else Modifier
                                                         )
                                                 ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Box(modifier = Modifier.weight(1f)) {
-                                                            RivoListItem(
-                                                                headline = callTypeLabel,
-                                                                headlineColor = if (isBlocked || isMissedOrRejected) MaterialTheme.colorScheme.error else Color.Unspecified,
-                                                                supporting = if ((!callLogConfig.showSim || lgSimNumber == null) && !lg.isHd) supportingText else null,
-                                                                supportingContent = if ((callLogConfig.showSim && lgSimNumber != null) || lg.isHd) {
-                                                                    {
-                                                                        Row(
-                                                                            verticalAlignment = Alignment.CenterVertically,
-                                                                            modifier = Modifier.padding(top = 1.dp)
-                                                                        ) {
-                                                                            if (callLogConfig.showSim && lgSimNumber != null) {
-                                                                                SimBadge(simNumber = lgSimNumber)
-                                                                                Spacer(modifier = Modifier.width(6.dp))
-                                                                            }
-                                                                            if (lg.isHd) {
-                                                                                HdBadge()
-                                                                                Spacer(modifier = Modifier.width(6.dp))
-                                                                            }
-                                                                            Text(
-                                                                                text = supportingText,
-                                                                                style = RivoListItemDefaults.supportingStyle(),
-                                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                                            )
-                                                                        }
+                                                    RivoListItem(
+                                                        headline = callTypeLabel,
+                                                        headlineColor = if (isBlocked || isMissedOrRejected) MaterialTheme.colorScheme.error else Color.Unspecified,
+                                                        supporting = if ((!callLogConfig.showSim || lgSimNumber == null) && !lg.isHd) supportingText else null,
+                                                        supportingContent = if ((callLogConfig.showSim && lgSimNumber != null) || lg.isHd) {
+                                                            {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    modifier = Modifier.padding(top = 1.dp)
+                                                                ) {
+                                                                    if (callLogConfig.showSim && lgSimNumber != null) {
+                                                                        SimBadge(simNumber = lgSimNumber)
+                                                                        Spacer(modifier = Modifier.width(6.dp))
                                                                     }
-                                                                } else null,
-                                                                leadingContent = {
-                                                                    Icon(
-                                                                        imageVector = leadingIcon,
-                                                                        contentDescription = null,
-                                                                        tint = iconTint,
-                                                                        modifier = Modifier.size(24.dp)
+                                                                    if (lg.isHd) {
+                                                                        HdBadge()
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                    }
+                                                                    Text(
+                                                                        text = supportingText,
+                                                                        style = RivoListItemDefaults.supportingStyle(),
+                                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                                                     )
-                                                                },
-                                                                selected = isSelected,
-                                                                onClick = {
-                                                                    if (selectedEntries.isNotEmpty()) {
-                                                                        selectedEntries = if (selectedEntries.any { it.id == lg.id }) {
-                                                                            selectedEntries.filter { it.id != lg.id }.toSet()
-                                                                        } else {
-                                                                            selectedEntries + lg
-                                                                        }
-                                                                    }
-                                                                },
-                                                                onLongClick = {
-                                                                    if (selectedEntries.none { it.id == lg.id }) {
-                                                                        selectedEntries = selectedEntries + lg
-                                                                    }
                                                                 }
+                                                            }
+                                                        } else null,
+                                                        leadingContent = {
+                                                            Icon(
+                                                                imageVector = leadingIcon,
+                                                                contentDescription = null,
+                                                                tint = iconTint,
+                                                                modifier = Modifier.size(24.dp)
                                                             )
-                                                        }
-
-                                                        if (!isSelected) {
-                                                            IconButton(
-                                                                onClick = { handleCallNumber(lg.number, lg.contactId ?: contactId) },
-                                                                modifier = Modifier.padding(end = 10.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.Call,
-                                                                    contentDescription = stringResource(R.string.action_call),
-                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                    modifier = Modifier.size(22.dp)
-                                                                )
+                                                        },
+                                                        selected = isSelected,
+                                                        onClick = {
+                                                            if (selectedEntries.isNotEmpty()) {
+                                                                selectedEntries = if (selectedEntries.any { it.id == lg.id }) {
+                                                                    selectedEntries.filter { it.id != lg.id }.toSet()
+                                                                } else {
+                                                                    selectedEntries + lg
+                                                                }
+                                                            }
+                                                        },
+                                                        onLongClick = {
+                                                            if (selectedEntries.none { it.id == lg.id }) {
+                                                                selectedEntries = selectedEntries + lg
                                                             }
                                                         }
-                                                    }
+                                                    )
                                                 }
                                                 if (!showCards && index < logsInGroup.size - 1) {
                                                     HorizontalDivider(

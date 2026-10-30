@@ -110,11 +110,8 @@ fun PrivateContactsScreen(
         if (searchQuery.isBlank()) {
             privateContacts
         } else {
-            val q = searchQuery.trim()
             privateContacts.filter {
-                it.displayName.contains(q, ignoreCase = true) ||
-                it.name.contains(q, ignoreCase = true) ||
-                it.phoneNumbers.any { num -> num.contains(q) }
+                com.grinch.rivo4.controller.util.ContactUtils.matchesContact(it, searchQuery)
             }
         }
     }
@@ -139,7 +136,7 @@ fun PrivateContactsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = context.getString(R.string.loc_selectedcontactids_size_selected),
+                            text = context.getString(R.string.loc_selectedcontactids_size_selected, selectedContactIds.size),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -187,7 +184,7 @@ fun PrivateContactsScreen(
                 )
             } else {
                 MenuTopAppBar(
-                    text = context.getString(R.string.settings_private_title),
+                    text = context.getString(R.string.loc_private_storage),
                     navigator = navigator,
                     actions = {
                         if (filteredPrivateContacts.isNotEmpty()) {
@@ -250,11 +247,17 @@ fun PrivateContactsScreen(
                                 }
                                 Spacer(Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         Text(
                                             text = context.getString(R.string.settings_private_title),
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Surface(
@@ -263,10 +266,11 @@ fun PrivateContactsScreen(
                                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                         ) {
                                             Text(
-                                                text = context.getString(R.string.loc_privatecontacts_size_secured),
+                                                text = context.getString(R.string.loc_privatecontacts_size_secured, privateContacts.size),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.SemiBold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                maxLines = 1
                                             )
                                         }
                                     }
@@ -348,7 +352,7 @@ fun PrivateContactsScreen(
                         item {
                             RivoListItem(
                                 headline = context.getString(R.string.loc_secret_dialpad_code),
-                                supporting = context.getString(R.string.loc_dial_currentsecretcode_on_the_dialpad_to_quickly_open_private_vault),
+                                supporting = context.getString(R.string.loc_dial_currentsecretcode_on_the_dialpad_to_quickly_open_private_vault, currentSecretCode),
                                 leadingIcon = Icons.Outlined.Password,
                                 trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 onClick = { showSecurityDialog = true }
@@ -438,7 +442,7 @@ fun PrivateContactsScreen(
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = if (searchQuery.isNotBlank()) {
-                                        "No private contacts match \"$searchQuery\""
+                                        context.getString(R.string.private_contacts_no_search_results, searchQuery)
                                     } else {
                                         context.getString(R.string.settings_manage_private_contacts_supporting)
                                     },
@@ -538,7 +542,10 @@ fun PrivateContactsScreen(
                 showDeleteConfirmDialog = false
             },
             title = stringResource(R.string.action_delete),
-            message = context.getString(R.string.loc_permanently_delete_selectedcontactids_size_selected_contact_s_from_pri),
+            message = context.getString(
+                R.string.loc_permanently_delete_selectedcontactids_size_selected_contact_s_from_pri,
+                selectedContactIds.size
+            ),
             confirmLabel = stringResource(R.string.action_delete),
             dismissLabel = context.getString(R.string.action_cancel),
             icon = Icons.Outlined.Delete
@@ -736,7 +743,7 @@ private fun PrivateContactListItem(
                             )
                             Spacer(Modifier.width(2.dp))
                             Text(
-                                text = if (contact.isHidden) "Hidden" else "Private",
+                                text = stringResource(if (contact.isHidden) R.string.settings_bottom_nav_hidden else R.string.storage_private),
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -771,7 +778,14 @@ private fun PrivateContactListItem(
                 }
                 RivoDropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     RivoDropdownMenuItem(
-                        text = { Text(if (contact.isHidden) "Unhide in Vault" else "Hide Completely") },
+                        text = {
+                            Text(
+                                stringResource(
+                                    if (contact.isHidden) R.string.private_vault_unhide_in_vault
+                                    else R.string.private_vault_hide_completely
+                                )
+                            )
+                        },
                         onClick = {
                             showMenu = false
                             onToggleHidden()

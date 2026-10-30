@@ -9,6 +9,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
+import kotlinx.coroutines.launch
 
 class RivoApp : Application(), ImageLoaderFactory {
 
@@ -42,9 +43,14 @@ class RivoApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        com.grinch.rivo4.controller.util.AppShortcutsHelper.init(this)
         startKoin {
             androidContext(this@RivoApp)
             modules(appModule)
+        }
+        
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            com.grinch.rivo4.controller.util.SocialUtils.getInstalledSocialApps(this@RivoApp)
         }
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {

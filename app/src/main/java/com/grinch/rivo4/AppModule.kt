@@ -3,6 +3,7 @@ package com.grinch.rivo4
 import androidx.room.Room
 import com.grinch.rivo4.modal.db.RivoDatabase
 import com.grinch.rivo4.controller.BackupViewModel
+import com.grinch.rivo4.controller.ContactBackupManager
 import com.grinch.rivo4.controller.CallLogViewModel
 import com.grinch.rivo4.controller.ContactsViewModel
 import com.grinch.rivo4.modal.`interface`.ICallLogRepository
@@ -22,6 +23,7 @@ val appModule = module {
             RivoDatabase::class.java,
             "rivo_database"
         ).allowMainThreadQueries()
+            .addMigrations(*com.grinch.rivo4.modal.db.RivoDatabase.ALL_MIGRATIONS)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -39,11 +41,12 @@ val appModule = module {
     single {
         PreferenceManager(androidContext())
     }
+    single { ContactBackupManager(get(), get()) }
     single {
         com.grinch.rivo4.controller.reminder.CallbackReminderManager(androidContext(), get())
     }
-    viewModel { ContactsViewModel(get(), get(), get(), androidContext()) }
+    viewModel { ContactsViewModel(get(), get(), get(), androidContext(), get()) }
     viewModel { CallLogViewModel(get(), androidContext().contentResolver) }
-    viewModel { BackupViewModel(get(), get(), get()) }
+    viewModel { BackupViewModel(get(), get(), get(), get()) }
     viewModel { CallAnalyticsViewModel(get(), get()) }
 }

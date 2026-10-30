@@ -186,6 +186,7 @@ fun DialPadScreen(
     val settingsState by prefs.settingsChanged.collectAsState()
 
     val allContacts by contactsVM.allContacts.collectAsState()
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val messageLauncher = rememberMessageLauncher()
     val videoLauncher = rememberVideoLauncher()
@@ -321,7 +322,20 @@ fun DialPadScreen(
                         val matchesNumber = contact.phoneNumbers.any { num ->
                             num.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }.contains(cleanQueryChars)
                         }
-                        val matchesName = t9Enabled && T9Matcher.isMatch(contact.displayName, cleanQuery)
+                        val (splitGiven, splitMiddle, splitFamily) = com.grinch.rivo4.controller.util.ContactUtils.splitDisplayName(contact.name)
+                        val firstLastCombined = listOfNotNull(
+                            (contact.givenName ?: splitGiven).takeIf { it.isNotBlank() },
+                            (contact.familyName ?: splitFamily).takeIf { it.isNotBlank() }
+                        ).joinToString(" ")
+                        val matchesName = t9Enabled && (
+                              T9Matcher.isMatch(contact.displayName, cleanQuery) ||
+                            contact.givenName?.let { T9Matcher.isMatch(it, cleanQuery) } == true ||
+                            contact.middleName?.let { T9Matcher.isMatch(it, cleanQuery) } == true ||
+                            contact.familyName?.let { T9Matcher.isMatch(it, cleanQuery) } == true ||
+                            (splitMiddle.isNotBlank() && T9Matcher.isMatch(splitMiddle, cleanQuery)) ||
+                            (firstLastCombined.isNotBlank() && T9Matcher.isMatch(firstLastCombined, cleanQuery)) ||
+                            T9Matcher.isMatch(contact.formattedDisplayName, cleanQuery)
+                        )
                         val matchesNickname = t9Enabled && contact.nickname?.let { T9Matcher.isMatch(it, cleanQuery) } ?: false
                         matchesNumber || matchesName || matchesNickname
                     }
@@ -810,9 +824,7 @@ fun DialPadScreen(
                                         onClick = onDigitClick,
                                         onLongClick = { digit ->
                                             if (digit == "0") {
-                                                if (prefs.getBoolean(PreferenceManager.KEY_HOLD_ZERO_FOR_PLUS, true)) {
-                                                    onDigitClick("+")
-                                                }
+                                                onDigitClick("+")
                                             } else if (speedDialEnabled && number.isEmpty()) {
                                                 val mapping = prefs.getString("speed_dial_$digit", null)
                                                 val speedNumber = mapping?.substringAfterLast("|", "")?.takeIf { it.isNotBlank() }

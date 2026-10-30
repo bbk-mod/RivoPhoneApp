@@ -34,7 +34,8 @@ class ContactsViewModel(
     private val contactsRepo: IContactsRepository,
     private val preferenceManager: PreferenceManager,
     private val trashedContactDao: TrashedContactDao,
-    private val context: android.content.Context
+    private val context: android.content.Context,
+    private val contactBackupManager: ContactBackupManager
 ) : ViewModel() {
 
     private val recentlyDeletedIds = Collections.synchronizedSet(mutableSetOf<String>())
@@ -74,6 +75,7 @@ class ContactsViewModel(
     }
 
     fun scheduleRefresh(delayMs: Long = 400) {
+        contactsRepo.invalidateCache()
         debounceJob?.cancel()
         debounceJob = viewModelScope.launch(Dispatchers.IO) {
             delay(delayMs)
@@ -132,12 +134,15 @@ class ContactsViewModel(
         _sortOrder,
         _availableAccounts
     ) { args ->
+        @Suppress("UNCHECKED_CAST")
         val contacts = args[0] as List<Contact>
         val account = args[1] as Account?
         val privateOnly = args[2] as Boolean
         val localOnly = args[3] as Boolean
+        @Suppress("UNCHECKED_CAST")
         val visibleAccounts = args[4] as Set<String>?
         val sortOrder = args[5] as Int
+        @Suppress("UNCHECKED_CAST")
         val availableAccountsList = args[6] as List<Account>
 
         val baseFiltered = when {
@@ -244,7 +249,10 @@ fetchContacts()
         com.grinch.rivo4.controller.util.DynamicShortcutManager.updateDynamicShortcuts(context, sortedFavs)
     }
 
-    fun fetchContacts() {
+    fun fetchContacts(forceRefresh: Boolean = false) {
+        if (forceRefresh) {
+            contactsRepo.invalidateCache()
+        }
         registerObserver()
         if (_allContacts.value.isEmpty()) {
             _isLoading.value = true
@@ -347,6 +355,14 @@ fetchContacts()
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val newFavStatus = !contact.isFavorite
+
+                // Optimistically update memory state
+                withContext(Dispatchers.Main) {
+                    _allContacts.value = _allContacts.value.map {
+                        if (it.id == contact.id) it.copy(isFavorite = newFavStatus) else it
+                    }
+                }
+
                 contactsRepo.toggleFavorite(contact.id, newFavStatus)
                 
                 val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
@@ -392,9 +408,20 @@ fetchContacts()
                         }
                     }
                 }
+                triggerAutoBackup()
                 scheduleRefresh(delayMs = 500)
             }
             success
+        }
+    }
+
+    private fun triggerAutoBackup() {
+        if (preferenceManager.isContactAutoExportEnabled()) {
+            try {
+                contactBackupManager.exportAutomatic(context)
+            } catch (e: Exception) {
+                android.util.Log.e("ContactsVM", "Automatic contact backup failed", e)
+            }
         }
     }
     
@@ -419,6 +446,7 @@ fetchContacts()
             contactsRepo.restoreTrashedContact(localId)
             _trashedContacts.value = contactsRepo.getTrashedContacts()
             fetchContacts()
+            triggerAutoBackup()
             withContext(Dispatchers.Main) {
                 onDone?.invoke()
             }
@@ -470,6 +498,7 @@ fetchContacts()
                 }
 
                 contactsRepo.deleteContact(contactId)
+                triggerAutoBackup()
 
                 viewModelScope.launch {
                     delay(5000)
@@ -506,6 +535,7 @@ fetchContacts()
                     }
                 }
                 contactsRepo.deleteContacts(contactIds)
+                triggerAutoBackup()
                 
                 val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
                 var changed = false

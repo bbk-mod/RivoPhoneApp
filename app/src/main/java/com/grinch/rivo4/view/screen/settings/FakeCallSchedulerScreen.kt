@@ -750,7 +750,7 @@ fun FakeCallSchedulerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.loc_stringresource_r_string_fake_call_schedules_title_schedules_size),
+                            text = "${stringResource(R.string.fake_call_schedules_title)} (${schedules.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -841,7 +841,7 @@ fun FakeCallSchedulerScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = stringResource(R.string.loc_formatteddate_countdownstr),
+                                        text = stringResource(R.string.loc_formatteddate_countdownstr, formattedDate, countdownStr),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Medium

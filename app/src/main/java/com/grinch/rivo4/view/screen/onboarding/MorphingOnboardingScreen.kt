@@ -87,7 +87,6 @@ import com.grinch.rivo4.controller.shizuku.ShizukuConnectionManager
 import com.grinch.rivo4.controller.util.getDefaultDialerIntent
 import com.grinch.rivo4.view.components.RivoDialog
 import com.grinch.rivo4.view.components.RivoDialogAction
-import com.grinch.rivo4.view.components.TipJarDialog
 import com.grinch.rivo4.view.theme.LocalCardRoundness
 import com.grinch.rivo4.view.theme.RivoMaterialShapes
 import com.grinch.rivo4.view.theme.RivoMorphShape
@@ -139,7 +138,9 @@ private const val STAGE_RECOMMENDED = 2
 private const val STAGE_COMPLETE = 3
 
 @Composable
-fun MorphingOnboardingScreen(onFinished: () -> Unit) {
+fun MorphingOnboardingScreen(
+    onFinished: () -> Unit
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val roundness = LocalCardRoundness.current
@@ -927,11 +928,6 @@ private fun SetupCompleteStage(
     val roundness = LocalCardRoundness.current
     val totalGranted = essentialItems.count { it.isGranted } + recommendedItems.count { it.isGranted }
     val totalItems = essentialItems.size + recommendedItems.size
-    var showTipJarDialog by remember { mutableStateOf(false) }
-
-    if (showTipJarDialog) {
-        TipJarDialog(onDismissRequest = { showTipJarDialog = false })
-    }
 
     Column(
         modifier = Modifier
@@ -1021,24 +1017,6 @@ private fun SetupCompleteStage(
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedButton(
-                    onClick = { showTipJarDialog = true },
-                    shape = RoundedCornerShape(rivoCornerDp(16, roundness)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Support Rivo (Tip Jar)",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
             }
         }
 

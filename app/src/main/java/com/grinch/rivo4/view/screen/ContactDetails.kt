@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -238,7 +239,7 @@ fun ContactDetailsScreen(
 
     val unknownLabel = stringResource(R.string.label_unknown)
     val displayPhone = phoneNumber ?: fullContact?.phoneNumbers?.firstOrNull() ?: unknownLabel
-    val displayName = fullContact?.displayName ?: phoneNumber ?: unknownLabel
+    val displayName = fullContact?.displayName ?: (if (phoneNumber != null && phoneNumber != unknownLabel) formatPhoneNumber(phoneNumber) else unknownLabel)
     val shareContactLabel = stringResource(R.string.contact_share)
 
     val context = LocalContext.current
@@ -252,6 +253,7 @@ fun ContactDetailsScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showFullScreenPhoto by remember { mutableStateOf(false) }
     var showNumberSelectionDialog by remember { mutableStateOf(false) }
+    var isSocialExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingSocialAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
     var selectionTitle by remember { mutableStateOf("") }
 
@@ -332,7 +334,21 @@ fun ContactDetailsScreen(
     val backgroundNoTargetMessage = stringResource(R.string.contact_call_background_no_target)
 
     LaunchedEffect(backgroundContactId, backgroundNumbers) {
-        callBackground = CallBackgroundStore.peek(context, backgroundContactId, backgroundNumbers)
+        callBackground = withContext(Dispatchers.IO) {
+            CallBackgroundStore.peek(context, backgroundContactId, backgroundNumbers)
+        }
+    }
+
+    val writeContactsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            fullContact?.let { contact ->
+                val newFavorite = !contact.isFavorite
+                fullContact = contact.copy(isFavorite = newFavorite)
+                contactsViewModel.toggleFavorite(contact)
+            }
+        }
     }
 
     val backgroundPickerLauncher = rememberLauncherForActivityResult(
@@ -493,7 +509,15 @@ fun ContactDetailsScreen(
     }
 
     val onNumberActionClick = { action: (String) -> Unit, title: String ->
-        if (fullContact != null && fullContact!!.phoneNumbers.size > 1) {
+        val validNumbers = fullContact?.phoneNumbers?.filter { it.isNotBlank() } ?: emptyList()
+        val defaultNum = favoriteNumber
+        val matchingDefault = if (defaultNum != null) {
+            validNumbers.find { areNumbersEqual(it, defaultNum) }
+        } else null
+
+        if (matchingDefault != null) {
+            action(matchingDefault)
+        } else if (validNumbers.size > 1) {
             selectionTitle = title
             pendingSocialAction = { action(it) }
             showNumberSelectionDialog = true
@@ -588,7 +612,7 @@ fun ContactDetailsScreen(
             onItemSelected = { pendingSocialAction?.invoke(it) },
             itemSupporting = { mobileLabel },
             icon = Icons.Default.Phone,
-            itemIcon = { if (areNumbersEqual(favoriteNumber, it)) Icons.Default.Star else Icons.Default.Phone },
+            itemIcon = { if (areNumbersEqual(favoriteNumber, it)) Icons.Default.CheckCircle else Icons.Default.Phone },
             isSelected = { areNumbersEqual(favoriteNumber, it) }
         )
     }
@@ -814,14 +838,6 @@ fun ContactDetailsScreen(
                                     )
                                 }
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.call_notes_title)) },
-                                    leadingIcon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        showCallNotesSheet = true
-                                    }
-                                )
-                                DropdownMenuItem(
                                     text = {
                                         Text(
                                             if (contactBlocked) stringResource(R.string.contact_unblock)
@@ -873,59 +889,6 @@ fun ContactDetailsScreen(
                             icon = Icons.Default.Share,
                             contentDescription = shareContactLabel
                         )
-                        Box {
-                            RivoTopBarIconButton(
-                                onClick = { showOverflowMenu = true },
-                                icon = Icons.Default.MoreVert,
-                                contentDescription = null
-                            )
-                            DropdownMenu(
-                                expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.action_add_contact)) },
-                                    leadingIcon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        navigator.navigate(ContactEditScreenDestination(initialPhone = phoneNumber))
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.call_notes_title)) },
-                                    leadingIcon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        showCallNotesSheet = true
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            if (contactBlocked) stringResource(R.string.contact_unblock)
-                                            else stringResource(R.string.contact_block)
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            if (contactBlocked) Icons.Default.CheckCircle else Icons.Default.Block,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        contactNumbers.forEach { number ->
-                                            if (contactBlocked) {
-                                                BlockedNumbersManager.unblock(context, number)
-                                            } else {
-                                                BlockedNumbersManager.block(context, number)
-                                            }
-                                        }
-                                        blockedVersion++
-                                    }
-                                )
-                            }
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -956,6 +919,7 @@ fun ContactDetailsScreen(
                             RivoAvatar(
                                 name = displayName,
                                 photoUri = fullContact?.photoUri,
+                                iconSize = 64.dp,
                                 modifier = Modifier
                                     .size(130.dp)
                                     .clip(CircleShape)
@@ -977,11 +941,19 @@ fun ContactDetailsScreen(
                         }
                     }
 
-                    item {
-                        Row(
+                    stickyHeader {
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp
                         ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                             RivoExpressiveButton(
                                 icon = Icons.Default.Call,
                                 label = stringResource(R.string.contact_details_call),
@@ -1063,9 +1035,13 @@ fun ContactDetailsScreen(
                                     iconSize = 22.dp,
                                     onClick = {
                                         fullContact?.let { contact ->
-                                            val newFavorite = !contact.isFavorite
-                                            fullContact = contact.copy(isFavorite = newFavorite)
-                                            contactsViewModel.toggleFavorite(contact)
+                                            if (contact.isPrivate || ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                                                val newFavorite = !contact.isFavorite
+                                                fullContact = contact.copy(isFavorite = newFavorite)
+                                                contactsViewModel.toggleFavorite(contact)
+                                            } else {
+                                                writeContactsLauncher.launch(Manifest.permission.WRITE_CONTACTS)
+                                            }
                                         }
                                     },
                                     modifier = Modifier.weight(1f)
@@ -1073,11 +1049,13 @@ fun ContactDetailsScreen(
                             }
                         }
                     }
+                }
 
                     item {
                         val lastUsed = fullContact?.id?.let { prefs.getLastUsedNumber(it) }
                         val mobileLabel = stringResource(R.string.label_mobile)
                         val bulletFavorite = stringResource(R.string.contact_bullet_favorite)
+                        val bulletDefault = stringResource(R.string.contact_bullet_default)
                         val bulletRecent = stringResource(R.string.contact_bullet_recent)
                         RivoExpressiveGroup(
                             title = stringResource(R.string.contact_details_info_title),
@@ -1104,11 +1082,11 @@ fun ContactDetailsScreen(
                                                 headline = formatPhoneNumber(number),
                                                 supporting = buildString {
                                                     append(typeText.ifBlank { mobileLabel })
-                                                    if (isFav) append(bulletFavorite)
+                                                    if (isFav) append(bulletDefault)
                                                     if (isRecent) append(bulletRecent)
                                                 },
                                                 leadingIcon = Icons.Default.Phone,
-                                                trailingIcon = if (isFav) Icons.Default.Star else if (isRecent) Icons.Default.History else null,
+                                                trailingIcon = if (isFav) Icons.Default.CheckCircle else if (isRecent) Icons.Default.History else null,
                                                 isCompact = true,
                                                 onClick = { callLauncher.dial(number, fullContact) },
                                                 onLongClick = { showMenu = true }
@@ -1121,8 +1099,8 @@ fun ContactDetailsScreen(
                                                 RivoDropdownMenuItem(
                                                     text = {
                                                         Text(
-                                                            if (isFav) stringResource(R.string.contact_clear_favorite) else stringResource(
-                                                                R.string.contact_set_as_favorite
+                                                            if (isFav) stringResource(R.string.contact_clear_default) else stringResource(
+                                                                R.string.contact_set_as_default
                                                             )
                                                         )
                                                     },
@@ -1140,7 +1118,7 @@ fun ContactDetailsScreen(
                                                     },
                                                     leadingIcon = {
                                                         Icon(
-                                                            if (isFav) Icons.Default.StarOutline else Icons.Default.Star,
+                                                            if (isFav) Icons.Default.RemoveCircleOutline else Icons.Default.CheckCircle,
                                                             null
                                                         )
                                                     }
@@ -1199,10 +1177,9 @@ fun ContactDetailsScreen(
                                         Box {
                                             RivoListItem(
                                                 headline = email,
-                                                supporting = emailTypeText.ifBlank { stringResource(R.string.label_email) } + if (isFav) stringResource(
-                                                    R.string.contact_bullet_favorite
-                                                ) else "",
+                                                supporting = emailTypeText.ifBlank { stringResource(R.string.label_email) } + if (isFav) bulletDefault else "",
                                                 leadingIcon = Icons.Default.Email,
+                                                trailingIcon = if (isFav) Icons.Default.CheckCircle else null,
                                                 isCompact = true,
                                                 onClick = { emailLauncher.sendEmail(email, fullContact) },
                                                 onLongClick = { showMenu = true }
@@ -1232,7 +1209,7 @@ fun ContactDetailsScreen(
                                                     },
                                                     leadingIcon = {
                                                         Icon(
-                                                            if (isFav) Icons.Default.StarOutline else Icons.Default.Star,
+                                                            if (isFav) Icons.Default.RemoveCircleOutline else Icons.Default.CheckCircle,
                                                             null
                                                         )
                                                     }
@@ -1250,19 +1227,91 @@ fun ContactDetailsScreen(
                                     }
                                 }
 
-                                fullContact?.addresses?.filter { it.isNotBlank() }?.forEach { address ->
+                                fullContact?.addressEntries?.filter { it.address.isNotBlank() }?.forEach { addressEntry ->
                                     item {
                                         RivoListItem(
-                                            headline = address,
-                                            supporting = stringResource(R.string.label_address),
+                                            headline = addressEntry.address,
+                                            supporting = ContactTypeLabels.postalAddressTypeLabel(
+                                                context, addressEntry.type, addressEntry.label
+                                            ).ifBlank { stringResource(R.string.label_address) },
                                             leadingIcon = Icons.Default.LocationOn,
                                             isCompact = true,
                                             onClick = {
                                                 val intent = Intent(
                                                     Intent.ACTION_VIEW,
-                                                    Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+                                                    Uri.parse("geo:0,0?q=${Uri.encode(addressEntry.address)}")
                                                 )
                                                 context.startActivity(intent)
+                                            }
+                                        )
+                                    }
+                                }
+
+                                fullContact?.events?.filter { it.date.isNotBlank() }?.forEach { event ->
+                                    item {
+                                        RivoListItem(
+                                            headline = event.date,
+                                            supporting = ContactTypeLabels.eventTypeLabel(context, event.type, event.label),
+                                            leadingIcon = Icons.Default.Cake,
+                                            isCompact = true,
+                                            onClick = {
+                                                fullContact?.let {
+                                                    navigator.navigate(ContactEditScreenDestination(contactId = it.id))
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+
+                                fullContact?.organizations?.filter { it.company.isNotBlank() }?.forEach { org ->
+                                    item {
+                                        val orgSupporting = listOfNotNull(
+                                            org.title?.takeIf { it.isNotBlank() },
+                                            org.department?.takeIf { it.isNotBlank() }
+                                        ).joinToString(" · ")
+                                        RivoListItem(
+                                            headline = org.company,
+                                            supporting = orgSupporting.ifBlank { stringResource(R.string.contact_edit_organization_header) },
+                                            leadingIcon = Icons.Default.Work,
+                                            isCompact = true,
+                                            onClick = {
+                                                fullContact?.let {
+                                                    navigator.navigate(ContactEditScreenDestination(contactId = it.id))
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+
+                                fullContact?.websites?.filter { it.url.isNotBlank() }?.forEach { website ->
+                                    item {
+                                        RivoListItem(
+                                            headline = website.url,
+                                            supporting = ContactTypeLabels.websiteTypeLabel(context, website.type, website.label),
+                                            leadingIcon = Icons.Default.Language,
+                                            isCompact = true,
+                                            onClick = {
+                                                val intent = Intent(
+                                                    Intent.ACTION_VIEW,
+                                                    Uri.parse(website.url)
+                                                )
+                                                context.startActivity(intent)
+                                            }
+                                        )
+                                    }
+                                }
+
+                                fullContact?.relations?.filter { it.name.isNotBlank() }?.forEach { relation ->
+                                    item {
+                                        RivoListItem(
+                                            headline = relation.name,
+                                            supporting = ContactTypeLabels.relationTypeLabel(context, relation.type, relation.label),
+                                            leadingIcon = Icons.Default.Group,
+                                            isCompact = true,
+                                            onClick = {
+                                                fullContact?.let {
+                                                    navigator.navigate(ContactEditScreenDestination(contactId = it.id))
+                                                }
                                             }
                                         )
                                     }
@@ -1274,7 +1323,15 @@ fun ContactDetailsScreen(
                                         supporting = stringResource(R.string.label_mobile),
                                         leadingIcon = Icons.Default.Phone,
                                         isCompact = true,
-                                        onClick = { callLauncher.dial(phoneNumber, null) }
+                                        onClick = { callLauncher.dial(phoneNumber, null) },
+                                        onLongClick = {
+                                            clipboardManager.setText(AnnotatedString(phoneNumber))
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.number_copied_toast),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     )
                                 }
                             }
@@ -1520,25 +1577,58 @@ fun ContactDetailsScreen(
                                 icon = Icons.AutoMirrored.Filled.Chat
                             ) {
                                 item {
-                                    Row(
+                                    val visibleApps = if (isSocialExpanded) installedSocialApps else installedSocialApps.take(4)
+                                    val rows = visibleApps.chunked(4)
+
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState())
+                                            .animateContentSize()
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        installedSocialApps.forEach { app ->
-                                            val painter = rememberAsyncImagePainter(app.assetIcon ?: app.iconDrawable)
-                                            RivoExpressiveButton(
-                                                painter = painter,
-                                                label = app.name,
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                size = 52.dp,
-                                                iconSize = 32.dp,
-                                                onClick = {
-                                                    onNumberActionClick({ num -> app.action(context, num) }, app.name)
+                                        rows.forEach { rowApps ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                rowApps.forEach { app ->
+                                                    val painter = rememberAsyncImagePainter(app.assetIcon ?: app.iconDrawable)
+                                                    RivoExpressiveButton(
+                                                        painter = painter,
+                                                        label = app.name,
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        size = 52.dp,
+                                                        iconSize = 32.dp,
+                                                        onClick = {
+                                                            onNumberActionClick({ num -> app.action(context, num) }, app.name)
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
                                                 }
+                                                val placeholders = 4 - rowApps.size
+                                                repeat(placeholders) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (installedSocialApps.size > 4) {
+                                    item {
+                                        TextButton(
+                                            onClick = { isSocialExpanded = !isSocialExpanded },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = if (isSocialExpanded) {
+                                                    stringResource(R.string.contact_show_less)
+                                                } else {
+                                                    stringResource(R.string.contact_show_all_social_apps, installedSocialApps.size)
+                                                },
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
@@ -1762,6 +1852,7 @@ fun ContactDetailsScreen(
                             RivoAvatar(
                                 name = displayName,
                                 photoUri = null,
+                                iconSize = 96.dp,
                                 modifier = Modifier.size(200.dp),
                                 textStyle = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold)
                             )

@@ -15,24 +15,44 @@ class PreferenceManager(context: Context) {
         deviceContext.getSharedPreferences("rivo_prefs", Context.MODE_PRIVATE)
     }
 
-    private val _settingsChanged = MutableStateFlow(0)
-    val settingsChanged: StateFlow<Int> = _settingsChanged.asStateFlow()
+    val settingsChanged: StateFlow<Int> = _globalSettingsChanged.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != KEY_APP_USAGE_SECONDS && key != KEY_RATE_APP_SNOOZED_TIME && key != KEY_LAST_SELECTED_TAB && key != KEY_SETTINGS_HISTORY) {
-            _settingsChanged.value += 1
+            _globalSettingsChanged.value += 1
         }
     }
 
     init {
         prefs.registerOnSharedPreferenceChangeListener(listener)
+        if (!prefs.contains("transition_speed_default_2_5")) {
+            if (!prefs.contains(KEY_TRANSITION_TIME_SCALE) || prefs.getFloat(KEY_TRANSITION_TIME_SCALE, 2.5f) == 1.0f) {
+                prefs.edit().putFloat(KEY_TRANSITION_TIME_SCALE, 2.5f).apply()
+            }
+            prefs.edit().putBoolean("transition_speed_default_2_5", true).apply()
+        }
+        if (!prefs.contains("transition_style_v2")) {
+            if (prefs.getInt(KEY_TRANSITION_STYLE, 0) == 3) {
+                prefs.edit().putInt(KEY_TRANSITION_STYLE, 5).apply()
+            }
+            prefs.edit().putBoolean("transition_style_v2", true).apply()
+        }
     }
 
     fun notifySettingsChanged() {
-        _settingsChanged.value += 1
+        _globalSettingsChanged.value += 1
     }
 
     fun getBoolean(key: String, defaultValue: Boolean): Boolean {
+        if (key == KEY_DIALPAD_VIBRATION ||
+            key == KEY_VIBRATE_ON_ANSWER ||
+            key == KEY_VIBRATE_ON_HANGUP
+        ) {
+            return false
+        }
+        if (key == KEY_HAPTIC_LIST_SCROLL) {
+            return isAppwideVibrationEnabled()
+        }
         return try {
             prefs.getBoolean(key, defaultValue)
         } catch (e: Exception) {
@@ -42,6 +62,19 @@ class PreferenceManager(context: Context) {
 
     fun setBoolean(key: String, value: Boolean) {
         prefs.edit().putBoolean(key, value).apply()
+        notifySettingsChanged()
+    }
+
+    fun getLong(key: String, defaultValue: Long): Long =
+        try {
+            prefs.getLong(key, defaultValue)
+        } catch (e: Exception) {
+            defaultValue
+        }
+
+    fun setLong(key: String, value: Long) {
+        prefs.edit().putLong(key, value).apply()
+        notifySettingsChanged()
     }
 
     fun getString(key: String, defaultValue: String?): String? {
@@ -54,6 +87,7 @@ class PreferenceManager(context: Context) {
 
     fun setString(key: String, value: String?) {
         prefs.edit().putString(key, value).apply()
+        notifySettingsChanged()
     }
 
     fun getInt(key: String, defaultValue: Int): Int {
@@ -66,6 +100,7 @@ class PreferenceManager(context: Context) {
 
     fun setInt(key: String, value: Int) {
         prefs.edit().putInt(key, value).apply()
+        notifySettingsChanged()
     }
 
     fun getFloat(key: String, defaultValue: Float): Float {
@@ -78,6 +113,7 @@ class PreferenceManager(context: Context) {
 
     fun setFloat(key: String, value: Float) {
         prefs.edit().putFloat(key, value).apply()
+        notifySettingsChanged()
     }
 
     fun setLastUsedNumber(contactId: String, number: String) {
@@ -161,6 +197,14 @@ class PreferenceManager(context: Context) {
         setString(KEY_FAVORITES_ORDER, order.joinToString(","))
     }
 
+    fun isFavoritesViewAsGrid(): Boolean {
+        return getBoolean(KEY_FAVORITES_VIEW_AS_GRID, true)
+    }
+
+    fun setFavoritesViewAsGrid(isGrid: Boolean) {
+        setBoolean(KEY_FAVORITES_VIEW_AS_GRID, isGrid)
+    }
+
     fun getQuickResponses(): List<String> {
         val stored = getString(KEY_QUICK_RESPONSES, null)
         if (stored.isNullOrBlank()) return DEFAULT_QUICK_RESPONSES
@@ -214,6 +258,7 @@ class PreferenceManager(context: Context) {
         setBottomNavOrder(DEFAULT_BOTTOM_NAV_ORDER)
         setHiddenBottomNavTabs(emptySet())
         setBoolean(KEY_FLIP_BOTTOM_NAV, false)
+        setInt(KEY_DEFAULT_BOTTOM_NAV, TAB_RECENTS)
     }
 
     fun contactBackgroundIdKey(contactId: String): String {
@@ -350,13 +395,14 @@ class PreferenceManager(context: Context) {
             }
         }
         prefs.edit().putStringSet(KEY_PRIORITY_CONTACTS, current).apply()
-        _settingsChanged.value += 1
+        notifySettingsChanged()
     }
 
     fun setPriorityContact(contactId: String, number: String?, isPriority: Boolean) =
         setPriorityContact(contactId, if (number != null) listOf(number) else null, isPriority)
 
     companion object {
+        private val _globalSettingsChanged = MutableStateFlow(0)
         const val KEY_LAST_SELECTED_TAB = "last_selected_bottom_tab"
         const val KEY_PRIORITY_CONTACTS = "priority_contacts_set"
         const val CONTACT_BACKGROUND_PREFIX = "contact_background_"
@@ -371,6 +417,11 @@ class PreferenceManager(context: Context) {
         const val KEY_DYNAMIC_VARIANT = "dynamic_variant"
         const val KEY_FONT_FAMILY = "font_family"
         const val FONT_FAMILY_SANS_SERIF = "sans_serif"
+        const val FONT_FAMILY_ROBOTO = "roboto"
+        const val FONT_FAMILY_UBUNTU = "ubuntu"
+        const val FONT_FAMILY_SAMSUNG_ONE = "samsung_one"
+        const val FONT_FAMILY_INTER = "inter"
+        const val FONT_FAMILY_POPPINS = "poppins"
         const val FONT_FAMILY_SERIF = "serif"
         const val FONT_FAMILY_MONOSPACE = "monospace"
         const val FONT_FAMILY_CURSIVE = "cursive"
@@ -380,9 +431,13 @@ class PreferenceManager(context: Context) {
         const val FONT_FAMILY_MEDIUM = "sans_serif_medium"
         const val FONT_FAMILY_BLACK = "sans_serif_black"
 
-        /** Supported font family ids in picker order. */
         val ALL_FONT_FAMILIES = listOf(
             FONT_FAMILY_SANS_SERIF,
+            FONT_FAMILY_ROBOTO,
+            FONT_FAMILY_UBUNTU,
+            FONT_FAMILY_SAMSUNG_ONE,
+            FONT_FAMILY_INTER,
+            FONT_FAMILY_POPPINS,
             FONT_FAMILY_SERIF,
             FONT_FAMILY_MONOSPACE,
             FONT_FAMILY_CURSIVE,
@@ -396,6 +451,10 @@ class PreferenceManager(context: Context) {
         const val FONT_SIZE_SMALL = 0
         const val FONT_SIZE_MEDIUM = 1
         const val FONT_SIZE_LARGE = 2
+        const val KEY_FONT_SCALE = "font_scale"
+        const val DEFAULT_FONT_SCALE = 1.0f
+        const val MIN_FONT_SCALE = 0.80f
+        const val MAX_FONT_SCALE = 1.30f
         const val KEY_USE_SYSTEM_FONT = "use_system_font"
         const val KEY_CALL_BUTTON_ORDER = "call_button_order"
         const val DEFAULT_CALL_BUTTON_ORDER = "mute,keypad,audio,record,hold,add"
@@ -408,6 +467,7 @@ class PreferenceManager(context: Context) {
         const val KEY_FLIP_BOTTOM_NAV = "flip_bottom_nav"
         const val KEY_DEFAULT_BOTTOM_NAV = "default_bottom_nav"
         const val KEY_DTMF_TONE = "dtmf_tone"
+        const val KEY_APPWIDE_VIBRATION = "appwide_vibration"
         const val KEY_DIALPAD_VIBRATION = "dialpad_vibration"
         const val KEY_HOLD_ZERO_FOR_PLUS = "hold_zero_for_plus"
         const val KEY_SPEED_DIAL = "speed_dial"
@@ -457,6 +517,7 @@ class PreferenceManager(context: Context) {
         const val KEY_GROUP_CALL_LOGS = "group_call_logs"
         const val KEY_DIALPAD_LAYOUT = "dialpad_layout_style"
         const val KEY_AVATAR_SHAPE = "avatar_shape"
+        const val KEY_CALL_SCREEN_AVATAR_SHAPE = "call_screen_avatar_shape"
         const val KEY_SWIPE_TO_CALL = "swipe_to_call"
         const val KEY_DIALPAD_VIBRATION_STRENGTH = "dialpad_vibration_strength"
         const val KEY_DTMF_TONE_VOLUME = "dtmf_tone_volume"
@@ -471,12 +532,15 @@ class PreferenceManager(context: Context) {
         const val KEY_SHOW_CARDS = "show_cards"
         const val KEY_SHOW_CALL_SCREEN_AVATAR = "show_call_screen_avatar"
         const val KEY_HIDE_AVATAR_WITH_BACKGROUND = "hide_avatar_with_background"
+        const val KEY_CALL_BACKGROUND_BLUR = "call_background_blur"
+        const val KEY_CALL_BACKGROUND_BLUR_STRENGTH = "call_background_blur_strength"
         const val KEY_CARD_ROUNDNESS = "card_roundness"
         const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         const val KEY_PERMISSION_POPUP_SHOWN = "permission_popup_shown"
         const val KEY_LAST_USED_ACCOUNT_NAME = "last_used_account_name"
         const val KEY_LAST_USED_ACCOUNT_TYPE = "last_used_account_type"
         const val KEY_FAVORITES_ORDER = "favorites_order"
+        const val KEY_FAVORITES_VIEW_AS_GRID = "favorites_view_as_grid"
         const val KEY_VISIBLE_ACCOUNTS = "visible_accounts"
         const val KEY_CONTACT_SORT_ORDER = "contact_sort_order"
         const val KEY_CONTACT_DISPLAY_ORDER = "contact_display_order"
@@ -585,8 +649,15 @@ class PreferenceManager(context: Context) {
         const val KEY_AUTO_DECLINE_NON_CONTACTS = "auto_decline_non_contacts"
         const val KEY_DUAL_SIM_DIALPAD_BUTTONS = "dual_sim_dialpad_buttons"
         const val KEY_CALL_LOG_LIMIT = "call_log_limit"
-        const val CALL_LOG_LIMIT_DEFAULT = 500
+        const val CALL_LOG_LIMIT_DEFAULT = 200
         const val KEY_AUTO_PASTE_CLIPBOARD = "auto_paste_clipboard"
+        const val KEY_CONTACT_BACKUP_ENCRYPTION = "contact_backup_encryption"
+        const val KEY_CONTACT_AUTO_BACKUP_ENCRYPTION = "contact_auto_backup_encryption"
+        const val KEY_CONTACT_BACKUP_PASSWORD = "contact_backup_password"
+        const val KEY_CONTACT_AUTO_EXPORT = "contact_auto_export"
+        const val KEY_CONTACT_BACKUP_DIRECTORY_URI = "contact_backup_directory_uri"
+        const val KEY_CONTACT_BACKUP_RETENTION_COUNT = "contact_backup_retention_count"
+        const val CONTACT_BACKUP_RETENTION_DEFAULT = 3
         const val KEY_SEPARATE_CONTACTS_ICON = "separate_contacts_icon"
         const val KEY_CALL_ANALYTICS_TRACKING = "call_analytics_tracking"
         const val KEY_SHOW_CONTACT_MANAGEMENT_CARD = "show_contact_management_card"
@@ -603,6 +674,7 @@ class PreferenceManager(context: Context) {
             KEY_SETTINGS_HISTORY,
             KEY_LAST_SELECTED_TAB,
             KEY_APP_LOCK_PIN,
+            KEY_CONTACT_BACKUP_PASSWORD,
             KEY_APP_LOCK_ENABLED,
             KEY_CALL_RECORDING_FOLDER_URI,
             KEY_CALL_RECORDING_FOLDER_NAME,
@@ -627,6 +699,7 @@ class PreferenceManager(context: Context) {
             KEY_ICON_ONLY_NAV to false,
             KEY_FLIP_BOTTOM_NAV to false,
             KEY_DTMF_TONE to true,
+            KEY_APPWIDE_VIBRATION to true,
             KEY_DIALPAD_VIBRATION to true,
             KEY_HOLD_ZERO_FOR_PLUS to true,
             KEY_SPEED_DIAL to true,
@@ -680,11 +753,14 @@ class PreferenceManager(context: Context) {
             KEY_AUTO_DECLINE_NON_CONTACTS to false,
             KEY_DUAL_SIM_DIALPAD_BUTTONS to false,
             KEY_AUTO_PASTE_CLIPBOARD to false,
+            KEY_CONTACT_BACKUP_ENCRYPTION to false,
+            KEY_CONTACT_AUTO_BACKUP_ENCRYPTION to false,
             KEY_SEPARATE_CONTACTS_ICON to false,
             KEY_CALL_ANALYTICS_TRACKING to true,
             KEY_SHOW_CONTACT_MANAGEMENT_CARD to true,
             KEY_SHOW_COUNTRY_CODE to true,
-            KEY_GROUP_CALL_LOGS to true
+            KEY_GROUP_CALL_LOGS to true,
+            KEY_CALL_BACKGROUND_BLUR to false
         )
 
         fun getKnownDefaultFloats(): Map<String, Float> = mapOf(
@@ -704,7 +780,9 @@ class PreferenceManager(context: Context) {
             KEY_CALL_LOG_GROUPING to 0,
             KEY_DIALPAD_LAYOUT to 0,
             KEY_AVATAR_SHAPE to 0,
+            KEY_CALL_SCREEN_AVATAR_SHAPE to 20,
             KEY_CARD_ROUNDNESS to 28,
+            KEY_CALL_BACKGROUND_BLUR_STRENGTH to 25,
             KEY_DIALPAD_VIBRATION_STRENGTH to 2,
             KEY_DTMF_TONE_VOLUME to 80,
             KEY_SEARCH_MATCH_MODE to 0,
@@ -718,7 +796,8 @@ class PreferenceManager(context: Context) {
             KEY_SWIPE_RIGHT_ACTION to SWIPE_ACTION_CALL,
             KEY_SWIPE_LEFT_ACTION to SWIPE_ACTION_MESSAGE,
             KEY_CALL_LOG_LIMIT to CALL_LOG_LIMIT_DEFAULT,
-            KEY_DEFAULT_BOTTOM_NAV to 0
+            KEY_DEFAULT_BOTTOM_NAV to 0,
+            KEY_CONTACT_BACKUP_RETENTION_COUNT to CONTACT_BACKUP_RETENTION_DEFAULT
         )
 
         fun getKnownDefaultStrings(): Map<String, String> = mapOf(
@@ -735,11 +814,26 @@ class PreferenceManager(context: Context) {
         )
     }
 
-    fun getCallLogLimit(): Int = getInt(KEY_CALL_LOG_LIMIT, CALL_LOG_LIMIT_DEFAULT)
-    fun setCallLogLimit(limit: Int) = setInt(KEY_CALL_LOG_LIMIT, limit)
+    fun getCallLogLimit(): Int = 200
+    fun setCallLogLimit(limit: Int) = setInt(KEY_CALL_LOG_LIMIT, 200)
 
-    fun isAutoPasteClipboardEnabled(): Boolean = getBoolean(KEY_AUTO_PASTE_CLIPBOARD, false)
-    fun setAutoPasteClipboardEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_PASTE_CLIPBOARD, enabled)
+    fun isAutoPasteClipboardEnabled(): Boolean = false
+    fun setAutoPasteClipboardEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_PASTE_CLIPBOARD, false)
+
+    fun isContactBackupEncryptionEnabled(): Boolean = getBoolean(KEY_CONTACT_BACKUP_ENCRYPTION, false)
+    fun setContactBackupEncryptionEnabled(enabled: Boolean) = setBoolean(KEY_CONTACT_BACKUP_ENCRYPTION, enabled)
+    fun isAutoBackupEncryptionEnabled(): Boolean = getBoolean(KEY_CONTACT_AUTO_BACKUP_ENCRYPTION, false)
+    fun setAutoBackupEncryptionEnabled(enabled: Boolean) = setBoolean(KEY_CONTACT_AUTO_BACKUP_ENCRYPTION, enabled)
+    fun getContactBackupPassword(): String = getString(KEY_CONTACT_BACKUP_PASSWORD, "") ?: ""
+    fun setContactBackupPassword(password: String) = setString(KEY_CONTACT_BACKUP_PASSWORD, password)
+    fun isContactAutoExportEnabled(): Boolean = getBoolean(KEY_CONTACT_AUTO_EXPORT, false)
+    fun setContactAutoExportEnabled(enabled: Boolean) = setBoolean(KEY_CONTACT_AUTO_EXPORT, enabled)
+    fun getContactBackupDirectoryUri(): String? = getString(KEY_CONTACT_BACKUP_DIRECTORY_URI, null)
+    fun setContactBackupDirectoryUri(uri: String?) = setString(KEY_CONTACT_BACKUP_DIRECTORY_URI, uri)
+    fun getContactBackupRetentionCount(): Int =
+        getInt(KEY_CONTACT_BACKUP_RETENTION_COUNT, CONTACT_BACKUP_RETENTION_DEFAULT).coerceIn(1, 5)
+    fun setContactBackupRetentionCount(count: Int) =
+        setInt(KEY_CONTACT_BACKUP_RETENTION_COUNT, count.coerceIn(1, 5))
 
     fun isSeparateContactsIconEnabled(): Boolean = getBoolean(KEY_SEPARATE_CONTACTS_ICON, false)
     fun setSeparateContactsIconEnabled(enabled: Boolean) = setBoolean(KEY_SEPARATE_CONTACTS_ICON, enabled)
@@ -766,6 +860,28 @@ class PreferenceManager(context: Context) {
 
     fun getTransitionTimeScale(): Float = getFloat(KEY_TRANSITION_TIME_SCALE, 2.5f).coerceIn(0.2f, 5.0f)
     fun setTransitionTimeScale(scale: Float) = setFloat(KEY_TRANSITION_TIME_SCALE, scale.coerceIn(0.2f, 5.0f))
+
+    fun getFontScale(): Float {
+        if (prefs.contains(KEY_FONT_SCALE)) {
+            return getFloat(KEY_FONT_SCALE, DEFAULT_FONT_SCALE).coerceIn(MIN_FONT_SCALE, MAX_FONT_SCALE)
+        }
+        return when (getInt(KEY_FONT_SIZE, FONT_SIZE_MEDIUM)) {
+            FONT_SIZE_SMALL -> 0.90f
+            FONT_SIZE_LARGE -> 1.12f
+            else -> 1.0f
+        }
+    }
+
+    fun setFontScale(scale: Float) {
+        val clamped = scale.coerceIn(MIN_FONT_SCALE, MAX_FONT_SCALE)
+        setFloat(KEY_FONT_SCALE, clamped)
+        val legacy = when {
+            clamped <= 0.92f -> FONT_SIZE_SMALL
+            clamped >= 1.08f -> FONT_SIZE_LARGE
+            else -> FONT_SIZE_MEDIUM
+        }
+        setInt(KEY_FONT_SIZE, legacy)
+    }
 
     fun isOpenCallScreenOnAnswerEnabled(): Boolean = getBoolean(KEY_OPEN_CALL_SCREEN_ON_ANSWER, false)
     fun setOpenCallScreenOnAnswerEnabled(enabled: Boolean) = setBoolean(KEY_OPEN_CALL_SCREEN_ON_ANSWER, enabled)
@@ -833,6 +949,21 @@ class PreferenceManager(context: Context) {
     fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, false)
     fun setSupporter(isSupporter: Boolean) = setBoolean(KEY_IS_SUPPORTER, isSupporter)
 
+    fun isAppwideVibrationEnabled(): Boolean =
+        try {
+            prefs.getBoolean(KEY_APPWIDE_VIBRATION, true)
+        } catch (_: Exception) {
+            true
+        }
+
+    fun setAppwideVibrationEnabled(enabled: Boolean) {
+        setBoolean(KEY_APPWIDE_VIBRATION, enabled)
+        setBoolean(KEY_HAPTIC_LIST_SCROLL, enabled)
+        setBoolean(KEY_DIALPAD_VIBRATION, false)
+        setBoolean(KEY_VIBRATE_ON_ANSWER, false)
+        setBoolean(KEY_VIBRATE_ON_HANGUP, false)
+    }
+
     fun getDefaultVideoApp(): String = getString(KEY_DEFAULT_VIDEO_APP, "") ?: ""
     fun setDefaultVideoApp(appId: String?) = setString(KEY_DEFAULT_VIDEO_APP, appId ?: "")
 
@@ -860,8 +991,8 @@ class PreferenceManager(context: Context) {
     fun isAutoSpeakerProximityEnabled(): Boolean = getBoolean(KEY_AUTO_SPEAKER_PROXIMITY, false)
     fun setAutoSpeakerProximityEnabled(enabled: Boolean) = setBoolean(KEY_AUTO_SPEAKER_PROXIMITY, enabled)
 
-    fun isContactsTrashEnabled(): Boolean = getBoolean(KEY_CONTACTS_TRASH_ENABLED, true)
-    fun setContactsTrashEnabled(enabled: Boolean) = setBoolean(KEY_CONTACTS_TRASH_ENABLED, enabled)
+    fun isContactsTrashEnabled(): Boolean = true
+    fun setContactsTrashEnabled(enabled: Boolean) = setBoolean(KEY_CONTACTS_TRASH_ENABLED, true)
 
     fun resetSwipeActions() {
         setBoolean(KEY_SWIPE_ACTIONS_ENABLED, false)
@@ -869,14 +1000,14 @@ class PreferenceManager(context: Context) {
         setInt(KEY_SWIPE_LEFT_ACTION, SWIPE_ACTION_MESSAGE)
     }
 
-    fun isShowCarrierInRecents(): Boolean = getBoolean(KEY_SHOW_SIM_ICON_HISTORY, true)
+    fun isShowCarrierInRecents(): Boolean = true
     fun setShowCarrierInRecents(enabled: Boolean) {
-        setBoolean(KEY_SHOW_SIM_ICON_HISTORY, enabled)
+        setBoolean(KEY_SHOW_SIM_ICON_HISTORY, true)
     }
 
-    fun isShowCountryCodeEnabled(): Boolean = getBoolean(KEY_SHOW_COUNTRY_CODE, true)
+    fun isShowCountryCodeEnabled(): Boolean = true
     fun setShowCountryCodeEnabled(enabled: Boolean) {
-        setBoolean(KEY_SHOW_COUNTRY_CODE, enabled)
+        setBoolean(KEY_SHOW_COUNTRY_CODE, true)
         clearFormattedNumberCache()
     }
 
@@ -1028,7 +1159,7 @@ class PreferenceManager(context: Context) {
         }
 
         editor.apply()
-        _settingsChanged.value += 1
+        notifySettingsChanged()
         clearFormattedNumberCache()
         return restoredCount
     }

@@ -70,13 +70,14 @@ import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.view.theme.RivoMaterialShapes
 import com.grinch.rivo4.view.theme.callColors
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.graphics.Color
 import org.koin.compose.koinInject
 
-/**
- * Ordered slots of the in-call action grid: the first three form the top row,
- * the last three the bottom row.
- */
+val LocalCallHasBackground = compositionLocalOf { false }
+
 object RivoCallButtonOrder {
     const val MUTE = "mute"
     const val KEYPAD = "keypad"
@@ -87,7 +88,6 @@ object RivoCallButtonOrder {
 
     val All: List<String> = listOf(MUTE, KEYPAD, AUDIO, RECORD, HOLD, ADD)
 
-    /** Parses the comma-separated hidden-button pref into a sanitized set of known ids. */
     fun hiddenSet(raw: String?): Set<String> =
         raw?.split(',')?.map { it.trim() }?.filter { it in All }?.toSet().orEmpty()
 
@@ -142,14 +142,19 @@ fun CallActionButton(
     )
 
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val hasBackground = LocalCallHasBackground.current
 
     val containerColor by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-            isDanger -> MaterialTheme.callColors.decline
-            isActive -> MaterialTheme.colorScheme.primary
-            isPressed -> MaterialTheme.colorScheme.primaryContainer
-            else -> if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest
+            isDanger -> MaterialTheme.callColors.decline.copy(alpha = if (hasBackground) 0.90f else 1f)
+            isActive -> MaterialTheme.colorScheme.primary.copy(alpha = if (hasBackground) 0.88f else 1f)
+            isPressed -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (hasBackground) 0.85f else 1f)
+            else -> if (hasBackground) {
+                if (isDark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.65f)
+            } else {
+                if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest
+            }
         },
         animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing),
         label = "btnBg"
@@ -177,7 +182,10 @@ fun CallActionButton(
         enabled = enabled,
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
-        tonalElevation = if (isActive || isDanger) 6.dp else 2.dp,
+        border = if (hasBackground && !isActive && !isDanger && enabled) {
+            BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.10f))
+        } else null,
+        tonalElevation = if (hasBackground) 0.dp else (if (isActive || isDanger) 6.dp else 2.dp),
         interactionSource = interactionSource,
         modifier = modifier
             .fillMaxWidth()
@@ -220,6 +228,7 @@ fun AuxiliaryPillButton(
 ) {
     val view = LocalView.current
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val hasBackground = LocalCallHasBackground.current
     val interactionSource = remember { MutableInteractionSource() }
 
     Surface(
@@ -228,7 +237,14 @@ fun AuxiliaryPillButton(
             onClick()
         },
         shape = CircleShape,
-        color = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest,
+        color = if (hasBackground) {
+            if (isDark) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.70f)
+        } else {
+            if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest
+        },
+        border = if (hasBackground) {
+            BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.10f))
+        } else null,
         interactionSource = interactionSource,
         modifier = modifier.height(if (compact) 32.dp else 36.dp)
     ) {
@@ -296,6 +312,7 @@ fun EndCallButton(
     )
 
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val hasBackground = LocalCallHasBackground.current
 
     Surface(
         onClick = {
@@ -303,9 +320,9 @@ fun EndCallButton(
             onEndCall()
         },
         shape = RoundedCornerShape(cornerRadius),
-        color = MaterialTheme.callColors.decline,
+        color = MaterialTheme.callColors.decline.copy(alpha = if (hasBackground) 0.90f else 1f),
         contentColor = MaterialTheme.callColors.onDecline,
-        tonalElevation = 6.dp,
+        tonalElevation = if (hasBackground) 2.dp else 6.dp,
         interactionSource = interactionSource,
         modifier = modifier
             .fillMaxWidth()
@@ -468,7 +485,7 @@ fun ActiveCallControls(
         ) {
             AuxiliaryPillButton(
                 icon = Icons.AutoMirrored.Filled.Notes,
-                label = "Notes",
+                label = stringResource(R.string.label_notes),
                 compact = compact,
                 onClick = onNotesClick
             )

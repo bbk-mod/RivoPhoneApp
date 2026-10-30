@@ -6,7 +6,6 @@ import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
-import android.provider.Settings
 import android.util.Log
 
 import android.telecom.Call
@@ -17,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
@@ -41,6 +41,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.isAlreadyDefaultDialer
@@ -62,6 +63,7 @@ import com.ramcosta.composedestinations.generated.destinations.ContactSelectionS
 import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DefaultDialerScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.RecentScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import com.grinch.rivo4.controller.lock.AppLockManager
@@ -103,10 +105,10 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        applySystemOrientationPolicy()
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         intentState = intent
         enableEdgeToEdge()
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        com.grinch.rivo4.controller.util.AppShortcutsHelper.init(this)
 
         if (AppLockManager.isLocked(preferenceManager)) {
             isAppLocked = true
@@ -219,6 +221,15 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                                 navController = navController,
                                 defaultTransitions = defaultTransitions
                             )
+
+                            val currentBackStackEntry by navController.currentBackStackEntryAsState()
+                            val canPopBack = remember(currentBackStackEntry) {
+                                navController.previousBackStackEntry != null
+                            }
+
+                            BackHandler(enabled = !predictiveBackEnabled && canPopBack) {
+                                navController.popBackStack()
+                            }
                         }
                     }
 
@@ -227,13 +238,15 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                                 intentState?.component?.className?.endsWith("ContactsAliasActivity") == true ||
                                 intentState?.action == "com.grinch.rivo4.ACTION_VIEW_CONTACTS" ||
                                 intentState?.hasCategory(Intent.CATEGORY_APP_CONTACTS) == true
-                        if (!isContacts && !isAlreadyDefaultDialer(this@MainActivity)) {
+                        val isSettings = intentState?.action == "com.grinch.rivo4.ACTION_OPEN_SETTINGS" ||
+                                intentState?.action == Intent.ACTION_APPLICATION_PREFERENCES
+                        if (!isContacts && !isSettings && !isAlreadyDefaultDialer(this@MainActivity)) {
                             navController.navigate(DefaultDialerScreenDestination.route) {
                                 popUpTo(MainScreenDestination.route) {
                                     inclusive = true
                                 }
                             }
-                        } else if (!isContacts && (intentState?.action == null || intentState?.action == Intent.ACTION_MAIN)) {
+                        } else if (!isContacts && !isSettings && (intentState?.action == null || intentState?.action == Intent.ACTION_MAIN)) {
                             val startLocation = prefs.getInt(PreferenceManager.KEY_START_LOCATION, PreferenceManager.START_LOCATION_NORMAL)
                             if (startLocation == PreferenceManager.START_LOCATION_DIALPAD_RECENTS || startLocation == PreferenceManager.START_LOCATION_DIALPAD_CONTACTS) {
                                 navController.navigate(DialPadScreenDestination().route)
@@ -247,24 +260,6 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                 }
                 }
             }
-        }
-    }
-
-    private fun applySystemOrientationPolicy() {
-        val rotationEnabled = try {
-            Settings.System.getInt(
-                contentResolver,
-                Settings.System.ACCELEROMETER_ROTATION,
-                1
-            ) != 0
-        } catch (_: SecurityException) {
-            true
-        }
-
-        requestedOrientation = if (rotationEnabled) {
-            ActivityInfo.SCREEN_ORIENTATION_USER
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_LOCKED
         }
     }
 
@@ -339,8 +334,28 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error canceling missed calls: ${e.message}", e)
             }
-            navController.navigate(MainScreenDestination(initialTab = 0).route) {
-                popUpTo(navController.graph.startDestinationId)
+            requestedTab?.value = PreferenceManager.TAB_RECENTS
+            if (navController.currentDestination?.route != MainScreenDestination.route) {
+                try {
+                    navController.popBackStack(MainScreenDestination.route, inclusive = false)
+                } catch (e: Exception) {
+                    try {
+                        navController.navigate(MainScreenDestination(initialTab = PreferenceManager.TAB_RECENTS).route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    } catch (e2: Exception) {
+                        Log.e("MainActivity", "Error navigating to main screen: ${e2.message}", e2)
+                    }
+                }
+            }
+            return
+        }
+
+        if (action == "com.grinch.rivo4.ACTION_OPEN_SETTINGS" || action == Intent.ACTION_APPLICATION_PREFERENCES) {
+            navController.navigate(SettingsScreenDestination.route) {
                 launchSingleTop = true
             }
             return

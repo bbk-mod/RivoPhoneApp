@@ -63,21 +63,12 @@ fun AZListScroll(
     val callLauncher = rememberCallLauncher()
     val messageLauncher = rememberMessageLauncher()
     val videoLauncher = rememberVideoLauncher()
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val swipeEnabled = remember(settingsState) { prefs.isSwipeActionsEnabled() } && selectedIds.isEmpty()
     val swipeRightAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeRightAction()) }
     val swipeLeftAction = remember(settingsState) { SwipeActionType.fromId(prefs.getSwipeLeftAction()) }
     val showSectionHeaders = remember(settingsState) { prefs.isShowContactSectionHeaders() }
-
-    if (hapticScrollEnabled) {
-        LaunchedEffect(listState) {
-            snapshotFlow { listState.firstVisibleItemIndex }
-                .distinctUntilChanged()
-                .collect {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                }
-        }
-    }
 
     val finalGrouped = remember(contacts, grouped) {
         if (grouped != null) return@remember grouped
@@ -224,8 +215,8 @@ fun AZListScroll(
                             onTriggerAction = { action ->
                                 val phone = contact.phoneNumbers.firstOrNull().orEmpty()
                                 when (action) {
-                                    SwipeActionType.CALL -> callLauncher.dial(phone, contact)
-                                    SwipeActionType.MESSAGE -> messageLauncher.sendMessage(phone, contact)
+                                    SwipeActionType.CALL -> callLauncher.dial("", contact)
+                                    SwipeActionType.MESSAGE -> messageLauncher.sendMessage("", contact)
                                     SwipeActionType.VIDEO_CALL -> videoLauncher.startVideoCall(phone, contact)
                                     SwipeActionType.COPY_NUMBER -> {
                                         if (phone.isNotBlank()) {
@@ -316,6 +307,9 @@ fun AZListScroll(
             onLetterSelected = { char ->
                 if (draggingChar != char) {
                     draggingChar = char
+                    if (hapticScrollEnabled) {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    }
                     val index = alphabetIndices[char] ?: return@AlphabetSideBar
                     scope.launch { listState.scrollToItem(index) }
                 }

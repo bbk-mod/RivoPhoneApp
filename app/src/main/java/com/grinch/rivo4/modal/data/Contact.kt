@@ -1,5 +1,6 @@
 package com.grinch.rivo4.modal.data
 
+import android.provider.ContactsContract
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
@@ -36,6 +37,38 @@ data class AccountEntry(
 
 @Immutable
 @Serializable
+data class OrganizationEntry(
+    val company: String,
+    val title: String? = null,
+    val department: String? = null
+)
+
+@Immutable
+@Serializable
+data class WebsiteEntry(
+    val url: String,
+    val type: Int = ContactsContract.CommonDataKinds.Website.TYPE_HOMEPAGE,
+    val label: String? = null
+)
+
+@Immutable
+@Serializable
+data class RelationEntry(
+    val name: String,
+    val type: Int = ContactsContract.CommonDataKinds.Relation.TYPE_FRIEND,
+    val label: String? = null
+)
+
+@Immutable
+@Serializable
+data class PostalAddressEntry(
+    val address: String,
+    val type: Int = ContactsContract.CommonDataKinds.StructuredPostal.TYPE_HOME,
+    val label: String? = null
+)
+
+@Immutable
+@Serializable
 data class Contact(
     val id: String,
     val name: String,
@@ -50,7 +83,11 @@ data class Contact(
     val phones: List<PhoneNumberEntry> = emptyList(),
     val emailEntries: List<EmailEntry> = emptyList(),
     val addresses: List<String> = emptyList(),
+    val addressEntries: List<PostalAddressEntry> = emptyList(),
     val events: List<ContactEvent> = emptyList(),
+    val organizations: List<OrganizationEntry> = emptyList(),
+    val websites: List<WebsiteEntry> = emptyList(),
+    val relations: List<RelationEntry> = emptyList(),
     val photoUri: String? = null,
     val isFavorite: Boolean = false,
     val customRingtone: String? = null,
@@ -66,17 +103,18 @@ data class Contact(
 
     val formattedDisplayName: String
         get() {
-            val parts = listOfNotNull(
-                prefix?.trim()?.ifBlank { null },
-                givenName?.trim()?.ifBlank { null },
-                middleName?.trim()?.ifBlank { null },
-                familyName?.trim()?.ifBlank { null },
-                suffix?.trim()?.ifBlank { null }
+            val sanitized = com.grinch.rivo4.controller.util.ContactUtils.sanitizeStructuredName(
+                prefix = prefix,
+                givenName = givenName,
+                middleName = middleName,
+                familyName = familyName,
+                suffix = suffix,
+                fallbackFullName = name.takeIf { it.isNotBlank() && it != "Unnamed" && it != "Unknown" }
             )
-            return if (parts.isNotEmpty()) {
-                parts.joinToString(" ")
+            return if (sanitized.fullName.isNotBlank() && sanitized.fullName != "Unnamed" && sanitized.fullName != "Unknown") {
+                sanitized.fullName
             } else if (name.isNotBlank() && name != "Unnamed" && name != "Unknown") {
-                name
+                com.grinch.rivo4.controller.util.ContactUtils.collapseAdjacentDuplicateTokens(name)
             } else if (!nickname.isNullOrBlank()) {
                 nickname
             } else if (emails.isNotEmpty()) {

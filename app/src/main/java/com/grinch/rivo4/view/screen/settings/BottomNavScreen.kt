@@ -65,9 +65,6 @@ fun BottomNavScreen(
     var startLocation by remember(settingsState) {
         mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_START_LOCATION, PreferenceManager.START_LOCATION_NORMAL))
     }
-    var mergeFavorites by remember(settingsState) {
-        mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_MERGE_FAVORITES_RECENTS, true))
-    }
     var predictiveBackEnabled by remember(settingsState) {
         mutableStateOf(prefs.isPredictiveBackEnabled())
     }
@@ -117,7 +114,7 @@ fun BottomNavScreen(
     Scaffold(
         topBar = {
             MenuTopAppBar(
-                text = stringResource(R.string.settings_bottom_nav_title),
+                text = stringResource(R.string.loc_navigation_bar),
                 navigator = navigator
             )
         },
@@ -248,6 +245,12 @@ fun BottomNavScreen(
                                     enabled = !isVisible || visibleTabs.size > 1,
                                     onCheckedChange = { checked ->
                                         val newHidden = if (checked) hidden - tabId else hidden + tabId
+                                        if (!checked && tabId == defaultBottomBar) {
+                                            val remaining = visibleTabs.filter { it != tabId }
+                                            val newDefault = remaining.firstOrNull() ?: PreferenceManager.TAB_RECENTS
+                                            defaultBottomBar = newDefault
+                                            prefs.setInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, newDefault)
+                                        }
                                         persist(order, newHidden)
                                     }
                                 )
@@ -263,6 +266,7 @@ fun BottomNavScreen(
                         prefs.resetBottomNavLayout()
                         order = prefs.getBottomNavOrder()
                         hidden = prefs.getHiddenBottomNavTabs()
+                        defaultBottomBar = prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, PreferenceManager.TAB_RECENTS)
                     },
                     text = stringResource(R.string.settings_bottom_nav_reset),
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -300,12 +304,10 @@ fun BottomNavScreen(
                                 onValueChange = {
                                     defaultBottomBar = it
                                     prefs.setInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, it)
-                                    if (it == PreferenceManager.TAB_RECORDINGS) {
-                                        val currentHidden = prefs.getHiddenBottomNavTabs().toMutableSet()
-                                        if (currentHidden.remove(PreferenceManager.TAB_RECORDINGS)) {
-                                            prefs.setHiddenBottomNavTabs(currentHidden)
-                                            hidden = currentHidden
-                                        }
+                                    val currentHidden = prefs.getHiddenBottomNavTabs().toMutableSet()
+                                    if (currentHidden.remove(it)) {
+                                        prefs.setHiddenBottomNavTabs(currentHidden)
+                                        hidden = currentHidden
                                     }
                                 }
                             ) { value, selected ->
@@ -331,9 +333,9 @@ fun BottomNavScreen(
                                 supporting = stringResource(R.string.settings_default_start_screen_supporting),
                                 leadingIcon = Icons.Outlined.Home,
                                 options = listOf(
-                                    "Default Tab" to PreferenceManager.START_LOCATION_NORMAL,
-                                    "Dialpad (Recents)" to PreferenceManager.START_LOCATION_DIALPAD_RECENTS,
-                                    "Dialpad (Contacts)" to PreferenceManager.START_LOCATION_DIALPAD_CONTACTS
+                                    stringResource(R.string.start_location_default_tab) to PreferenceManager.START_LOCATION_NORMAL,
+                                    stringResource(R.string.start_location_dialpad_recents) to PreferenceManager.START_LOCATION_DIALPAD_RECENTS,
+                                    stringResource(R.string.start_location_dialpad_contacts) to PreferenceManager.START_LOCATION_DIALPAD_CONTACTS
                                 ),
                                 selectedValue = startLocation,
                                 onValueChange = {
@@ -354,18 +356,6 @@ fun BottomNavScreen(
                                 )
                             }
                         }
-                    }
-                    item {
-                        RivoSwitchListItem(
-                            headline = stringResource(R.string.settings_interface_merge_favorites),
-                            supporting = stringResource(R.string.settings_interface_merge_favorites_supporting),
-                            leadingIcon = Icons.Outlined.Star,
-                            checked = mergeFavorites,
-                            onCheckedChange = {
-                                mergeFavorites = it
-                                prefs.setBoolean(PreferenceManager.KEY_MERGE_FAVORITES_RECENTS, it)
-                            }
-                        )
                     }
                     item {
                         RivoSwitchListItem(

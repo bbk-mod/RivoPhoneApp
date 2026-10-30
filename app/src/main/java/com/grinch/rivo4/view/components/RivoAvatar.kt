@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
@@ -166,25 +168,27 @@ fun rivoAvatarColors(name: String, colorful: Boolean = true): RivoAvatarColors {
     }
 }
 
-private fun gradientAvatarBrush(name: String, dark: Boolean): Brush {
-    val baseHue = rivoAvatarHueIndex(name) * (360f / RivoAvatarDefaults.HueCount)
-    val accentHue = (baseHue + 180f) % 360f
-
-    return if (dark) {
-        Brush.radialGradient(
-            0.0f to hslColor(baseHue, 0.75f, 0.45f),
-            1.0f to hslColor(accentHue, 0.60f, 0.22f),
-            center = Offset(0.25f, 0.15f),
-            radius = 1.3f
-        )
-    } else {
-        Brush.radialGradient(
-            0.0f to hslColor(baseHue, 0.80f, 0.85f),
-            1.0f to hslColor(accentHue, 0.65f, 0.55f),
-            center = Offset(0.25f, 0.15f),
-            radius = 1.3f
-        )
+fun gradientAvatarBrush(name: String): Brush {
+    val hueIndex = rivoAvatarHueIndex(name)
+    val gradientColors = when (hueIndex % 12) {
+        0 -> listOf(Color(0xFFE91E63), Color(0xFFFF5252)) // Pink to Coral
+        1 -> listOf(Color(0xFF7C4DFF), Color(0xFF448AFF)) // Purple to Blue
+        2 -> listOf(Color(0xFFE040FB), Color(0xFF536DFE)) // Magenta to Indigo
+        3 -> listOf(Color(0xFF0091EA), Color(0xFF00B0FF)) // Deep Sky to Light Sky
+        4 -> listOf(Color(0xFF00897B), Color(0xFF26A69A)) // Teal to Mint
+        5 -> listOf(Color(0xFF2E7D32), Color(0xFF43A047)) // Forest Green to Green
+        6 -> listOf(Color(0xFFEF6C00), Color(0xFFFFA726)) // Deep Orange to Amber
+        7 -> listOf(Color(0xFFFF3D00), Color(0xFFFF7043)) // Red-Orange to Coral
+        8 -> listOf(Color(0xFFD500F9), Color(0xFFFF4081)) // Electric Violet to Hot Pink
+        9 -> listOf(Color(0xFF1E88E5), Color(0xFF42A5F5)) // Royal Blue to Dodger Blue
+        10 -> listOf(Color(0xFFFF5722), Color(0xFFFF1744)) // Flame to Crimson
+        else -> listOf(Color(0xFF8E24AA), Color(0xFF5E35B1)) // Rich Purple to Deep Indigo
     }
+    return Brush.linearGradient(
+        colors = gradientColors,
+        start = Offset.Zero,
+        end = Offset.Infinite
+    )
 }
 
 private val WHITESPACE_REGEX = Regex("\\s+")
@@ -228,6 +232,7 @@ fun RivoAvatar(
     name: String,
     photoUri: String? = null,
     icon: ImageVector? = null,
+    iconSize: Dp? = null,
     modifier: Modifier = Modifier,
     shape: Shape? = null,
     badgeIcon: ImageVector? = null,
@@ -272,10 +277,10 @@ fun RivoAvatar(
     }
 
     val colors = rivoAvatarColors(name, style.colorful)
-    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val gradientBrush = if (style.gradient) {
-        remember(name, dark) { gradientAvatarBrush(name, dark) }
+        remember(name) { gradientAvatarBrush(name) }
     } else null
+    val contentColor = if (gradientBrush != null) Color.White else colors.content
     val hasLetters = name.any { it.isLetter() }
     val initials = if (style.showFirstLetter && hasLetters) {
         remember(name, style.gradient) { contactInitials(name, style.gradient) }
@@ -311,7 +316,15 @@ fun RivoAvatar(
         Modifier.background(colors.container, avatarShape)
     }
 
-    Box(modifier = rootModifier) {
+    BoxWithConstraints(modifier = rootModifier) {
+        val effectiveIconSize = iconSize ?: run {
+            if (maxWidth != Dp.Unspecified && maxWidth > 56.dp) {
+                (maxWidth * 0.48f).coerceAtLeast(RivoAvatarDefaults.IconSize)
+            } else {
+                RivoAvatarDefaults.IconSize
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -330,28 +343,28 @@ fun RivoAvatar(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = colors.content,
-                    modifier = Modifier.size(RivoAvatarDefaults.IconSize)
+                    tint = contentColor,
+                    modifier = Modifier.size(effectiveIconSize)
                 )
             } else if (photoUri == "voicemail://icon" || name.equals("Voicemail", ignoreCase = true) || name.equals("Messagerie vocale", ignoreCase = true) || name.equals("Poczta głosowa", ignoreCase = true)) {
                 Icon(
                     imageVector = Icons.Outlined.Voicemail,
                     contentDescription = null,
-                    tint = colors.content,
-                    modifier = Modifier.size(RivoAvatarDefaults.IconSize)
+                    tint = contentColor,
+                    modifier = Modifier.size(effectiveIconSize)
                 )
             } else if (style.showFirstLetter && hasLetters) {
                 Text(
                     text = initials,
-                    style = textStyle,
-                    color = colors.content
+                    style = if (gradientBrush != null) textStyle.copy(fontWeight = FontWeight.SemiBold) else textStyle,
+                    color = contentColor
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
-                    tint = colors.content,
-                    modifier = Modifier.size(RivoAvatarDefaults.IconSize)
+                    tint = contentColor,
+                    modifier = Modifier.size(effectiveIconSize)
                 )
             }
         }

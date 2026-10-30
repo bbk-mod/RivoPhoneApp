@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.ContactSupport
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Visibility
@@ -22,6 +23,10 @@ import androidx.compose.material.icons.outlined.PhoneInTalk
 import androidx.compose.material.icons.outlined.ScreenLockPortrait
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.BlurOn
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,21 +37,29 @@ import androidx.compose.ui.unit.dp
 import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.util.PreferenceManager
 import com.grinch.rivo4.controller.util.CallBackgroundStore
+import com.grinch.rivo4.view.components.CallBackgroundDialog
 import com.grinch.rivo4.view.components.MenuTopAppBar
 import com.grinch.rivo4.view.components.RivoAvatar
+import com.grinch.rivo4.view.components.RivoAvatarShapeSelectorRow
 import com.grinch.rivo4.view.components.RivoExpressiveCard
 import com.grinch.rivo4.view.components.RivoExpressiveGroup
 import com.grinch.rivo4.view.components.RivoListItem
+import com.grinch.rivo4.view.components.RivoSliderListItem
 import com.grinch.rivo4.view.components.RivoSwitchListItem
 import com.grinch.rivo4.view.components.RivoVisualOptionSelectorRow
 import com.grinch.rivo4.view.screen.settings.IncomingCallUiPreview
 import com.grinch.rivo4.view.screen.CallActionButton
+import com.grinch.rivo4.view.screen.LocalCallHasBackground
 import com.grinch.rivo4.view.screen.RivoCallButtonOrder
+import com.grinch.rivo4.view.theme.RIVO_AVATAR_SHAPE_COOKIE_9
+import com.grinch.rivo4.view.theme.RivoExpressiveAvatarShape
+import com.grinch.rivo4.view.theme.rivoAvatarShape
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import kotlin.math.roundToInt
 
 private data class CallButtonSlot(
     val id: String,
@@ -76,21 +89,45 @@ fun CallScreenCustomizationScreen(
     var proximitySensor by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_PROXIMITY_SENSOR, true)) }
     var autoSpeakerProximity by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_AUTO_SPEAKER_PROXIMITY, false)) }
     var incomingCallUI by remember(settingsState) { mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_INCOMING_CALL_UI_MODE, 0)) }
+    var callScreenAvatarShape by remember(settingsState) {
+        mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_CALL_SCREEN_AVATAR_SHAPE, RIVO_AVATAR_SHAPE_COOKIE_9))
+    }
+    var bgBlur by remember(settingsState) {
+        mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_CALL_BACKGROUND_BLUR, false))
+    }
+    var bgBlurStrength by remember(settingsState) {
+        mutableFloatStateOf(prefs.getInt(PreferenceManager.KEY_CALL_BACKGROUND_BLUR_STRENGTH, 25).toFloat())
+    }
     var alwaysFullScreenCalls by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_ALWAYS_FULL_SCREEN_CALLS, false)) }
     var openCallScreenOnAnswer by remember(settingsState) { mutableStateOf(prefs.isOpenCallScreenOnAnswerEnabled()) }
     var pocketMode by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_POCKET_MODE, false)) }
     var defaultCallBg by remember(settingsState) { mutableStateOf(CallBackgroundStore.defaultModel(context)) }
     var unknownCallBg by remember(settingsState) { mutableStateOf(CallBackgroundStore.unknownModel(context)) }
+    var showDefaultBgDialog by remember { mutableStateOf(false) }
+    var showUnknownBgDialog by remember { mutableStateOf(false) }
+    var savingDefaultBg by remember { mutableStateOf(false) }
+    var savingUnknownBg by remember { mutableStateOf(false) }
+
     val defaultCallBgLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            scope.launch { if (CallBackgroundStore.saveDefault(context, uri)) defaultCallBg = CallBackgroundStore.defaultModelAsync(context) }
+            savingDefaultBg = true
+            scope.launch {
+                val ok = CallBackgroundStore.saveDefault(context, uri)
+                savingDefaultBg = false
+                if (ok) defaultCallBg = CallBackgroundStore.defaultModelAsync(context)
+            }
         }
     }
     val unknownCallBgLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            scope.launch { if (CallBackgroundStore.saveUnknown(context, uri)) unknownCallBg = CallBackgroundStore.unknownModelAsync(context) }
+            savingUnknownBg = true
+            scope.launch {
+                val ok = CallBackgroundStore.saveUnknown(context, uri)
+                savingUnknownBg = false
+                if (ok) unknownCallBg = CallBackgroundStore.unknownModelAsync(context)
+            }
         }
     }
 
@@ -146,7 +183,7 @@ fun CallScreenCustomizationScreen(
     Scaffold(
         topBar = {
             MenuTopAppBar(
-                text = stringResource(R.string.call_screen_customization_title),
+                text = stringResource(R.string.loc_call_screen_buttons),
                 navigator = navigator
             )
         },
@@ -201,7 +238,9 @@ fun CallScreenCustomizationScreen(
                                     stringResource(R.string.settings_call_incoming_ui_horizontal_swipe) to 0,
                                     stringResource(R.string.settings_call_incoming_ui_buttons) to 1,
                                     stringResource(R.string.settings_call_incoming_ui_slide_ios) to 2,
-                                    stringResource(R.string.settings_call_incoming_ui_vertical_swipe) to 3
+                                    stringResource(R.string.settings_call_incoming_ui_vertical_swipe) to 3,
+                                    stringResource(R.string.settings_call_incoming_ui_dual_swipe) to 4,
+                                    stringResource(R.string.settings_call_incoming_ui_orbital_slider) to 5
                                 ),
                                 selectedValue = incomingCallUI,
                                 onValueChange = {
@@ -220,7 +259,21 @@ fun CallScreenCustomizationScreen(
                             headline = stringResource(R.string.settings_call_default_background),
                             supporting = if (defaultCallBg != null) stringResource(R.string.settings_call_default_background_set) else stringResource(R.string.settings_call_default_background_none),
                             leadingIcon = Icons.Outlined.Wallpaper,
-                            onClick = { defaultCallBgLauncher.launch(arrayOf("image/*")) }
+                            trailingContent = if (defaultCallBg != null) {
+                                {
+                                    IconButton(onClick = {
+                                        CallBackgroundStore.clearDefault(context)
+                                        defaultCallBg = null
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Delete,
+                                            contentDescription = stringResource(R.string.settings_call_background_remove),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            } else null,
+                            onClick = { showDefaultBgDialog = true }
                         )
                     }
                     item {
@@ -228,7 +281,71 @@ fun CallScreenCustomizationScreen(
                             headline = stringResource(R.string.settings_call_unknown_background),
                             supporting = if (unknownCallBg != null) stringResource(R.string.settings_call_unknown_background_set) else stringResource(R.string.settings_call_unknown_background_none),
                             leadingIcon = Icons.Outlined.Image,
-                            onClick = { unknownCallBgLauncher.launch(arrayOf("image/*")) }
+                            trailingContent = if (unknownCallBg != null) {
+                                {
+                                    IconButton(onClick = {
+                                        CallBackgroundStore.clearUnknown(context)
+                                        unknownCallBg = null
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Delete,
+                                            contentDescription = stringResource(R.string.settings_call_background_remove),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            } else null,
+                            onClick = { showUnknownBgDialog = true }
+                        )
+                    }
+                    item {
+                        RivoSwitchListItem(
+                            headline = stringResource(R.string.settings_call_background_blur),
+                            supporting = stringResource(R.string.settings_call_background_blur_supporting),
+                            leadingIcon = Icons.Outlined.BlurOn,
+                            checked = bgBlur,
+                            onCheckedChange = {
+                                bgBlur = it
+                                prefs.setBoolean(PreferenceManager.KEY_CALL_BACKGROUND_BLUR, it)
+                            }
+                        )
+                    }
+                    if (bgBlur) {
+                        item {
+                            RivoSliderListItem(
+                                headline = stringResource(R.string.settings_call_background_blur_strength),
+                                value = bgBlurStrength,
+                                valueRange = 5f..60f,
+                                steps = 10,
+                                valueLabel = "${bgBlurStrength.roundToInt()} dp",
+                                leadingIcon = Icons.Outlined.Tune,
+                                onValueChange = {
+                                    bgBlurStrength = it
+                                },
+                                onValueChangeFinished = {
+                                    prefs.setInt(PreferenceManager.KEY_CALL_BACKGROUND_BLUR_STRENGTH, bgBlurStrength.roundToInt())
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                RivoExpressiveGroup(
+                    title = stringResource(R.string.settings_interface_call_screen_avatar_shape),
+                    icon = Icons.Outlined.AccountCircle
+                ) {
+                    item {
+                        RivoAvatarShapeSelectorRow(
+                            headline = stringResource(R.string.settings_interface_call_screen_avatar_shape),
+                            supporting = stringResource(R.string.settings_interface_call_screen_avatar_shape_supporting),
+                            options = RivoExpressiveAvatarShape.entries.map { it.label to it.id },
+                            selectedValue = callScreenAvatarShape,
+                            onValueChange = { selected ->
+                                callScreenAvatarShape = selected
+                                prefs.setInt(PreferenceManager.KEY_CALL_SCREEN_AVATAR_SHAPE, selected)
+                            }
                         )
                     }
                 }
@@ -239,26 +356,28 @@ fun CallScreenCustomizationScreen(
                     title = stringResource(R.string.call_screen_preview_title),
                     icon = Icons.Default.Dialpad
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        RivoAvatar(
-                            name = "Jane Doe",
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.loc_jane_doe),
-                            style = MaterialTheme.typography.titleMediumEmphasized
-                        )
-                        Text(
-                            text = stringResource(R.string.loc_1_555_123_4567),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    CompositionLocalProvider(LocalCallHasBackground provides (defaultCallBg != null)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            RivoAvatar(
+                                name = "Jane Doe",
+                                modifier = Modifier.size(56.dp),
+                                shape = rivoAvatarShape(callScreenAvatarShape)
+                            )
+                            Text(
+                                text = stringResource(R.string.loc_jane_doe),
+                                style = MaterialTheme.typography.titleMediumEmphasized
+                            )
+                            Text(
+                                text = stringResource(R.string.loc_1_555_123_4567),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -286,6 +405,7 @@ fun CallScreenCustomizationScreen(
                     }
                 }
             }
+        }
 
             item {
                 RivoExpressiveGroup(
@@ -359,6 +479,47 @@ fun CallScreenCustomizationScreen(
                 )
             }
         }
-    }
 
+        if (showDefaultBgDialog) {
+            CallBackgroundDialog(
+                title = stringResource(R.string.settings_call_default_background),
+                icon = Icons.Outlined.Wallpaper,
+                backgroundModel = defaultCallBg,
+                supportingText = stringResource(R.string.settings_call_default_background_supporting),
+                isUnknown = false,
+                saving = savingDefaultBg,
+                onDismissRequest = { showDefaultBgDialog = false },
+                onChoose = {
+                    showDefaultBgDialog = false
+                    defaultCallBgLauncher.launch(arrayOf("image/*"))
+                },
+                onRemove = {
+                    showDefaultBgDialog = false
+                    CallBackgroundStore.clearDefault(context)
+                    defaultCallBg = null
+                }
+            )
+        }
+
+        if (showUnknownBgDialog) {
+            CallBackgroundDialog(
+                title = stringResource(R.string.settings_call_unknown_background),
+                icon = Icons.AutoMirrored.Outlined.ContactSupport,
+                backgroundModel = unknownCallBg,
+                supportingText = stringResource(R.string.settings_call_unknown_background_supporting),
+                isUnknown = true,
+                saving = savingUnknownBg,
+                onDismissRequest = { showUnknownBgDialog = false },
+                onChoose = {
+                    showUnknownBgDialog = false
+                    unknownCallBgLauncher.launch(arrayOf("image/*"))
+                },
+                onRemove = {
+                    showUnknownBgDialog = false
+                    CallBackgroundStore.clearUnknown(context)
+                    unknownCallBg = null
+                }
+            )
+        }
+    }
 }

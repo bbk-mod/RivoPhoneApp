@@ -173,7 +173,6 @@ object CallRecorder {
 
     const val DIRECTORY_NAME = "Rivo Recordings"
 
-    /** Same value as [Environment.DIRECTORY_RECORDINGS], which only exists from API 31. */
     private const val RECORDINGS_STORAGE_DIR = "Recordings"
 
     @Volatile
@@ -727,7 +726,7 @@ object CallRecorder {
         } catch (e: Exception) {
             null
         }
-        val targetBitrate = prefs?.getInt("call_recording_bitrate", 128000) ?: 128000
+        val targetBitrate = 256000
         val profiles = getFormatProfiles(targetBitrate)
 
         val prioritizedSources = (listOf(lastWorkingSource) + audioSources).distinct()
@@ -903,13 +902,6 @@ object CallRecorder {
         } catch (e: Exception) {
             null
         }
-        val minDuration = prefs?.getInt("call_recording_min_duration", 0) ?: 0
-        if (minDuration > 0 && actualDuration < minDuration) {
-            Log.i(TAG, "Call duration ($actualDuration s) was below filter ($minDuration s), discarding.")
-            saved.delete()
-            return null
-        }
-
         val cleanName = saved.name.removePrefix("staging_")
         val baseName = cleanName.substringBeforeLast(".")
         val extension = cleanName.substringAfterLast(".", "m4a")

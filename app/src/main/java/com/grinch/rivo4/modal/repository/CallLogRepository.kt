@@ -22,6 +22,7 @@ import com.grinch.rivo4.modal.data.CallLogEntry
 import com.grinch.rivo4.modal.`interface`.IContactsRepository
 import com.grinch.rivo4.modal.data.Contact
 import com.grinch.rivo4.controller.util.normalizePhoneNumber
+import com.grinch.rivo4.controller.util.formatPhoneNumber
 import com.grinch.rivo4.controller.util.areNumbersEqual
 import com.grinch.rivo4.controller.util.ContactUtils
 
@@ -256,6 +257,7 @@ class CallLogRepository(
 
         val tempLogs = mutableListOf<CallLogEntry>()
         val simCache = mutableMapOf<String, String>()
+        val callerNameCache = mutableMapOf<String, String>()
         val resolvedByName = mutableMapOf<String, Contact?>()
         val unknownLabel = context.getString(R.string.label_unknown)
         val hiddenNumbers = if (!preferenceManager.isHiddenContactsVisible()) {
@@ -329,6 +331,18 @@ class CallLogRepository(
             }
 
             val cachedName = cursor.getString(cachedNameIdx)
+            val isCachedNameJustNumber = cachedName != null && (
+                areNumbersEqual(cachedName, number) ||
+                cachedName.none { it.isLetter() }
+            )
+            val effectiveCachedName = if (isCachedNameJustNumber) null else cachedName?.let {
+                ContactUtils.collapseAdjacentDuplicateTokens(it)
+            }
+            if (effectiveCachedName != null && number != unknownLabel) {
+                ContactUtils.getLookupKeys(number).forEach { key ->
+                    callerNameCache.putIfAbsent(key, effectiveCachedName)
+                }
+            }
             if (matchedContact == null && number != unknownLabel && !cachedName.isNullOrBlank()) {
                 if (!resolvedByName.containsKey(number)) {
                     resolvedByName[number] = try { contactsRepo.getContactByNumber(number) } catch (e: Exception) { null }
@@ -347,7 +361,7 @@ class CallLogRepository(
             val singleEntry = CallLogEntry(
                 id = callId,
                 number = number,
-                name = displayName ?: number,
+                name = displayName ?: formatPhoneNumber(number),
                 type = type,
                 date = date,
                 duration = duration,
@@ -382,7 +396,33 @@ class CallLogRepository(
                 tempLogs.add(singleEntry)
             }
         }
-        callLogs.addAll(tempLogs)
+        val finalLogs = if (callerNameCache.isNotEmpty()) {
+            tempLogs.map { entry ->
+                val isEntryNameJustNumber = entry.name == null ||
+                    areNumbersEqual(entry.name, entry.number) ||
+                    entry.name.none { it.isLetter() }
+                if (isEntryNameJustNumber && entry.number != unknownLabel && entry.contactId == null) {
+                    var foundName: String? = null
+                    for (k in ContactUtils.getLookupKeys(entry.number)) {
+                        val n = callerNameCache[k]
+                        if (n != null) {
+                            foundName = n
+                            break
+                        }
+                    }
+                    if (foundName != null) {
+                        entry.copy(name = foundName)
+                    } else {
+                        entry
+                    }
+                } else {
+                    entry
+                }
+            }
+        } else {
+            tempLogs
+        }
+        callLogs.addAll(finalLogs)
     }
 
     override fun deleteCallLog(number: String) {

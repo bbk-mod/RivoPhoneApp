@@ -2,6 +2,8 @@ package com.grinch.rivo4.modal.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -10,7 +12,7 @@ import androidx.room.RoomDatabase
         CallbackReminderEntity::class,
         TrashedContactEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class RivoDatabase : RoomDatabase() {
@@ -18,4 +20,17 @@ abstract class RivoDatabase : RoomDatabase() {
     abstract fun callNoteDao(): CallNoteDao
     abstract fun callbackReminderDao(): CallbackReminderDao
     abstract fun trashedContactDao(): TrashedContactDao
+
+    companion object {
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE private_contacts ADD COLUMN addressEntriesJson TEXT")
+                db.execSQL("ALTER TABLE private_contacts ADD COLUMN organizationsJson TEXT")
+                db.execSQL("ALTER TABLE private_contacts ADD COLUMN websitesJson TEXT")
+                db.execSQL("ALTER TABLE private_contacts ADD COLUMN relationsJson TEXT")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_5_6)
+    }
 }
