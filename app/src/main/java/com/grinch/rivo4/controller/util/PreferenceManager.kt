@@ -299,7 +299,8 @@ class PreferenceManager(context: Context) {
     }
 
     fun getLastSelectedTab(): Int? {
-        return if (prefs.contains(KEY_LAST_SELECTED_TAB)) prefs.getInt(KEY_LAST_SELECTED_TAB, -1).takeIf { it != -1 } else null
+        return if (prefs.contains(KEY_LAST_SELECTED_TAB)) prefs.getInt(KEY_LAST_SELECTED_TAB, -1)
+            .takeIf { it != -1 } else null
     }
 
     fun setLastSelectedTab(tab: Int) {
@@ -817,7 +818,10 @@ class PreferenceManager(context: Context) {
         setString(KEY_CALL_LOG_ACTIONS_UNSAVED, actions.joinToString(","))
     }
 
-    fun getCallLogTrailingAction(): String = getString(KEY_CALL_LOG_TRAILING_BUTTON_ACTION, DEFAULT_CALL_LOG_TRAILING_BUTTON_ACTION) ?: DEFAULT_CALL_LOG_TRAILING_BUTTON_ACTION
+    fun getCallLogTrailingAction(): String =
+        getString(KEY_CALL_LOG_TRAILING_BUTTON_ACTION, DEFAULT_CALL_LOG_TRAILING_BUTTON_ACTION)
+            ?: DEFAULT_CALL_LOG_TRAILING_BUTTON_ACTION
+
     fun setCallLogTrailingAction(action: String) = setString(KEY_CALL_LOG_TRAILING_BUTTON_ACTION, action)
 
     fun resetCallLogCustomization() {
@@ -826,7 +830,7 @@ class PreferenceManager(context: Context) {
         setCallLogTrailingAction(DEFAULT_CALL_LOG_TRAILING_BUTTON_ACTION)
     }
 
-    fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, true)
+    fun isSupporter(): Boolean = getBoolean(KEY_IS_SUPPORTER, false)
     fun setSupporter(isSupporter: Boolean) = setBoolean(KEY_IS_SUPPORTER, isSupporter)
 
     fun getDefaultVideoApp(): String = getString(KEY_DEFAULT_VIDEO_APP, "") ?: ""
@@ -960,7 +964,8 @@ class PreferenceManager(context: Context) {
 
     fun restoreSettings(envelope: SettingsBackupEnvelope): Int {
         if (!envelope.app.equals(SettingsBackupEnvelope.DEFAULT_APP_IDENTIFIER, ignoreCase = true) &&
-            !envelope.app.equals("Rivo", ignoreCase = true)) {
+            !envelope.app.equals("Rivo", ignoreCase = true)
+        ) {
             throw IllegalArgumentException("Invalid backup file: not a Rivo backup")
         }
         if (envelope.backupType != SettingsBackupEnvelope.BACKUP_TYPE_SETTINGS && envelope.backupType.isNotEmpty()) {

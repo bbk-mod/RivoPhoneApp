@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Rivo</string>
+    <string name="permission_default_phone_app_title">Application de téléphone par défaut</string>
+    <string name="permission_default_phone_app_description">Requis pour répondre aux appels, gérer les appels entrants et gérer le blocage des appels.</string>
+    <string name="permission_phone_sim_title">Accès au téléphone &amp; SIM</string>
+    <string name="permission_phone_sim_description">Requis pour passer les appels directement, gérer les doubles cartes SIM et détecter l\'état des appels.</string>
+    <string name="permission_contacts_title">Contacts</string>
     <!-- Shared actions / generic labels reused across multiple screens -->
     <string name="action_cancel">Annuler</string>
     <string name="action_confirm">Confirmer</string>
@@ -47,6 +52,8 @@
     <string name="label_email">E-mail</string>
     <string name="label_address">Adresse</string>
     <string name="label_notes">Notes</string>
+    <string name="action_add_note">Ajouter une note</string>
+    <string name="call_notes_title">Notes d\'appel</string>
     <string name="label_social_apps">Applications sociales</string>
     <string name="label_local_memory">Appareil</string>
     <string name="option_standard">Standard</string>
@@ -519,7 +526,6 @@ blanc</string>
     <string name="settings_manage_merge_duplicates">Fusionner les doublons</string>
     <!-- Settings > Contact visibility -->
     <string name="settings_visibility_title">Visibilité des contacts</string>
-    <string name="settings_visibility_description">Choisissez les comptes qui doivent être visibles dans votre liste de contacts. Désélectionner un compte masquera ses contacts sans les supprimer.</string>
     <string name="settings_visibility_accounts_header">Comptes</string>
     <string name="settings_visibility_local_memory_supporting">Contacts stockés sur l’appareil</string>
     <string name="settings_visibility_reset_all">Réinitialiser pour tout afficher</string>
@@ -543,7 +549,6 @@ blanc</string>
     <string name="settings_voicemail_carrier_settings">Paramètres opérateur</string>
     <string name="settings_voicemail_number">Numéro de messagerie vocale</string>
     <string name="content_desc_auto_detect_sim">Détecter automatiquement depuis la SIM</string>
-    <string name="settings_voicemail_number_hint">Le numéro d’accès à la messagerie vocale de votre opérateur.</string>
     <string name="settings_voicemail_call_voicemail">Appeler la messagerie vocale</string>
     <string name="settings_voicemail_call_voicemail_supporting">Composer directement votre service de messagerie vocale</string>
     <string name="settings_voicemail_notifications_header">Notifications</string>
@@ -827,6 +832,26 @@ blanc</string>
     <string name="swipe_action_video_call">Appel vidéo</string>
     <string name="swipe_action_copy_number">Copier le numéro</string>
     <string name="swipe_action_delete">Supprimer</string>
+    <string name="swipe_action_view_contact">Voir le contact</string>
+    <string name="swipe_action_share">Partager</string>
+    <string name="swipe_action_block">Bloquer</string>
+    <string name="action_block_or_report">Bloquer ou signaler</string>
+    <string name="action_history">Historique</string>
+    <string name="toast_blocked_number">Bloqué %1$s</string>
+    <string name="call_log_block_confirm_single">Bloquer %1$s? Vous ne recevrez plus d\'appels ou de messages de ce numéro.</string>
+    <string name="date_older">Ancien</string>
+    <string name="settings_call_log_customization_title">Personnalisation du journal d\'appel</string>
+    <string name="settings_call_log_customization_supporting">Configurer les actions de appui, le bouton de suivi et les actions rapides</string>
+    <string name="settings_call_log_trailing_title">Action du bouton de suivi</string>
+    <string name="settings_call_log_trailing_supporting">Action déclenchée par le bouton à droite de chaque entrée du journal d\'appels</string>
+    <string name="settings_call_log_saved_actions_title">Actions rapides des contacts enregistrées</string>
+    <string name="settings_call_log_saved_actions_supporting">Actions affichées lorsque vous appuyez sur une entrée du journal d\'appel pour un contact enregistré</string>
+    <string name="settings_call_log_unsaved_actions_title">Actions rapides des nombres non sauvegardés</string>
+    <string name="settings_call_log_unsaved_actions_supporting">Actions affichées lorsque vous appuyez sur une entrée du journal d\'appels pour un numéro non enregistré</string>
+    <string name="settings_call_log_reset">Réinitialiser les paramètres du journal d\'appel</string>
+    <string name="settings_call_log_click_behavior_title">Interactions des touches</string>
+    <string name="settings_call_log_click_behavior_supporting">L\'avatar ouvre les détails du contact; le bouton de suivi déclenche l\'action assignée; appuyer sur n\'importe où d\'autre pour étendre les actions rapides.</string>
+    <string name="action_none">Aucun</string>
     <string name="swipe_action_preview_title">Aperçu interactif des gestes</string>
     <string name="swipe_action_preview_supporting">Faites glisser cette carte vers la gauche ou vers la droite pour découvrir les propriétés physiques du ressort Material 3 Expressive</string>
     <string name="swipe_action_test_contact_name">Alex Rivera</string>
@@ -851,9 +876,6 @@ blanc</string>
     <string name="settings_auto_decline_non_contacts_title">Refuser les appelants ne figurant pas dans vos contacts</string>
     <string name="settings_auto_decline_non_contacts_supporting">Refuser automatiquement les appels entrants des numéros de téléphone non enregistrés dans vos contacts</string>
     <string name="missed_call_msg_call_me_back">Tu peux me rappeler ?</string>
-    <string name="missed_call_msg_sorry_busy">Désolé, je suis occupé</string>
-    <string name="missed_call_msg_call_right_back">Je te rappelle tout de suite</string>
-    <string name="missed_call_msg_cant_talk">Impossible de parler pour le moment</string>
     <!-- Favorites Modernization -->
     <string name="favorites_count_pill">%1$d favoris</string>
     <string name="favorites_one_pill">1 favori</string>
@@ -866,7 +888,6 @@ blanc</string>
     <string name="favorites_no_contacts_found">Aucun contact trouvé</string>
     <string name="search_contacts">Rechercher des contacts…</string>
     <string name="action_add_to_favorites">Ajouter aux favoris</string>
-    <string name="content_desc_clear_search">Effacer la recherche</string>
     <string name="action_dismiss">Rejeter</string>
     <!-- Dual SIM Buttons -->
     <string name="settings_interface_dual_sim_buttons_title">Boutons d\'appel double SIM</string>
@@ -964,8 +985,6 @@ blanc</string>
     <string name="action_select_all">Tout sélectionner</string>
     <string name="action_select_none">Désélectionner tout</string>
     <string name="settings_private_secret_code">Code secret du clavier téléphonique</string>
-    <string name="about_rate_on_google_play">Noter sur Google Play</string>
-    <string name="about_supporter_badge">Supporter ⭐</string>
     <string name="settings_group_style_appearance">Style et apparence</string>
     <string name="priority_contacts_select_title">Sélectionner un contact prioritaire</string>
     <string name="action_add">Ajouter</string>
@@ -976,13 +995,14 @@ blanc</string>
     <string name="blocked_action_import_csv">Importer CSV</string>
     <string name="blocked_action_export_csv">Exporter CSV</string>
     <string name="blocked_search_placeholder">Rechercher dans les numéros bloqués…</string>
-    <string name="settings_group_support_about">Soutenir et informations</string>
-    <string name="settings_display_banner_ads">Afficher les bannières publicitaires</string>
-    <string name="settings_display_banner_ads_supporting">Afficher les bannières publicitaires non-intrusives dans les listes pour soutenir le développement</string>
-    <string name="settings_rate_google_play">Noter sur Google Play</string>
-    <string name="settings_rate_google_play_supporting">Soutenir Rivo sur Google Play Store</string>
-    <string name="settings_about_rivo">À propos de Rivo</string>
-    <string name="settings_about_rivo_supporting">Version, licences open source &amp; contributeurs</string>
+    <string name="settings_support_development">Soutenir le développement</string>
+    <string name="settings_support_development_supporting">Soutenir le développement de Rivo</string>
+    <string name="settings_provide_tip">Fournir un conseil</string>
+    <string name="settings_provide_tip_supporting">Soutenez le développement via Tip Jar ou Patreon</string>
+    <string name="settings_patreon">Patreon</string>
+    <string name="settings_patreon_supporting">Mécénat mensuel avec des avantages exclusifs</string>
+    <string name="settings_watch_video_ad">Regarder la publicité vidéo</string>
+    <string name="settings_watch_video_ad_supporting">Regardez une courte vidéo pour soutenir le développement</string>
     <string name="settings_group_alerts_ringtones">Alertes &amp; Sonneries</string>
     <string name="blocked_title_block_numbers">Bloquer les numéros ou les contacts</string>
     <string name="settings_group_call_screening">Contrôle des appels</string>
@@ -1076,8 +1096,32 @@ blanc</string>
     <string name="about_third_party_licenses_supporting">Composants Open Source utilisés dans Rivo</string>
     <string name="about_third_party_licenses_title">Licences tierces</string>
     <string name="call_screen_preview_title">Aperçu</string>
-    <string name="call_slot_top">Ligne \u2022 Emplacement #%1$d</string>
-    <string name="call_slot_bottom">Ligne inférieure \u2022 Emplacement #%1$d</string>
     <string name="call_slot_move_up">Déplacer vers le haut</string>
     <string name="call_slot_move_down">Déplacer vers le bas</string>
+    <!-- Support Development & Video Ads -->
+    <string name="video_ad_loading">Chargement de la publicité vidéo…</string>
+    <string name="video_ad_failed">Impossible de charger la pub vidéo. Veuillez réessayer plus tard.</string>
+    <string name="support_video_ads_watched">Publicités vidéo regardées : %1$d</string>
+    <string name="support_image_ads_watched">Petites annonces d\'images regardées : %1$d</string>
+    <string name="support_rivo_pro_unlocked">Rivo Pro débloqué ! Profitez de vos avantages.</string>
+    <string name="support_rivo_pro_perks_title">Rivo Pro Perks</string>
+    <string name="support_rivo_pro_perk_app_icon">Icône de l\'application personnalisée</string>
+    <string name="support_custom_app_icon">Icône de l\'application personnalisée</string>
+    <string name="support_custom_app_icon_desc">Sélectionnez l\'icône de votre application préférée</string>
+    <string name="support_default_app_icon">Par défaut (Rivo)</string>
+    <string name="support_pro_app_icon">Rivo Pro</string>
+    <string name="support_ad_watch_limit_reached">Limite journalière de la montre publicitaire atteinte. Réessayez demain.</string>
+    <string name="support_video_ad_not_ready">La publicité vidéo n\'est pas encore prête. Veuillez patienter.</string>
+    <string name="support_pro_branding_enabled">Branding Pro activé</string>
+    <string name="support_pro_branding_disabled">Branding Pro désactivé</string>
+    <string name="support_ads_enabled_pro">Annonces activées - Avantages Pro actifs</string>
+    <string name="support_tip_jar_pro">Achat de pourboires - Avantages Pro actifs</string>
+    <string name="support_patreon_pro">supporter Patreon - Avantages Pro actifs</string>
+    <string name="support_rewarded_pro">Vidéo récompensée - Pro est actif pendant un jour</string>
+    <string name="support_pro_active_reason">Rivo Pro est actif : %1$s</string>
+    <string name="support_pro_not_active">Rivo Pro n\'est pas actif. Choisissez une option de support ci-dessous.</string>
+    <string name="support_pro_foss_reason">Rivo Pro est disponible dans la version Play Store. Patreon supporte le développement FOSS.</string>
+    <string name="support_choose_app_icon_title">Choisir une image de marque</string>
+    <string name="support_choose_app_icon_desc">Choisissez l\'icône et l\'étiquette du lanceur de numéros. Rien ne change tant que vous ne confirmez et redémarrez Rivo.</string>
+    <string name="content_desc_clear_search">Effacer la recherche</string>
 </resources>

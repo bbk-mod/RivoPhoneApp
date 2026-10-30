@@ -5,6 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -53,7 +56,13 @@ import com.grinch.rivo4.view.components.RivoConfirmationDialog
 import java.io.File
 import com.grinch.rivo4.view.components.AddToContactBottomSheet
 import com.grinch.rivo4.view.components.CallNotesSheet
+import com.grinch.rivo4.view.components.WavyAudioSlider
+import com.grinch.rivo4.view.screen.settings.CallRecordEntryCard
 import com.grinch.rivo4.view.screen.settings.toCallRecordingItem
+import com.grinch.rivo4.view.theme.LocalCardRoundness
+import com.grinch.rivo4.view.theme.rivoCornerDp
+import com.grinch.rivo4.view.theme.rivoCornerShape
+import android.text.format.DateUtils
 import kotlinx.coroutines.delay
 
 @Composable
@@ -66,6 +75,7 @@ fun PostCallScreen(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val roundness = LocalCardRoundness.current
     var showNoteSheet by remember { mutableStateOf(false) }
     var showAddToContactSheet by remember { mutableStateOf(false) }
     var showDeleteRecordingDialog by remember { mutableStateOf(false) }
@@ -96,6 +106,11 @@ fun PostCallScreen(
                     mp.pause()
                     isRecordingPlaying = false
                 } else {
+                    val totalMs = if (recordingDurationMs > 0) recordingDurationMs else (recItem?.durationMs?.toInt() ?: 0)
+                    if (totalMs > 0 && currentPositionMs >= (totalMs - 300)) {
+                        mp.seekTo(0)
+                        currentPositionMs = 0
+                    }
                     mp.start()
                     isRecordingPlaying = true
                 }
@@ -109,10 +124,10 @@ fun PostCallScreen(
 
     val quickReplies = remember {
         listOf(
-            "Call you right back!",
-            "Sorry, I'm busy right now.",
-            "Can't talk now. What's up?",
-            "Type custom message..."
+            context.getString(R.string.missed_call_msg_call_right_back),
+            context.getString(R.string.missed_call_msg_sorry_busy),
+            context.getString(R.string.missed_call_msg_cant_talk),
+            context.getString(R.string.call_type_custom_message)
         )
     }
 
@@ -133,6 +148,13 @@ fun PostCallScreen(
                 try {
                     setDataSource(context, Uri.fromFile(file))
                     prepare()
+                    setOnCompletionListener {
+                        isRecordingPlaying = false
+                        currentPositionMs = 0
+                    }
+                    if (currentPositionMs > 0) {
+                        seekTo(currentPositionMs)
+                    }
                     start()
                     this@apply.playbackParams = this@apply.playbackParams.setSpeed(playbackSpeed)
                 } catch (_: Exception) {
@@ -141,7 +163,6 @@ fun PostCallScreen(
             mediaPlayer = mp
             isRecordingPlaying = runCatching { mp.isPlaying }.getOrDefault(false)
             recordingDurationMs = runCatching { mp.duration }.getOrDefault(0)
-            currentPositionMs = 0
         }
         onDispose {
             runCatching {
@@ -164,7 +185,7 @@ fun PostCallScreen(
                     isRecordingPlaying = false
                 }
             }
-            delay(250)
+            delay(100)
         }
     }
 
@@ -196,7 +217,7 @@ fun PostCallScreen(
                         indication = null,
                         onClick = {} // Consume clicks inside card
                     ),
-                shape = RoundedCornerShape(28.dp),
+                shape = rivoCornerShape(28, roundness),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 tonalElevation = 4.dp,
                 shadowElevation = 14.dp
@@ -244,7 +265,7 @@ fun PostCallScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "Call Summary",
+                                    text = stringResource(R.string.call_summary_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -262,7 +283,7 @@ fun PostCallScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Close",
+                                    contentDescription = stringResource(R.string.content_desc_close),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -275,7 +296,7 @@ fun PostCallScreen(
                     // Caller Card (Truecaller-style elevated container)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = rivoCornerShape(20, roundness),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Column(
@@ -329,9 +350,9 @@ fun PostCallScreen(
                                     val durationText = if (durationSeconds > 0) {
                                         val mins = durationSeconds / 60
                                         val secs = durationSeconds % 60
-                                        "Call ended • %02d:%02d".format(mins, secs)
+                                        context.getString(R.string.call_ended_duration, mins, secs)
                                     } else {
-                                        "Call ended"
+                                        context.getString(R.string.call_ended)
                                     }
 
                                     val formattedPhone = remember(phoneNumber) { formatPhoneNumber(phoneNumber) }
@@ -360,14 +381,10 @@ fun PostCallScreen(
                             ) {
                                 quickReplies.forEach { text ->
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = rivoCornerShape(12, roundness),
                                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            width = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                        ),
                                         onClick = {
-                                            val body = if (text.startsWith("Type custom")) "" else text
+                                            val body = if (text == context.getString(R.string.call_type_custom_message)) "" else text
                                             sendSms(context, phoneNumber, body)
                                             onDismiss()
                                         }
@@ -396,12 +413,12 @@ fun PostCallScreen(
                                         onDismiss()
                                     },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = rivoCornerShape(14, roundness),
                                     contentPadding = PaddingValues(vertical = 8.dp)
                                 ) {
                                     Icon(Icons.Outlined.Phone, contentDescription = null, modifier = Modifier.size(17.dp))
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("Call", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.action_call), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 // Message
@@ -411,24 +428,24 @@ fun PostCallScreen(
                                         onDismiss()
                                     },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = rivoCornerShape(14, roundness),
                                     contentPadding = PaddingValues(vertical = 8.dp)
                                 ) {
                                     Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(17.dp))
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("SMS", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.label_sms), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 // Note
                                 FilledTonalButton(
                                     onClick = { showNoteSheet = true },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = rivoCornerShape(14, roundness),
                                     contentPadding = PaddingValues(vertical = 8.dp)
                                 ) {
                                     Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(17.dp))
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("Note", style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.label_notes), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 // If unsaved number, show "Save" button
@@ -438,12 +455,12 @@ fun PostCallScreen(
                                             showAddToContactSheet = true
                                         },
                                         modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
+                                        shape = rivoCornerShape(14, roundness),
                                         contentPadding = PaddingValues(vertical = 8.dp)
                                     ) {
                                         Icon(Icons.Outlined.PersonAdd, contentDescription = null, modifier = Modifier.size(17.dp))
                                         Spacer(modifier = Modifier.width(5.dp))
-                                        Text("Save", style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
                             }
@@ -459,87 +476,54 @@ fun PostCallScreen(
                         val file = activeRecordingFile
                         val item = recItem
                         if (file != null && file.exists() && item != null) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    FilledIconButton(
-                                        onClick = toggleRecordingPlayback,
-                                        modifier = Modifier.size(38.dp),
-                                        colors = IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isRecordingPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                            contentDescription = if (isRecordingPlaying) "Pause" else "Play",
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.settings_call_recording),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        val durMs = if (recordingDurationMs > 0) recordingDurationMs.toLong() else item.durationMs
-                                        val durationLabel = if (durMs > 0) {
-                                            android.text.format.DateUtils.formatElapsedTime(durMs / 1000)
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                CallRecordEntryCard(
+                                    item = item,
+                                    isCurrentActive = true,
+                                    isPlaying = isRecordingPlaying,
+                                    currentPositionMs = currentPositionMs,
+                                    durationMs = if (recordingDurationMs > 0) recordingDurationMs else item.durationMs.toInt(),
+                                    playbackSpeed = playbackSpeed,
+                                    onCardClick = {},
+                                    onPlayPauseClick = toggleRecordingPlayback,
+                                    onSeekTo = { targetMs ->
+                                        currentPositionMs = targetMs
+                                        if (!playerSetUp) {
+                                            playerSetUp = true
                                         } else {
-                                            item.sizeFormatted
+                                            mediaPlayer?.let { mp ->
+                                                runCatching { mp.seekTo(targetMs) }
+                                            }
                                         }
-                                        Text(
-                                            text = durationLabel,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    onRewind10 = {
+                                        mediaPlayer?.let { mp ->
+                                            val newPos = (currentPositionMs - 10000).coerceAtLeast(0)
+                                            currentPositionMs = newPos
+                                            runCatching { mp.seekTo(newPos) }
+                                        }
+                                    },
+                                    onForward10 = {
+                                        mediaPlayer?.let { mp ->
+                                            val totalMs = if (recordingDurationMs > 0) recordingDurationMs else item.durationMs.toInt()
+                                            val newPos = (currentPositionMs + 10000).coerceAtMost(totalMs)
+                                            currentPositionMs = newPos
+                                            runCatching { mp.seekTo(newPos) }
+                                        }
+                                    },
+                                    onSpeedChange = {},
+                                    onShareClick = {
+                                        CallRecorder.share(
+                                            context,
+                                            file,
+                                            context.getString(R.string.call_recordings_share)
                                         )
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            CallRecorder.share(
-                                                context,
-                                                file,
-                                                context.getString(R.string.call_recordings_share)
-                                            )
-                                        },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Share,
-                                            contentDescription = stringResource(R.string.call_recordings_share),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = { showDeleteRecordingDialog = true },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Delete,
-                                            contentDescription = stringResource(R.string.action_delete),
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
+                                    },
+                                    onDeleteClick = { showDeleteRecordingDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = rivoCornerShape(20, roundness)
+                                )
                             }
                         }
                     }

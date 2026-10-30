@@ -1,4 +1,6 @@
 package com.grinch.rivo4.view.screen.settings
+import androidx.compose.ui.res.stringResource
+import com.grinch.rivo4.R
 import com.grinch.rivo4.view.theme.LocalCardRoundness
 import com.grinch.rivo4.view.theme.rivoCornerDp
 
@@ -32,13 +34,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.ContactsViewModel
 import com.grinch.rivo4.controller.util.ContactUtils
 import com.grinch.rivo4.controller.util.PreferenceManager
@@ -451,7 +451,7 @@ fun ContactManagementScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.SwapVert,
-                                        contentDescription = "Swap Source & Destination",
+                                        contentDescription = stringResource(R.string.contact_management_swap_source_destination),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(Modifier.width(4.dp))
@@ -544,7 +544,7 @@ fun ContactManagementScreen(
                                 if (selectedSourceStorage == selectedDestStorage) {
                                     scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.contact_management_same_source_dest)) }
                                 } else if (sourceContacts.isEmpty()) {
-                                    scope.launch { snackbarHostState.showSnackbar("No contacts found in ${selectedSourceStorage.displayName}") }
+                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.contact_management_no_contacts, selectedSourceStorage.displayName)) }
                                 } else {
                                     showMoveSelectionDialog = true
                                 }
@@ -563,7 +563,7 @@ fun ContactManagementScreen(
                                 if (selectedSourceStorage == selectedDestStorage) {
                                     scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.contact_management_same_source_dest)) }
                                 } else if (sourceContacts.isEmpty()) {
-                                    scope.launch { snackbarHostState.showSnackbar("No contacts found in ${selectedSourceStorage.displayName}") }
+                                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.contact_management_no_contacts, selectedSourceStorage.displayName)) }
                                 } else {
                                     showMoveAllConfirmDialog = true
                                 }
@@ -885,7 +885,7 @@ fun DuplicateGroupItem(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_dismiss), modifier = Modifier.size(18.dp))
                     }
                     FilledTonalButton(
                         onClick = onMerge,
@@ -1045,7 +1045,7 @@ fun StorageTargetCard(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Storage",
+                            contentDescription = stringResource(R.string.contact_management_select_storage),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
@@ -1129,7 +1129,7 @@ fun MoveContactsSelectionDialog(
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close))
                     }
                 }
 
@@ -1139,7 +1139,7 @@ fun MoveContactsSelectionDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search contacts") },
+                    placeholder = { Text(stringResource(R.string.contact_management_search_contacts)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -1221,7 +1221,7 @@ fun MoveContactsSelectionDialog(
                         enabled = selectedIds.isNotEmpty(),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Move (${selectedIds.size})")
+                        Text(stringResource(R.string.contact_management_move_count, selectedIds.size))
                     }
                 }
             }

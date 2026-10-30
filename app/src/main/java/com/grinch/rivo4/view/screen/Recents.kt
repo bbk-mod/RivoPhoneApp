@@ -271,7 +271,7 @@ fun RecentScreenContent(
                 addToContactNumber = null
                 navigator.navigate(
                     ContactSelectionScreenDestination(
-                        title = "Add to Existing Contact",
+                        title = context.getString(R.string.action_add_existing_contact),
                         initialPhoneToAssign = targetPhone
                     )
                 )
@@ -1021,7 +1021,7 @@ fun CallLogFullContent(
                     fullContentAddToContactNumber = null
                     navigator.navigate(
                         ContactSelectionScreenDestination(
-                            title = "Add to Existing Contact",
+                            title = context.getString(R.string.action_add_existing_contact),
                             initialPhoneToAssign = targetPhone
                         )
                     )

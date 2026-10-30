@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.grinch.rivo4.R
 import com.grinch.rivo4.controller.util.PreferenceManager
 import org.koin.compose.koinInject
 
@@ -38,7 +40,7 @@ fun TipJarDialog(
 
     RivoDialog(
         onDismissRequest = onDismissRequest,
-        title = "Rivo Tip Jar",
+        title = stringResource(R.string.dialog_tip_jar_title),
         icon = Icons.Outlined.Favorite
     ) {
         Column(

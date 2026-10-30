@@ -2,9 +2,11 @@ package com.grinch.rivo4
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.Settings
 import android.util.Log
 
 import android.telecom.Call
@@ -101,6 +103,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        applySystemOrientationPolicy()
         intentState = intent
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -247,6 +250,24 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
+    private fun applySystemOrientationPolicy() {
+        val rotationEnabled = try {
+            Settings.System.getInt(
+                contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                1
+            ) != 0
+        } catch (_: SecurityException) {
+            true
+        }
+
+        requestedOrientation = if (rotationEnabled) {
+            ActivityInfo.SCREEN_ORIENTATION_USER
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_LOCKED
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         AppLockManager.onAppForegrounded(preferenceManager)
@@ -378,7 +399,7 @@ open class MainActivity : androidx.fragment.app.FragmentActivity() {
                 val phone = intent.getStringExtra(ContactsContract.Intents.Insert.PHONE)
                 navController.navigate(
                     ContactSelectionScreenDestination(
-                        title = "Add to Existing Contact",
+                        title = getString(R.string.action_add_existing_contact),
                         initialPhoneToAssign = phone
                     ).route
                 )
