@@ -55,6 +55,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -74,6 +77,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.grinch.rivo4.controller.util.areNumbersEqual
 import com.grinch.rivo4.modal.db.CallNoteDao
 import com.grinch.rivo4.modal.db.CallNoteEntity
 import com.grinch.rivo4.view.theme.LocalCardRoundness
@@ -81,6 +85,7 @@ import com.grinch.rivo4.view.theme.RivoShapeDefaults
 import com.grinch.rivo4.view.theme.rivoCornerDp
 import com.grinch.rivo4.view.theme.RivoMaterialShapes
 import com.grinch.rivo4.view.theme.rememberRivoMorphShape
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
@@ -93,6 +98,7 @@ fun CallNotesSheet(
     phoneNumber: String,
     contactName: String,
     onDismiss: () -> Unit,
+    phoneNumbers: List<String> = emptyList(),
     callNoteDao: CallNoteDao = koinInject()
 ) {
     val context = LocalContext.current
@@ -100,7 +106,17 @@ fun CallNotesSheet(
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    val notes by callNoteDao.getNotesForNumber(phoneNumber).collectAsState(initial = emptyList())
+    val allNotes by callNoteDao.getAllNotes().collectAsState(initial = emptyList())
+    val cleanPhone = phoneNumber.takeIf { it.isNotBlank() && it != "null" }
+    val cleanName = contactName.takeIf { it.isNotBlank() && it != "null" }
+    val notes = remember(allNotes, cleanPhone, phoneNumbers, cleanName) {
+        val targets = (phoneNumbers + listOfNotNull(cleanPhone)).filter { it.isNotBlank() }
+        allNotes.filter { note ->
+            (targets.isNotEmpty() && targets.any { areNumbersEqual(it, note.phoneNumber) }) ||
+            (cleanName != null && note.contactName?.equals(cleanName, ignoreCase = true) == true) ||
+            (targets.isEmpty() && cleanName == null && cleanPhone != null && note.phoneNumber == cleanPhone)
+        }
+    }
     var noteInput by remember { mutableStateOf("") }
     val dateFormat = remember { SimpleDateFormat("MMM d · HH:mm", Locale.getDefault()) }
 
@@ -231,10 +247,11 @@ fun CallNotesSheet(
                                 if (text.isNotEmpty()) {
                                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                     scope.launch {
+                                        val savePhone = cleanPhone ?: phoneNumbers.firstOrNull { it.isNotBlank() } ?: ""
                                         callNoteDao.insertNote(
                                             CallNoteEntity(
-                                                phoneNumber = phoneNumber,
-                                                contactName = contactName.ifBlank { null },
+                                                phoneNumber = savePhone,
+                                                contactName = cleanName,
                                                 note = text
                                             )
                                         )
@@ -392,17 +409,26 @@ fun AddCallNoteDialog(
     phoneNumber: String,
     contactName: String,
     onDismissRequest: () -> Unit,
+    title: String = stringResource(R.string.action_add_note),
     callNoteDao: CallNoteDao = koinInject()
 ) {
     val view = LocalView.current
     val scope = rememberCoroutineScope()
     var noteText by remember { mutableStateOf("") }
+    val cleanPhone = phoneNumber.takeIf { it.isNotBlank() && it != "null" }
+    val cleanName = contactName.takeIf { it.isNotBlank() && it != "null" }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        focusRequester.requestFocus()
+    }
 
     RivoDialog(
         onDismissRequest = onDismissRequest,
-        title = stringResource(R.string.dialog_add_call_note_title),
+        title = title,
         icon = Icons.AutoMirrored.Filled.Notes,
-        supportingText = if (contactName.isNotBlank()) "$contactName • $phoneNumber" else phoneNumber,
+        supportingText = null,
         confirmAction = RivoDialogAction(
             label = stringResource(R.string.action_save_note),
             enabled = noteText.isNotBlank(),
@@ -413,8 +439,8 @@ fun AddCallNoteDialog(
                     scope.launch {
                         callNoteDao.insertNote(
                             CallNoteEntity(
-                                phoneNumber = phoneNumber,
-                                contactName = contactName.ifBlank { null },
+                                phoneNumber = cleanPhone ?: "",
+                                contactName = cleanName,
                                 note = text
                             )
                         )
@@ -434,7 +460,7 @@ fun AddCallNoteDialog(
                 .padding(horizontal = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Text Input
+            // Text Input with clear border, background, and readable text
             OutlinedTextField(
                 value = noteText,
                 onValueChange = { noteText = it },
@@ -442,18 +468,27 @@ fun AddCallNoteDialog(
                     Text(
                         "Enter your note or callback reminder...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
-                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 22.sp
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
                 minLines = 3,
                 maxLines = 6,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.25f),
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
                 trailingIcon = {
                     if (noteText.isNotBlank()) {

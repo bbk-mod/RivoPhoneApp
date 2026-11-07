@@ -167,6 +167,7 @@ fun CallLogTileSimple(
     onCallClick: () -> Unit = {},
     selected: Boolean = false,
     showSim: Boolean = LocalCallLogTileConfig.current.showSim,
+    showDate: Boolean = true,
     swipeEnabled: Boolean = LocalCallLogTileConfig.current.swipeEnabled && !selected,
     swipeRightAction: SwipeActionType = LocalCallLogTileConfig.current.swipeRightAction,
     swipeLeftAction: SwipeActionType = LocalCallLogTileConfig.current.swipeLeftAction,
@@ -228,11 +229,11 @@ fun CallLogTileSimple(
         else -> stringResource(R.string.action_call)
     }
 
-    val supportingText = remember(log.date, log.duration, callTypeLabel) {
+    val supportingText = remember(log.date, log.duration, callTypeLabel, showDate) {
         buildString {
             append(callTypeLabel)
             append(" • ")
-            append(formatDate(context, log.date))
+            append(if (showDate) formatDate(context, log.date) else formatTime(context, log.date))
             if (log.duration > 0) {
                 append(" • ${android.text.format.DateUtils.formatElapsedTime(log.duration)}")
             }
@@ -434,8 +435,13 @@ fun CallLogTile(
     val headlineText = displayName
 
     val context = LocalContext.current
-    val timeText = remember(log.date) {
-        formatTime(context, log.date)
+    val timeText = remember(log.date, log.duration) {
+        val baseTime = formatTime(context, log.date)
+        if (log.duration > 0) {
+            "$baseTime • ${android.text.format.DateUtils.formatElapsedTime(log.duration)}"
+        } else {
+            baseTime
+        }
     }
     val resolvedSimNumber = log.simNumber ?: resolveSimNumber(log)
 

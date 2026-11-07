@@ -132,6 +132,8 @@
     <string name="content_desc_send">Sende</string>
     <string name="label_sms">SMS</string>
     <string name="action_add_note">Legg til notat</string>
+    <string name="contact_no_notes_title">Ingen notater ennå</string>
+    <string name="contact_no_notes_description">Legg til et notat eller en påminnelse for denne kontakten</string>
     <string name="call_notes_title">Notater om anrop</string>
     <string name="label_local_memory">Enhet</string>
     <string name="main_rate_google_play">Vurder den på Google Play</string>

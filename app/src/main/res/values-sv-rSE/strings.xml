@@ -132,6 +132,8 @@
     <string name="content_desc_send">Skicka</string>
     <string name="label_sms">SMS</string>
     <string name="action_add_note">Lägg till anteckning</string>
+    <string name="contact_no_notes_title">Inga anteckningar ännu</string>
+    <string name="contact_no_notes_description">Lägg till en anteckning eller påminnelse för denna kontakt</string>
     <string name="call_notes_title">Anteckningar för samtal</string>
     <string name="label_local_memory">Enhet</string>
     <string name="main_rate_google_play">Betygsätt på Google Play</string>
